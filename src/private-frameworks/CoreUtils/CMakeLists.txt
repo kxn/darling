@@ -23,6 +23,7 @@ add_framework(CoreUtils
 
 	SOURCES
 		src/CoreUtils.m
+		src/CryptoUtils.c
 		src/CAAnimationDelegateBlockHelper.m
 		src/CUAppleIDClient.m
 		src/CUAudioRequest.m
@@ -158,4 +159,5 @@ add_framework(CoreUtils
 		system
 		objc
 		Foundation
+		commonCrypto
 )

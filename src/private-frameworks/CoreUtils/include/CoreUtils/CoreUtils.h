@@ -21,6 +21,8 @@
 #ifndef _CoreUtils_H_
 #define _CoreUtils_H_
 
+#include "CryptoUtils.h"
+
 // according to mdns.c in mDNSResponder, it seems that this header is included by CoreUtils
 #include <nw/nw.h>
 
@@ -573,15 +575,15 @@ void* CryptoAEADDecryptMessage(void);
 void* CryptoAEADDecryptMessageOneShot(void);
 void* CryptoAEADEncryptMessage(void);
 void* CryptoAEADEncryptMessageOneShot(void);
-void* CryptoHKDF(void);
-void* CryptoHMACFinal(void);
-void* CryptoHMACInit(void);
-void* CryptoHMACOneShot(void);
-void* CryptoHMACUpdate(void);
-void* CryptoHashFinal(void);
-void* CryptoHashInit(void);
-void* CryptoHashOneShot(void);
-void* CryptoHashUpdate(void);
+
+
+
+
+
+
+
+
+
 void* CryptoRandomKey(void);
 void* Curve25519MakeKeyPair(void);
 void* DACPServer_AddRemote(void);

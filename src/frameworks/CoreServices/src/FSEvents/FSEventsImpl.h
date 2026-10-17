@@ -21,9 +21,11 @@
 #import <Foundation/NSArray.h>
 #import <Foundation/NSString.h>
 #import <Foundation/NSDictionary.h>
+#import <Foundation/NSLock.h>
 #include <CoreFoundation/CFBag.h>
 #include <FSEvents/FSEvents.h>
 #include <dispatch/dispatch.h>
+#include <pthread.h>
 
 @interface FSEventsImpl : NSObject
 {
@@ -44,10 +46,31 @@
 	NSMutableArray* _pathArray;
 	FSEventStreamEventFlags* _flagArray;
 	FSEventStreamEventId* _idArray;
+
+	// State and FD access are serialized separately from client callbacks.
+	dispatch_queue_t _stateQueue;
+	dispatch_source_t _timer;
+	CFTimeInterval _latency;
+	uint64_t _lastDispatchNS;
+	bool _sourceResumed;
+	bool _invalidated;
+	bool _timerArmed;
+	bool _delivering;
+	size_t _capacity;
+	NSUInteger _deliveryEpoch;
+	NSMutableArray* _deliveryBatches;
+	NSRecursiveLock* _callbackLock;
+	NSCondition* _deliveryCondition;
+	FSEventStreamEventId _lastCompletedID;
+	FSEventStreamEventId _lastInvokedID;
+	bool _deliveryInterrupted;
+	pthread_t _callbackThread;
+	unsigned _callbackDepth;
 }
 
 -(instancetype)initWithPaths:(NSArray*)pathsToWatch
 						flags:(FSEventStreamCreateFlags)flags
+                        latency:(CFTimeInterval)latency
 					context:(FSEventStreamContext*)context
 					callback:(FSEventStreamCallback)callback;
 -(NSArray*)copyPathsToWatch;
@@ -58,10 +81,12 @@
 -(void)unscheduleWithRunLoop:(CFRunLoopRef)rl
 					mode:(CFStringRef)rlMode;
 -(void)invalidate;
--(void)start;
+-(BOOL)start;
 -(void)stop;
 -(FSEventStreamEventId)lastEventID;
 -(void)_doCallback;
+-(FSEventStreamEventId)flushAsync;
+-(void)flushSync;
 
 @end
 

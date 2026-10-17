@@ -18,7 +18,6 @@
 */
 
 
-#include <CoreUtils/CoreUtils.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -2222,60 +2221,6 @@ void* CryptoAEADEncryptMessage(void)
 void* CryptoAEADEncryptMessageOneShot(void)
 {
     if (verbose) puts("STUB: CryptoAEADEncryptMessageOneShot called");
-    return NULL;
-}
-
-void* CryptoHKDF(void)
-{
-    if (verbose) puts("STUB: CryptoHKDF called");
-    return NULL;
-}
-
-void* CryptoHMACFinal(void)
-{
-    if (verbose) puts("STUB: CryptoHMACFinal called");
-    return NULL;
-}
-
-void* CryptoHMACInit(void)
-{
-    if (verbose) puts("STUB: CryptoHMACInit called");
-    return NULL;
-}
-
-void* CryptoHMACOneShot(void)
-{
-    if (verbose) puts("STUB: CryptoHMACOneShot called");
-    return NULL;
-}
-
-void* CryptoHMACUpdate(void)
-{
-    if (verbose) puts("STUB: CryptoHMACUpdate called");
-    return NULL;
-}
-
-void* CryptoHashFinal(void)
-{
-    if (verbose) puts("STUB: CryptoHashFinal called");
-    return NULL;
-}
-
-void* CryptoHashInit(void)
-{
-    if (verbose) puts("STUB: CryptoHashInit called");
-    return NULL;
-}
-
-void* CryptoHashOneShot(void)
-{
-    if (verbose) puts("STUB: CryptoHashOneShot called");
-    return NULL;
-}
-
-void* CryptoHashUpdate(void)
-{
-    if (verbose) puts("STUB: CryptoHashUpdate called");
     return NULL;
 }
 

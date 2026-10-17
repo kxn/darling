@@ -20,6 +20,7 @@
 #include "core.h"
 #include "internal.h"
 #include "helper.h"
+#include "service_stats.h"
 
 #include <TargetConditionals.h>
 #include <mach/mach.h>
@@ -84,6 +85,7 @@
 #include <libinfo.h>
 #include <os/assumes.h>
 #include <xpc/launchd.h>
+#include <xpc/private/service.h>
 #include <asl.h>
 #include <_simple.h>
 
@@ -540,6 +542,9 @@ struct job_s {
 	size_t quarantine_data_sz;
 #endif
 	pid_t p;
+	// A kill-and-kickstart reply is completed only after wait4 reaps the old
+	// process and job_start forks the replacement. Never block the event loop.
+	xpc_object_t service_kickstart_reply;
 	uint64_t uniqueid;
 	int last_exit_status;
 	int stdin_fd;
@@ -791,6 +796,7 @@ static job_t job_new_via_mach_init(job_t j, const char *cmd, uid_t uid, bool ond
 static job_t job_new_subjob(job_t j, uuid_t identifier);
 static void job_kill(job_t j);
 static void job_uncork_fork(job_t j);
+static void service_kickstart_complete(job_t j, int error);
 static void job_logv(job_t j, int pri, int err, const char *msg, va_list ap) __attribute__((format(printf, 4, 0)));
 static void job_log_error(job_t j, int pri, const char *msg, ...) __attribute__((format(printf, 3, 4)));
 static bool job_log_bug(_SIMPLE_STRING asl_message, void *ctx, const char *message);
@@ -1368,6 +1374,7 @@ job_remove(job_t j)
 	struct machservice *ms;
 	struct limititem *li;
 	struct envitem *ei;
+	service_kickstart_complete(j, ECANCELED);
 
 	if (j->alias) {
 		/* HACK: Egregious code duplication. But as with machservice_delete(),
@@ -3661,6 +3668,10 @@ job_reap(job_t j)
 					job_log(j, LOG_ERR, "Reap failed. Assuming job exited: %d: %s", errno, strerror(errno));
 					j->last_exit_status = W_EXITCODE(-1, SIGSEGV);
 				}
+				if (r > 0) {
+					launchd_service_stats_record_exit(j->label, j->start_time,
+						j->uniqueid, j->p, j->last_exit_status);
+				}
 
 				if (j->idle_exit && j->jettisoned) {
 					// Treat idle-exit jettisons as successful exit.
@@ -4428,6 +4439,7 @@ job_start(job_t j)
 	switch (c = runtime_fork(j->weird_bootstrap ? j->j_port : j->mgr->jm_port)) {
 	case -1:
 		job_log_error(j, LOG_ERR, "fork() failed, will try again in one second");
+		service_kickstart_complete(j, errno ? errno : EAGAIN);
 		(void)job_assumes_zero_p(j, kevent_mod((uintptr_t)j, EVFILT_TIMER, EV_ADD|EV_ONESHOT, NOTE_SECONDS, 1, j));
 		job_ignore(j);
 
@@ -4544,6 +4556,7 @@ job_start(job_t j)
 		if (likely(!j->stall_before_exec)) {
 			job_uncork_fork(j);
 		}
+		service_kickstart_complete(j, j->p ? 0 : ECHILD);
 		break;
 	}
 }
@@ -7986,7 +7999,7 @@ job_mig_create_server(job_t j, cmd_t server_cmd, uid_t server_uid, boolean_t on_
 	if (unlikely(argv == NULL)) {
 		return BOOTSTRAP_NO_MEMORY;
 	}
-	if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_PATH, argv[0]) > 0)) {
+	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_PATH, argv[0]) != 0)) {
 		free(argv);
 		return BOOTSTRAP_NOT_PRIVILEGED;
 	}
@@ -8039,7 +8052,7 @@ job_mig_send_signal(job_t j, mach_port_t srp, name_t targetlabel, int sig)
 	}
 
 #if HAVE_SANDBOX
-	if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_NONE) > 0)) {
+	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_NONE) != 0)) {
 		return BOOTSTRAP_NOT_PRIVILEGED;
 	}
 #endif
@@ -8387,7 +8400,7 @@ job_mig_swap_integer(job_t j, vproc_gsk_t inkey, vproc_gsk_t outkey, int64_t inv
 			kr = 1;
 		} else {
 #if HAVE_SANDBOX
-			if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_NONE) > 0)) {
+			if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_NONE) != 0)) {
 				kr = 1;
 			} else {
 				umask((mode_t) inval);
@@ -8681,7 +8694,7 @@ job_mig_getsocket(job_t j, name_t spr)
 
 #if HAVE_SANDBOX
 	struct ldcred *ldc = runtime_get_caller_creds(); 
-	if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_NONE) > 0)) {
+	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_NONE) != 0)) {
 		return BOOTSTRAP_NOT_PRIVILEGED;
 	}
 #endif
@@ -8861,7 +8874,7 @@ job_mig_lookup_per_user_context(job_t j, uid_t which_user, mach_port_t *up_cont)
 #endif
 
 #if HAVE_SANDBOX
-	if (unlikely(sandbox_check(ldc->pid, "mach-per-user-lookup", SANDBOX_FILTER_NONE) > 0)) {
+	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "mach-per-user-lookup", SANDBOX_FILTER_NONE) != 0)) {
 		return BOOTSTRAP_NOT_PRIVILEGED;
 	}
 #endif
@@ -8925,7 +8938,7 @@ job_mig_check_in2(job_t j, name_t servicename, mach_port_t *serviceportp, uuid_t
 			*serviceportp = MACH_PORT_NULL;
 
 #if HAVE_SANDBOX
-			if (unlikely(sandbox_check(ldc->pid, "mach-register", per_pid_service ? SANDBOX_FILTER_LOCAL_NAME : SANDBOX_FILTER_GLOBAL_NAME, servicename) > 0)) {
+			if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "mach-register", per_pid_service ? SANDBOX_FILTER_LOCAL_NAME : SANDBOX_FILTER_GLOBAL_NAME, servicename) != 0)) {
 				return BOOTSTRAP_NOT_PRIVILEGED;
 			}
 #endif
@@ -8989,7 +9002,7 @@ job_mig_register2(job_t j, name_t servicename, mach_port_t serviceport, uint64_t
 	job_log(j, LOG_DEBUG, "%sMach service registration attempt: %s", flags & BOOTSTRAP_PER_PID_SERVICE ? "Per PID " : "", servicename);
 
 #if HAVE_SANDBOX
-	if (unlikely(sandbox_check(ldc->pid, "mach-register", per_pid_service ? SANDBOX_FILTER_LOCAL_NAME : SANDBOX_FILTER_GLOBAL_NAME, servicename) > 0)) {
+	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "mach-register", per_pid_service ? SANDBOX_FILTER_LOCAL_NAME : SANDBOX_FILTER_GLOBAL_NAME, servicename) != 0)) {
 		return BOOTSTRAP_NOT_PRIVILEGED;
 	}
 #endif
@@ -9068,7 +9081,7 @@ job_mig_look_up2(job_t j, mach_port_t srp, name_t servicename, mach_port_t *serv
 	/* We don't do sandbox checking for XPC domains because, by definition, all
 	 * the services within your domain should be accessible to you.
 	 */
-	if (!xpc_req && unlikely(sandbox_check(ldc->pid, "mach-lookup", per_pid_lookup ? SANDBOX_FILTER_LOCAL_NAME : SANDBOX_FILTER_GLOBAL_NAME, servicename) > 0)) {
+	if (!xpc_req && unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "mach-lookup", per_pid_lookup ? SANDBOX_FILTER_LOCAL_NAME : SANDBOX_FILTER_GLOBAL_NAME, servicename) != 0)) {
 		return BOOTSTRAP_NOT_PRIVILEGED;
 	}
 #endif
@@ -9488,7 +9501,7 @@ job_mig_port_for_label(job_t j __attribute__((unused)), name_t label, mach_port_
 	kern_return_t kr = BOOTSTRAP_NOT_PRIVILEGED;
 
 #if HAVE_SANDBOX
-	if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_NONE) > 0)) {
+	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_NONE) != 0)) {
 		return BOOTSTRAP_NOT_PRIVILEGED;
 	}
 #endif
@@ -11425,6 +11438,102 @@ xpc_process_demux(mach_port_t p, xpc_object_t request, xpc_object_t *reply)
 	return true;
 }
 
+static void
+service_kickstart_complete(job_t j, int error)
+{
+	xpc_object_t reply = j->service_kickstart_reply;
+	if (!reply) return;
+	j->service_kickstart_reply = NULL;
+	xpc_dictionary_set_int64(reply, "error", error);
+	if (!error) xpc_dictionary_set_int64(reply, "pid", j->p);
+	(void)xpc_pipe_routine_reply(reply);
+	xpc_release(reply);
+}
+
+static jobmgr_t
+service_pid_domain(jobmgr_t root, pid_t pid)
+{
+	if (root->req_pid && root->req_pid == pid) return root;
+	jobmgr_t child;
+	SLIST_FOREACH(child, &root->submgrs, sle) {
+		jobmgr_t result = service_pid_domain(child, pid);
+		if (result) return result;
+	}
+	return NULL;
+}
+
+bool
+xpc_service_demux(mach_port_t port, xpc_object_t request, xpc_object_t *reply)
+{
+	(void)port;
+	// Modern service-control uses a different envelope from legacy process
+	// attach. Do not interpret its domain numbers as the old magic constants.
+	if (xpc_dictionary_get_uint64(request, "subsystem") != XPC_SERVICE_SUBSYSTEM) return false;
+	*reply = xpc_dictionary_create_reply(request);
+	if (!*reply) return true;
+	audit_token_t token;
+	xpc_dictionary_get_audit_token(request, &token);
+	runtime_record_caller_creds(&token);
+	struct ldcred *credentials = runtime_get_caller_creds();
+	int error = 0;
+	const char *name = xpc_dictionary_get_string(request, "name");
+	uint64_t type = xpc_dictionary_get_uint64(request, "type");
+	uint64_t handle = xpc_dictionary_get_uint64(request, "handle");
+	jobmgr_t manager = NULL;
+	job_t target = NULL;
+	if (!token.val[5] || token.val[5] == UINT32_MAX || credentials->euid != 0) error = EPERM;
+	else if (xpc_dictionary_get_uint64(request, "routine") != XPC_SERVICE_KICKSTART) error = ENOTSUP;
+	else if (!name || !*name || strlen(name) >= sizeof(name_t)
+		|| xpc_get_type(xpc_dictionary_get_value(request, "type")) != XPC_TYPE_UINT64
+		|| xpc_get_type(xpc_dictionary_get_value(request, "handle")) != XPC_TYPE_UINT64
+		|| xpc_get_type(xpc_dictionary_get_value(request, "unidomain")) != XPC_TYPE_BOOL
+		|| !xpc_dictionary_get_bool(request, "unidomain")
+		|| xpc_get_type(xpc_dictionary_get_value(request, "suspended")) != XPC_TYPE_BOOL
+		|| xpc_get_type(xpc_dictionary_get_value(request, "kill")) != XPC_TYPE_BOOL) error = EINVAL;
+	else if (type == 1 && handle == 0) manager = root_jobmgr;
+	else if (type == 5 && handle <= INT32_MAX) {
+		manager = service_pid_domain(root_jobmgr, handle ? (pid_t)handle : credentials->pid);
+		if (!manager) error = ESRCH;
+	} else error = ENOTSUP;
+	if (!error) {
+		target = job_find(manager, name);
+		if (!target) error = ESRCH;
+		else if (target->anonymous || target->alias) error = ENOTSUP;
+		else if (target->service_kickstart_reply) error = EBUSY;
+	}
+	if (!error) {
+		bool suspended = xpc_dictionary_get_bool(request, "suspended");
+		bool terminate = xpc_dictionary_get_bool(request, "kill");
+		if (target->p && terminate) {
+			// Real SIGKILL, followed by the existing NOTE_EXIT / wait4 path.
+			// Keeping the reply on the job also lets removal cancel the request.
+			if (kill2(target->p, SIGKILL)) error = errno;
+			else {
+				target->wait4debugger_oneshot = suspended;
+				target->start_pending = true;
+				target->unthrottle = true;
+				target->service_kickstart_reply = *reply;
+				*reply = NULL;
+				return true;
+			}
+		} else if (target->p) {
+			// Native kickstart returns an existing PID without changing its
+			// suspension state when kill is false, including flags == 1.
+			xpc_dictionary_set_int64(*reply, "pid", target->p);
+		} else {
+			target->wait4debugger_oneshot = suspended;
+			target->unthrottle = true;
+			job_t started = job_dispatch(target, true);
+			if (!started || !started->p) {
+				if (started) started->wait4debugger_oneshot = false;
+				error = EAGAIN;
+			} else xpc_dictionary_set_int64(*reply, "pid", started->p);
+		}
+	}
+	xpc_dictionary_set_int64(*reply, "error", error);
+	return true;
+}
+
 kern_return_t
 job_mig_kickstart(job_t j, name_t targetlabel, pid_t *out_pid, unsigned int flags)
 {
@@ -11450,7 +11559,7 @@ job_mig_kickstart(job_t j, name_t targetlabel, pid_t *out_pid, unsigned int flag
 	}
 
 #if HAVE_SANDBOX
-	if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_NONE) > 0)) {
+	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_NONE) != 0)) {
 		return BOOTSTRAP_NOT_PRIVILEGED;
 	}
 #endif
@@ -11490,7 +11599,7 @@ job_mig_spawn_internal(job_t j, vm_offset_t indata, mach_msg_type_number_t indat
 	}
 
 #if HAVE_SANDBOX
-	if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_NONE) > 0)) {
+	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_NONE) != 0)) {
 		return BOOTSTRAP_NOT_PRIVILEGED;
 	}
 #endif

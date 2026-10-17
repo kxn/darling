@@ -28,6 +28,7 @@ add_framework(LocalAuthentication
 	SOURCES
 		src/LACFSupport.c
 		src/LAContext.m
+		src/LAError.m
 		src/stubs.c
 
 	DEPENDENCIES

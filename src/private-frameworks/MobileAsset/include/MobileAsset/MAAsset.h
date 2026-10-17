@@ -42,19 +42,20 @@ typedef NS_ENUM(NSInteger, MADownLoadResult) {
 	MADownloadDaemonNotReady = -1, // errors are usually negative
 };
 
-// i'm not even sure if this is supposed to exist
+/* Values from the original Intel MobileAsset state table. */
 typedef NS_ENUM(NSInteger, MAAssetState) {
-	MAInstalled,
-	MAUnknown,
-	MADownloading,
-	MANotPresent,
-
-	MAInstalledOnly, // not sure if this one is like the others
+    MAUnknown = 0, MANotPresent = 1, MAInstalled = 2,
+    MAInstalledNotInCatalog = 3, MADownloading = 4,
+    MARequiredByOs = 5, MAInstalledWithOs = 6,
 };
 
 @interface MAAsset : NSObject
 
-@property () NSDictionary* attributes;
+- (instancetype)initWithAttributes:(NSDictionary*)attributes;
+@property (copy) NSDictionary* attributes;
+@property (readonly) NSString* assetType;
+@property (readonly) NSString* assetId;
+@property (readonly) NSString* purpose;
 @property () MAAssetState state;
 
 @end

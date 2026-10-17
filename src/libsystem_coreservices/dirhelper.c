@@ -3,9 +3,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <limits.h>
 #include "dirhelper_priv.h"
 
-static const char* dir_suffix = NULL;
+static char* dir_suffix = NULL;
 static pthread_mutex_t dir_suffix_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void _dirhelper_fork_child(void)
@@ -36,52 +39,58 @@ void _libcoreservices_fork_child(void)
 	//dir_suffix = NULL;
 }
 
+/* A successful directory query must name an existing directory. */
+static int ensure_directory(const char *path)
+{
+	struct stat st;
+	if (mkdir(path, 0700) != 0 && errno != EEXIST) return -1;
+	if (stat(path, &st) != 0) return -1;
+	if (!S_ISDIR(st.st_mode)) {errno = ENOTDIR; return -1;}
+	return 0;
+}
+
 char* _dirhelper(int which, char* p, size_t limit)
 {
+	if (!p || !limit || which < 0 || which > DIRHELPER_USER_LOCAL_LAST) {
+		errno = EINVAL; return NULL;
+	}
 	pthread_mutex_lock(&dir_suffix_lock);
-	switch (which)
-	{
-		case DIRHELPER_USER_LOCAL:
-		{
-			const char* home;
-
-			home = getenv("HOME");
-			if (home == NULL)
-				home = "";
-
-			snprintf(p, limit, "%s/%s%s", home, dir_suffix ? dir_suffix : "", dir_suffix ? "/" : "");
-		} break;
-		case DIRHELPER_USER_LOCAL_TEMP:
-		{
-			const char* tmp;
-
-			tmp = getenv("TMPDIR");
-			if (tmp == NULL)
-				tmp = "/tmp";
-
-			snprintf(p, limit, "%s/%s%s", tmp, dir_suffix ? dir_suffix : "", dir_suffix ? "/" : "");
-		} break;
-		case DIRHELPER_USER_LOCAL_CACHE:
-		{
-			const char* home;
-
-			home = getenv("HOME");
-			if (home != NULL)
-				snprintf(p, limit, "%s/.cache/%s%s", home, dir_suffix ? dir_suffix : "", dir_suffix ? "/" : "");
-			else
-				snprintf(p, limit, "/tmp/%s%s", dir_suffix ? dir_suffix : "", dir_suffix ? "/" : "");
-		} break;
-		default:
-			p = NULL;
+	const char *base = NULL, *home = getenv("HOME");
+	char cache[PATH_MAX];
+	int cache_length = 0, error = 0;
+	if (which == DIRHELPER_USER_LOCAL_TEMP) {
+		base = getenv("TMPDIR");
+		if (!base || !*base) base = "/tmp";
+	} else if (which == DIRHELPER_USER_LOCAL_CACHE) {
+		if (home && *home) {
+			cache_length = snprintf(cache, sizeof(cache), "%s/.cache", home);
+			base = cache;
+		} else base = "/tmp";
+	} else base = home && *home ? home : "";
+	if (cache_length < 0 || (size_t)cache_length >= sizeof(cache)) error = ENAMETOOLONG;
+	else {
+		int length = snprintf(p, limit, "%s/%s%s", base,
+			dir_suffix ? dir_suffix : "", dir_suffix ? "/" : "");
+		if (length < 0 || (size_t)length >= limit) error = ENAMETOOLONG;
+		/* Service clients use a single mkdir for the suffix. Prepare its cache
+			* base as well, including when the guest home has never had a cache. */
+		else if ((home && *home && which != DIRHELPER_USER_LOCAL_TEMP &&
+				ensure_directory(home) != 0) ||
+			(cache_length && ensure_directory(cache) != 0) ||
+			ensure_directory(p) != 0) error = errno;
 	}
 	pthread_mutex_unlock(&dir_suffix_lock);
+	if (error) {errno = error; return NULL;}
 	return p;
 }
 
-int _set_user_dir_suffix(const char* suffix) {
+int _set_user_dir_suffix(const char* suffix)
+{
+	char *copy = suffix ? strdup(suffix) : NULL;
+	if (suffix && !copy) return 0;
 	pthread_mutex_lock(&dir_suffix_lock);
-	dir_suffix = suffix;
+	free(dir_suffix);
+	dir_suffix = copy;
 	pthread_mutex_unlock(&dir_suffix_lock);
-	return 1; // weird, it's supposed to return non-zero on success (maybe it's actually a bool?)
-};
-
+	return 1;
+}

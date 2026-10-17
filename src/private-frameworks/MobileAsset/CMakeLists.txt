@@ -22,7 +22,9 @@ add_framework(MobileAsset
     VERSION ${FRAMEWORK_VERSION}
 
     SOURCES
+        src/ASAttributeConstants.m
         src/MobileAsset.m
+        src/Pallas.m
         src/MAProgressHandler.m
         src/MAAsset.m
         src/MAAssetQuery.m

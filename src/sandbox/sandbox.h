@@ -143,6 +143,12 @@ enum sandbox_filter_type {
 };
 
 extern const enum sandbox_filter_type SANDBOX_CHECK_NO_REPORT __attribute__((weak_import));
+extern const enum sandbox_filter_type SANDBOX_CHECK_CANONICAL __attribute__((weak_import));
+extern const enum sandbox_filter_type SANDBOX_CHECK_NOFOLLOW __attribute__((weak_import));
+extern const enum sandbox_filter_type SANDBOX_CHECK_NO_APPROVAL __attribute__((weak_import));
+extern const enum sandbox_filter_type SANDBOX_CHECK_ALLOW_APPROVAL __attribute__((weak_import));
+extern const enum sandbox_filter_type SANDBOX_CHECK_POSIX_READABLE __attribute__((weak_import));
+extern const enum sandbox_filter_type SANDBOX_CHECK_POSIX_WRITEABLE __attribute__((weak_import));
 
 enum sandbox_extension_flags {
 	FS_EXT_DEFAULTS =              0,

@@ -24,10 +24,15 @@
 #include <CoreFoundation/CoreFoundation.h>
 
 // I don't know what the actual keys values are...
-CFStringRef kMGQReleaseType = CFSTR("kMGQReleaseType");
+extern CFStringRef kMGQReleaseType;
 
 void* MGCancelNotifications(void);
-CFStringRef MGCopyAnswer(CFStringRef key, void* unknown);
+CFStringRef MGCopyAnswer(CFStringRef key, void* unknown) CF_RETURNS_RETAINED;
+#ifdef __OBJC__
+id MobileGestalt_copy_humanReadableProductVersionString_obj(void);
+#else
+CFTypeRef MobileGestalt_copy_humanReadableProductVersionString_obj(void) CF_RETURNS_NOT_RETAINED;
+#endif
 void* MGCopyAnswerWithError(void);
 void* MGCopyMultipleAnswers(void);
 void* MGGetBoolAnswer(void);

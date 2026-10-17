@@ -77,12 +77,6 @@ void* MACleanV1Repository(void)
     return NULL;
 }
 
-void* MAGetPallasAudience(void)
-{
-    if (verbose) puts("STUB: MAGetPallasAudience called");
-    return NULL;
-}
-
 void* MAMigrateAssets(void)
 {
     if (verbose) puts("STUB: MAMigrateAssets called");
@@ -98,18 +92,6 @@ void* MAPurgeAll(void)
 void* MASendRepairState(void)
 {
     if (verbose) puts("STUB: MASendRepairState called");
-    return NULL;
-}
-
-void* MASetPallasAudience(void)
-{
-    if (verbose) puts("STUB: MASetPallasAudience called");
-    return NULL;
-}
-
-void* MASetPallasUrl(void)
-{
-    if (verbose) puts("STUB: MASetPallasUrl called");
     return NULL;
 }
 
@@ -245,12 +227,6 @@ void* _MAsendGarbageCollect(void)
     return NULL;
 }
 
-void* _MAsendGetPallasAudience(void)
-{
-    if (verbose) puts("STUB: _MAsendGetPallasAudience called");
-    return NULL;
-}
-
 void* _MAsendPurgeAsset(void)
 {
     if (verbose) puts("STUB: _MAsendPurgeAsset called");
@@ -260,18 +236,6 @@ void* _MAsendPurgeAsset(void)
 void* _MAsendQueryMetaData(void)
 {
     if (verbose) puts("STUB: _MAsendQueryMetaData called");
-    return NULL;
-}
-
-void* _MAsendSetPallasAudience(void)
-{
-    if (verbose) puts("STUB: _MAsendSetPallasAudience called");
-    return NULL;
-}
-
-void* _MAsendSetPallasUrl(void)
-{
-    if (verbose) puts("STUB: _MAsendSetPallasUrl called");
     return NULL;
 }
 

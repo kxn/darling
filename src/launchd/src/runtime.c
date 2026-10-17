@@ -71,6 +71,7 @@
 #include "launch.h"
 #include "launchd.h"
 #include "core.h"
+#include "service_stats.h"
 #include "vproc.h"
 #include "vproc_priv.h"
 #include "vproc_internal.h"
@@ -1035,7 +1036,11 @@ launchd_runtime2(mach_msg_size_t msg_size)
 			launchd_syslog(LOG_DEBUG, "XPC request.");
 
 			xpc_object_t reply = NULL;
-			if (xpc_event_demux(recvp, request, &reply)) {
+			if (launchd_service_stats_demux(request, &reply)) {
+				handled = true;
+			} else if (xpc_service_demux(recvp, request, &reply)) {
+				handled = true;
+			} else if (xpc_event_demux(recvp, request, &reply)) {
 				handled = true;
 			} else if (xpc_process_demux(recvp, request, &reply)) {
 				handled = true;
@@ -1043,8 +1048,8 @@ launchd_runtime2(mach_msg_size_t msg_size)
 
 			if (!handled) {
 				launchd_syslog(LOG_DEBUG, "XPC routine could not be handled.");
-				xpc_release(request);
-				continue;
+				reply = xpc_dictionary_create_reply(request);
+				if (reply) xpc_dictionary_set_int64(reply, "error", ENOTSUP);
 			}
 
 			launchd_syslog(LOG_DEBUG, "XPC routine was handled.");

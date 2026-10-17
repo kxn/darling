@@ -19,16 +19,31 @@
 
 #import <MobileAsset/MAAsset.h>
 
-@implementation MAAsset
-
-- (NSMethodSignature *)methodSignatureForSelector:(SEL)aSelector
-{
-    return [NSMethodSignature signatureWithObjCTypes: "v@:"];
+@implementation MAAsset {
+    NSString* _assetType;
+    NSString* _assetId;
+    NSString* _purpose;
 }
-
-- (void)forwardInvocation:(NSInvocation *)anInvocation
+@synthesize attributes = _attributes, state = _state;
+@synthesize assetType = _assetType, assetId = _assetId, purpose = _purpose;
+- (instancetype)initWithAttributes:(NSDictionary*)record
 {
-    NSLog(@"Stub called: %@ in %@", NSStringFromSelector([anInvocation selector]), [self class]);
+    if (!(self = [super init])) return nil;
+    if (![record isKindOfClass:[NSDictionary class]]) { [self release]; return nil; }
+    id properties = [record objectForKey:@"AssetProperties"];
+    id added = [record objectForKey:@"AssetAddedProperties"];
+    if (![properties isKindOfClass:[NSDictionary class]] ||
+        (added && ![added isKindOfClass:[NSDictionary class]])) { [self release]; return nil; }
+    _attributes = [properties copy];
+    _purpose = [[properties objectForKey:@"AssetPurpose"] copy];
+    _state = [[added objectForKey:@"AssetState"] integerValue];
+    _assetType = [[added objectForKey:@"AssetType"] copy];
+    _assetId = [[added objectForKey:@"AssetId"] copy];
+    return self;
 }
-
+- (void)dealloc
+{
+    [_attributes release]; [_assetType release]; [_assetId release]; [_purpose release];
+    [super dealloc];
+}
 @end

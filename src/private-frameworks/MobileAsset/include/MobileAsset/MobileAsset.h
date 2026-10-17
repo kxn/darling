@@ -23,6 +23,11 @@
 
 #import <Foundation/Foundation.h>
 
+extern NSString *const ASAttributeDownloadSize;
+extern NSString *const ASAttributeUnarchivedSize;
+#include <stdbool.h>
+#include <stdint.h>
+
 #import <MobileAsset/MAProgressHandler.h>
 #import <MobileAsset/MAAsset.h>
 #import <MobileAsset/MAAssetQuery.h>
@@ -44,12 +49,19 @@ void* ASSetAssetServerURLForAssetType(void);
 void* ASSetDefaultAssetServerURLForAssetType(void);
 void* ASSetLogLevel(void);
 void* MACleanV1Repository(void);
-void* MAGetPallasAudience(void);
+NSString* MAGetPallasAudience(NSString* assetType);
+int64_t MAGetPallasEnabled(NSString* assetType, bool* enabled);
+int64_t _MAsendGetPallasEnabled(NSString* assetType, bool* enabled);
+int64_t MASetPallasEnabled(NSString* assetType, BOOL enabled);
+int64_t _MAsendSetPallasEnabled(NSString* assetType, bool enabled);
+int64_t MASetPallasAudienceForType(NSString* audience, NSString* assetType);
+int64_t MASetPallasUrlForType(NSURL* url, NSString* assetType);
+int64_t _MAsendSetPallasUrlForType(NSURL* url, NSString* assetType);
 void* MAMigrateAssets(void);
 void* MAPurgeAll(void);
 void* MASendRepairState(void);
-void* MASetPallasAudience(void);
-void* MASetPallasUrl(void);
+int64_t MASetPallasAudience(NSString* audience);
+int64_t MASetPallasUrl(NSURL* url);
 void* MASetServerUrlOverride(void);
 void* MobileAssetQueryCreate(void);
 void* MobileAssetQueryCreateArrayOfKnownAssets(void);
@@ -72,11 +84,11 @@ void* _MAsendDownloadAsset(void);
 void* _MAsendDownloadMetaData(void);
 void* _MAsendDumpClientAccess(void);
 void* _MAsendGarbageCollect(void);
-void* _MAsendGetPallasAudience(void);
+NSString* _MAsendGetPallasAudience(NSString* assetType);
 void* _MAsendPurgeAsset(void);
 void* _MAsendQueryMetaData(void);
-void* _MAsendSetPallasAudience(void);
-void* _MAsendSetPallasUrl(void);
+int64_t _MAsendSetPallasAudience(NSString* audience, NSString* assetType);
+int64_t _MAsendSetPallasUrl(NSURL* url);
 void* _MAsendUpdateClientAccess(void);
 void* _MobileAssetGarbageCollectionBehaviorForAttributes(void);
 void* _MobileAssetLog(void);

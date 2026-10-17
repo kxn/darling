@@ -8,5 +8,5 @@ add_darling_library(MobileGestalt SHARED
     src/MobileGestalt.m
 )
 make_fat(MobileGestalt)
-target_link_libraries(MobileGestalt system objc Foundation)
+target_link_libraries(MobileGestalt system objc Foundation CoreFoundation)
 install(TARGETS MobileGestalt DESTINATION libexec/darling/usr/lib)

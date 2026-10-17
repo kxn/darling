@@ -33,6 +33,7 @@ FSEventStreamRef FSEventStreamCreate(
 {
 	return (FSEventStreamRef) [[FSEventsImpl alloc] initWithPaths: (NSArray*)pathsToWatch
 									flags: flags
+                                    latency: latency
 									context: context
 									callback: callback];
 }
@@ -90,8 +91,7 @@ void FSEventStreamSetDispatchQueue(FSEventStreamRef streamRef, dispatch_queue_t 
 
 Boolean FSEventStreamStart(FSEventStreamRef streamRef)
 {
-	[((FSEventsImpl*) streamRef) start];
-	return TRUE;
+	return [((FSEventsImpl*) streamRef) start];
 }
 
 void FSEventStreamStop(FSEventStreamRef streamRef)
@@ -103,4 +103,14 @@ void FSEventStreamUnscheduleFromRunLoop(FSEventStreamRef streamRef, CFRunLoopRef
 {
 	[((FSEventsImpl*) streamRef) unscheduleWithRunLoop: runLoop
 												mode: runLoopMode];
+}
+
+FSEventStreamEventId FSEventStreamFlushAsync(FSEventStreamRef streamRef)
+{
+    return [((FSEventsImpl*) streamRef) flushAsync];
+}
+
+void FSEventStreamFlushSync(FSEventStreamRef streamRef)
+{
+    [((FSEventsImpl*) streamRef) flushSync];
 }

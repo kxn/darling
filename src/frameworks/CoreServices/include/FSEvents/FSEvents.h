@@ -126,6 +126,10 @@ extern void FSEventStreamSetDispatchQueue(FSEventStreamRef streamRef, dispatch_q
 
 extern Boolean FSEventStreamStart(FSEventStreamRef streamRef);
 
+extern FSEventStreamEventId FSEventStreamFlushAsync(FSEventStreamRef streamRef);
+
+extern void FSEventStreamFlushSync(FSEventStreamRef streamRef);
+
 extern void FSEventStreamStop(FSEventStreamRef streamRef);
 
 #endif

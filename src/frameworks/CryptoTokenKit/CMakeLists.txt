@@ -27,6 +27,8 @@ add_framework(CryptoTokenKit
 	VERSION ${FRAMEWORK_VERSION}
 
 	SOURCES
+		src/TKError.m
+		src/TKClientTokenParameters.m
 		src/ctkclient.c
 		src/ctkclient_test.c
 		src/ctkloginhelper.c
@@ -34,4 +36,5 @@ add_framework(CryptoTokenKit
 	DEPENDENCIES
 		system
 		CoreFoundation
+		Foundation
 )

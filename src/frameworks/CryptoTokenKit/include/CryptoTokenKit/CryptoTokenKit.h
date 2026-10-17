@@ -1,4 +1,5 @@
 #import <CryptoTokenKit/TKError.h>
+#import <CryptoTokenKit/TKClientTokenParameters.h>
 #import <CryptoTokenKit/TKSmartCard.h>
 #import <CryptoTokenKit/TKSmartCardATR.h>
 #import <CryptoTokenKit/TKSmartCardToken.h>

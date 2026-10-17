@@ -24,17 +24,41 @@
 // seems to be implicitly depended on by `OTATrustUtilities.m` in Security
 #import <MobileAsset/ASAssetQuery.h>
 
-// really not sure if this is an enum
+/* Values and method ABI verified against the original Intel framework. */
 typedef NS_ENUM(NSInteger, MAQueryResult) {
-	MAQuerySuccessful = 0,
+    MAQuerySuccessful = 0, MAQueryXpcError = 1, MAQueryCatalogNotDownloaded = 2,
+    MAQueryFailed = 3, MAQueryDaemonExit = 4, MAQueryNotEntitled = 5,
+    MAQueryCannotCreateMessage = 6, MAQueryNilAssetType = 7,
+    MAQueryParamsEncodeFailure = 8, MAQueryBeforeFirstUnlock = 9,
+    MAQueryCouldNotEncodeResults = 10, MAQueryXpcLengthError = 11,
+    MAQueryUnknownResult = 12, MAQueryTooManyResults = 13, MAQueryHasAllowedDifferences = 14,
 };
-
+typedef NS_ENUM(NSInteger, MAQueryReturnTypes) {
+    MACatalogOnly = 0, MAInstalledOnly = 1, MAUnionOfCatalogInstalled = 2,
+    MAPreinstalledOnly = 3, MACatalogButNotInstalledOnly = 4,
+    MAStrictlyCatalogOnly = 5, MAStrictlyObsoleteOnly = 6,
+};
 @interface MAAssetQuery : NSObject
-
-- (MAQueryResult) queryMetaDataSync;
-
-// guessing it's readonly, since it wouldn't really make sense for clients to be able to
-// write results to a query
+- (instancetype)initWithType:(NSString*)assetType;
+- (instancetype)initWithType:(NSString*)assetType andPurpose:(NSString*)purpose;
+- (NSInteger)addKeyValuePair:(NSString*)key with:(NSString*)value;
+- (NSInteger)addKeyValueArray:(NSString*)key with:(NSArray*)values;
+- (NSInteger)addKeyValueNull:(NSString*)key;
+- (void)returnTypes:(MAQueryReturnTypes)types;
+- (MAQueryReturnTypes)returnTypes;
+- (MAQueryResult)queryMetaDataSync;
+- (void)queryMetaData:(void (^)(MAQueryResult result))completion;
+- (void)queryMetaDataWithError:(void (^)(MAQueryResult result, NSError* error))completion;
+@property (readonly) NSString* assetType;
+@property (copy) NSString* purpose;
+@property (readonly) NSArray* queryParams;
 @property (readonly) NSArray<MAAsset*>* results;
-
+@property (readonly) NSSet<NSString*>* assetIds;
+@property (readonly) MAQueryResult resultCode;
+@property (readonly) BOOL isDone;
+@property BOOL doNotBlockBeforeFirstUnlock;
+@property BOOL doNotBlockOnNetworkStatus;
+@property (readonly) NSDate* postedDate;
+@property (readonly) NSDate* lastFetchDate;
+- (char)isCatalogFetchedFromLiveServer;
 @end

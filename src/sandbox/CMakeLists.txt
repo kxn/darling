@@ -1,9 +1,14 @@
 project(libsandbox)
 
 set(DYLIB_INSTALL_NAME "/usr/lib/system/libsystem_sandbox.dylib")
+set(sandbox_sources
+	sandbox.c
+	check.c
+	extension.c
+)
 add_circular(system_sandbox FAT
 	SOURCES
-	sandbox.c
+	${sandbox_sources}
 
 	SIBLINGS
 		system_dyld

@@ -21,6 +21,53 @@
 #include <MobileGestalt/MobileGestalt.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
+#import <Foundation/NSObject.h>
+
+CFStringRef kMGQReleaseType = CFSTR("kMGQReleaseType");
+
+extern CFDictionaryRef _CFCopySystemVersionDictionary(void);
+extern CFDictionaryRef _CFCopySupplementalVersionDictionary(void) __attribute__((weak_import));
+extern bool _CFMZEnabled(void) __attribute__((weak_import));
+
+static CFStringRef copy_product_version(void)
+{
+    CFDictionaryRef dictionary = _CFCopySystemVersionDictionary();
+    if (!dictionary) return NULL;
+    CFStringRef key = _CFMZEnabled && _CFMZEnabled()
+        ? CFSTR("iOSSupportVersion") : CFSTR("ProductVersion");
+    CFTypeRef value = CFDictionaryGetValue(dictionary, key);
+    CFStringRef answer = value && CFGetTypeID(value) == CFStringGetTypeID()
+        ? (CFStringRef)CFRetain(value) : NULL;
+    CFRelease(dictionary);
+    return answer;
+}
+
+/* Follow the original Intel property's callback: ProductVersion from the
+ * normal system dictionary, optional ProductVersionExtra from CoreFoundation's
+ * supplemental dictionary, and exactly "%@ %@" when the extra value exists. */
+static CFStringRef copy_human_readable_product_version(void)
+{
+    CFStringRef version = copy_product_version();
+    if (!version) return NULL;
+    CFDictionaryRef dictionary = _CFCopySupplementalVersionDictionary
+        ? _CFCopySupplementalVersionDictionary() : _CFCopySystemVersionDictionary();
+    CFTypeRef extra = dictionary
+        ? CFDictionaryGetValue(dictionary, CFSTR("ProductVersionExtra")) : NULL;
+    CFStringRef answer = extra
+        ? CFStringCreateWithFormat(kCFAllocatorDefault, NULL, CFSTR("%@ %@"), version, extra)
+        : (CFStringRef)CFRetain(version);
+    if (dictionary) CFRelease(dictionary);
+    CFRelease(version);
+    return answer;
+}
+
+id MobileGestalt_copy_humanReadableProductVersionString_obj(void)
+{
+    /* The native wrapper tail-calls objc_autoreleaseReturnValue, despite the
+     * generated C symbol containing "copy". Do not return an extra retain. */
+    return [(id)copy_human_readable_product_version() autorelease];
+}
 
 static int verbose = 0;
 
@@ -37,8 +84,14 @@ void* MGCancelNotifications(void)
 
 CFStringRef MGCopyAnswer(CFStringRef key, void* unknown)
 {
-    if (verbose) puts("STUB: MGCopyAnswer called");
-    return nil;
+    if (!key || CFGetTypeID(key) != CFStringGetTypeID()) { errno = EINVAL; return NULL; }
+    if (CFEqual(key, CFSTR("ProductVersion")) || CFEqual(key, CFSTR("qNNddlUK+B/YlooNoymwgA")))
+        return copy_product_version();
+    if (CFEqual(key, CFSTR("HumanReadableProductVersionString")) || CFEqual(key, CFSTR("ToLFRidm+eJGWnpw6W4Wwg")))
+        return copy_human_readable_product_version();
+    if (verbose) puts("UNSUPPORTED: MGCopyAnswer key");
+    errno = ENOTSUP;
+    return NULL;
 }
 
 void* MGCopyAnswerWithError(void)

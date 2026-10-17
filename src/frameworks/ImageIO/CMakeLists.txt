@@ -20,6 +20,7 @@ add_framework(ImageIO
     SOURCES
 	    src/CGImageDestination.m
 	    src/CGImageProperties.m
+	    src/CGImageLegacyConstants.c
 	    src/CGImageSource.m
 
     DEPENDENCIES

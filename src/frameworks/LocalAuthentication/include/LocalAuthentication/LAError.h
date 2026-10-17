@@ -1,6 +1,8 @@
 #import <Foundation/Foundation.h>
 #import <LocalAuthentication/LAPublicDefines.h>
 
+extern NSString *const LAErrorDomain;
+
 typedef NS_ENUM(NSInteger, LAError)
 {
     LAErrorAuthenticationFailed = kLAErrorAuthenticationFailed,

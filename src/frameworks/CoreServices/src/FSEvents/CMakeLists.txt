@@ -28,3 +28,6 @@ target_link_libraries(fseventsd system Foundation CarbonCore)
 
 install(TARGETS fseventsd DESTINATION libexec/darling/usr/sbin)
 install(CODE "execute_process(COMMAND ${SETCAP_EXECUTABLE} \"cap_sys_admin+ep\" \"${CMAKE_INSTALL_PREFIX}/libexec/darling/usr/sbin/fseventsd\")")
+
+# Weak source/run-loop contexts avoid retaining the stream in its own sources.
+set_property(SOURCE FSEventsImpl.m APPEND_STRING PROPERTY COMPILE_FLAGS " -fobjc-weak")

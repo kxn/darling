@@ -4,14 +4,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include <errno.h>
 
 // DUMMY implementation
-const enum sandbox_filter_type SANDBOX_CHECK_NO_REPORT = SANDBOX_FILTER_NONE;
 
 int sandbox_init(const char *profile, uint64_t flags, char **errorbuf)
 {
-	*errorbuf = strdup("Not implemented");
-	return 0;
+	if (errorbuf) *errorbuf = strdup("Sandbox profiles are not implemented");
+	errno = ENOTSUP;
+	return -1;
 }
 
 const char kSBXProfileNoInternet[] = "no_internet";
@@ -24,22 +25,22 @@ const char kSBXProfileNoWriteExceptTemporary[] = "no_write_except_temporary";
 
 const char kSBXProfilePureComputation[] = "pure_computation";
 
-const char APP_SANDBOX_IOKIT_CLIENT[] = "com.apple.app-sandbox.iokit-client";
-const char APP_SANDBOX_MACH[] = "com.apple.app-sandbox.mach";
-const char APP_SANDBOX_READ[] = "com.apple.app-sandbox.read";
-const char APP_SANDBOX_READ_WRITE[] = "com.apple.app-sandbox.read-write";
+const char* const APP_SANDBOX_IOKIT_CLIENT = "com.apple.app-sandbox.iokit-client";
+const char* const APP_SANDBOX_MACH = "com.apple.app-sandbox.mach";
+const char* const APP_SANDBOX_READ = "com.apple.app-sandbox.read";
+const char* const APP_SANDBOX_READ_WRITE = "com.apple.app-sandbox.read-write";
 const char IOS_SANDBOX_APPLICATION_GROUP[] = "com.apple.sandbox.application-group";
 const char IOS_SANDBOX_CONTAINER[] = "com.apple.sandbox.container";
 
-// Assuming these are 64-bit only because at least one has a value
-// that can't be stored in a 32-bit integer.
+// These are uint32_t objects. Reading eight bytes in the native image joins
+// two neighboring constants; the old definitions incorrectly did that.
 #ifdef __LP64__
 
-const uint64_t SANDBOX_EXTENSION_CANONICAL = 0x0000001000000002;
-const uint64_t SANDBOX_EXTENSION_DEFAULT = 0x0000000400000000;
+const uint32_t SANDBOX_EXTENSION_CANONICAL = 2;
+const uint32_t SANDBOX_EXTENSION_DEFAULT = 0;
 const uint64_t SANDBOX_EXTENSION_MAGIC = 0x0000000000000001;
-const uint64_t SANDBOX_EXTENSION_NO_REPORT = 0x0000000100000010;
-const uint64_t SANDBOX_EXTENSION_PREFIXMATCH = 0x0000000200000004;
+const uint32_t SANDBOX_EXTENSION_NO_REPORT = 16;
+const uint32_t SANDBOX_EXTENSION_PREFIXMATCH = 4;
 const uint64_t SANDBOX_EXTENSION_UNRESOLVED = 0x0000000100000001;
 
 #endif
@@ -51,20 +52,18 @@ void sandbox_free_error(char *errorbuf)
 
 int sandbox_init_with_parameters(const char *profile, uint64_t flags, const char *const parameters[], char **errorbuf)
 {
-	*errorbuf = strdup("Not implemented");
-	return 0;
+	if (errorbuf) *errorbuf = strdup("Sandbox profiles are not implemented");
+	errno = ENOTSUP;
+	return -1;
 }
 
 int sandbox_init_with_extensions(const char *profile, uint64_t flags, const char *const extensions[], char **errorbuf)
 {
-	*errorbuf = strdup("Not implemented");
-	return 0;
+	if (errorbuf) *errorbuf = strdup("Sandbox profiles are not implemented");
+	errno = ENOTSUP;
+	return -1;
 }
 
-int sandbox_check(pid_t pid, const char *operation, enum sandbox_filter_type type, ...)
-{
-	return 0;
-}
 
 int sandbox_note(const char *note)
 {
@@ -147,11 +146,6 @@ int rootless_allows_task_for_pid(pid_t pid) {
 	return 1;
 }
 
-int sandbox_check_by_audit_token(audit_token_t tok, const char* operation, enum sandbox_filter_type filt, ...) {
-	// technically unimplemented
-	// just return 0 as an indiciation that whatever operation the caller asked about is allowed
-	return 0;
-};
 
 int rootless_check_trusted(const char* path) {
 	// also unimplemented

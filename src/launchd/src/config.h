@@ -15,7 +15,7 @@
 #define HAVE_RESPONSIBILITY 0
 #endif
 
-#if __has_include(<sandbox.h>) && !defined(DARLING)
+#if __has_include(<sandbox.h>)
 #define HAVE_SANDBOX 1
 #else
 #define HAVE_SANDBOX 0

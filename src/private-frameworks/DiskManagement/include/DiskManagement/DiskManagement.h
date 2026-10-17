@@ -21,6 +21,10 @@ void* DMLocalizedUserErrorString(void);
 void* DMUnlocalizedTechnicalErrorString(void);
 
 #import <Foundation/Foundation.h>
+
+// The pinned Intel implementation ignores arguments and returns nil.
+// This entry does not implement disk error translation or disk operations.
+FOUNDATION_EXPORT NSError *DMNSError(void);
 #import <DiskManagement/_DMListDA.h>
 #import <DiskManagement/_DMClaimDA.h>
 #import <DiskManagement/_DMWaitIdleDA.h>
