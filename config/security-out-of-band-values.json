@@ -1,0 +1,94 @@
+{
+  "source_commit": "db15acbe6a7f257a859ad9a3bb86097bfe0679d9",
+  "source_files": {
+    "OSX/sec/Security/SecItemFetchOutOfBand.m": "219a915e4ffd1e52d17ac1378e5a0fddc949ad4f2f0197eca1bd7c09e3bd6476",
+    "keychain/headers/SecItemFetchOutOfBandPriv.h": "af01d66d2f5f1ae2e59609e9105f75dbac845189f9194de1d911dc2e6d46c856"
+  },
+  "implementation_sha256": "952a572af88fc877e10eb0d356958a6de8b3e8fceeed5d0f055cd8949c78c424",
+  "header_sha256": "2f1b801a57ddf7c47b9b73c6131dce8b2c7dfa8ac2ad8ac0d0cdec36e0d16f3d",
+  "native_image": "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+  "native_sha256": "53bad77d92bf3df5d6f50630be2dc2fcdff7321acf3563e05c3598558fe0e8f6",
+  "classes": {
+    "CKKSCurrentItemQuery": {
+      "instance_size": 32,
+      "ivars": [
+        {
+          "name": "_identifier",
+          "offset": 8
+        },
+        {
+          "name": "_accessGroup",
+          "offset": 16
+        },
+        {
+          "name": "_zoneID",
+          "offset": 24
+        }
+      ]
+    },
+    "CKKSCurrentItemQueryResult": {
+      "instance_size": 40,
+      "ivars": [
+        {
+          "name": "_identifier",
+          "offset": 8
+        },
+        {
+          "name": "_accessGroup",
+          "offset": 16
+        },
+        {
+          "name": "_zoneID",
+          "offset": 24
+        },
+        {
+          "name": "_decryptedRecord",
+          "offset": 32
+        }
+      ]
+    },
+    "CKKSPCSIdentityQuery": {
+      "instance_size": 40,
+      "ivars": [
+        {
+          "name": "_serviceNumber",
+          "offset": 8
+        },
+        {
+          "name": "_accessGroup",
+          "offset": 16
+        },
+        {
+          "name": "_publicKey",
+          "offset": 24
+        },
+        {
+          "name": "_zoneID",
+          "offset": 32
+        }
+      ]
+    },
+    "CKKSPCSIdentityQueryResult": {
+      "instance_size": 40,
+      "ivars": [
+        {
+          "name": "_serviceNumber",
+          "offset": 8
+        },
+        {
+          "name": "_publicKey",
+          "offset": 16
+        },
+        {
+          "name": "_zoneID",
+          "offset": 24
+        },
+        {
+          "name": "_decryptedRecord",
+          "offset": 32
+        }
+      ]
+    }
+  },
+  "rpc_operations_implemented": false
+}

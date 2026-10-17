@@ -1,0 +1,78 @@
+{
+  "provider": "/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore",
+  "provider_sha256": "b6e47648862adba21bd3940dc2383ca467d8ca971537f1284b2cc66adfdd096d",
+  "native_getter": {
+    "address": "0x7ff80d2cde4c",
+    "length": 435,
+    "sha256": "60b9a52a2664bd6d04b27c2f9b52c6db232c894d7b5fbc4f998b7bed5cf8459f"
+  },
+  "oracle_callbacks": {
+    "lookup": "0x7ff80d0bc7f3",
+    "result": "0x7ff80d27575b"
+  },
+  "service_name": {
+    "address": "0x7ff80d440168",
+    "value": "com.apple.CARenderServer"
+  },
+  "darling_source_commit": "c8d38d16a9f613d300157bebbab2b9501bc0c274",
+  "backend": "runtime/rootfs/usr/libexec/darling/System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore",
+  "backend_sha256": "97e8448657ca4e78a51d69d53412df49b3645d50a1cedc84f16318f674248670",
+  "scope": "Darling QuartzCore source implementations of debug-option query/set and frame-counter client RPCs. No renderer, WindowServer, GPU or general QuartzCore compatibility. Bounded original-function oracle is test-only; lookup/status observation callbacks do not ship in the framework.",
+  "oracle_functions": [
+    {
+      "name": "query",
+      "address": "0x7ff80d2cde4c",
+      "length": 435,
+      "sha256": "60b9a52a2664bd6d04b27c2f9b52c6db232c894d7b5fbc4f998b7bed5cf8459f"
+    },
+    {
+      "name": "set_option",
+      "address": "0x7ff80d2cdfff",
+      "length": 417,
+      "sha256": "5a40a3c2ef7a616f6d022d1e6a2457ec5377c19c744b7c50aaac90d33cd1799c"
+    },
+    {
+      "name": "frame_counter",
+      "address": "0x7ff80d2cf919",
+      "length": 12,
+      "sha256": "359a526377cf0ac6939bc377e4f05c26f85e598e3e148ec7e4281aa0b643ae1b"
+    },
+    {
+      "name": "frame_counter_index",
+      "address": "0x7ff80d2cf925",
+      "length": 77,
+      "sha256": "58c9c9e1dfa73c45eddcaf57c42dbabf1fff94eaf65e014fa3d2ab69c812f5b3"
+    },
+    {
+      "name": "copy_statistics",
+      "address": "0x7ff80d2cf3a0",
+      "length": 257,
+      "sha256": "b61818055bf628bff21a383babe79010206816277bd92957386e3cb0fc6414b2"
+    },
+    {
+      "name": "statistics_index",
+      "address": "0x7ff80d2cf4a1",
+      "length": 84,
+      "sha256": "739161511c6fd02b10ff442d13e44ad2afca4599472526ea7b3c7dc4bcc4da96"
+    },
+    {
+      "name": "statistics_rpc",
+      "address": "0x7ff80d0e60be",
+      "length": 404,
+      "sha256": "fd3f1415b3c2afa7b952c96fc699700983a66270edddc4219879a9c70986434e",
+      "code_length": 393
+    },
+    {
+      "name": "number_value",
+      "address": "0x7ff80d0d4d44",
+      "length": 139,
+      "sha256": "251b187a8a936e6a95a2a71d8bdc379333884bb128895cf489b4906a5b3726cb",
+      "code_length": 138
+    }
+  ],
+  "frame_count_key": {
+    "address": "0x7ff840d55880",
+    "value": "kCADisplayFrameCount",
+    "sha256": "37419daac7b923ce4743186e87ba038aced24d67674f17e472fdb2ea16baa28e"
+  }
+}

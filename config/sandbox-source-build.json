@@ -1,0 +1,9 @@
+{
+  "baseline": "runtime/rootfs/usr/libexec/darling/usr/lib/system/libsystem_sandbox.dylib",
+  "baseline_sha256": "2ae06d50c8bb8598e2235e65205519f5e5fe49edece304a5c640e0bbae5c2c43",
+  "source_repositories": {
+    "vendor/darling": "60ba801decee7a00782f74f6be4c8ffb013f79ff",
+    "vendor/darling/src/external/libc": "5a38c8dabf9e76b39407c24bc13134e33e5594e6",
+    "vendor/darling/src/external/xnu": "fa29287aa2f0115271e091f1031f53c9e024005d"
+  }
+}

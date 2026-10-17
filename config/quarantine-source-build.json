@@ -1,0 +1,9 @@
+{
+  "source_repositories": {
+    "vendor/darling": "60ba801decee7a00782f74f6be4c8ffb013f79ff",
+    "vendor/darling/src/external/libc": "5a38c8dabf9e76b39407c24bc13134e33e5594e6",
+    "vendor/darling/src/external/libpthread": "f07f265bfbcf071c1adfc808de971e053ea5edc5"
+  },
+  "baseline": "runtime/rootfs/usr/libexec/darling/usr/lib/system/libquarantine.dylib",
+  "baseline_sha256": "d4540262e8a2aed64bd46d226704c77fd3a9aebc7e59ca4f0c9f513f8d9b9c86"
+}

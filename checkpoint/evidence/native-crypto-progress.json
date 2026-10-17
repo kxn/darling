@@ -1,0 +1,278 @@
+{
+  "checked_at": "2026-10-17T10:00:57.155778+00:00",
+  "goal_status": "active",
+  "complete": false,
+  "full_xcode_build_ready": false,
+  "signing_ready": false,
+  "default_entry_promoted": false,
+  "source_CoreCrypto_files": 56,
+  "source_CoreCrypto_old_exports_preserved": 402,
+  "native_invalid_null_preconditions_tested": false,
+  "native_error_output_zeroing_claimed": false,
+  "original_SDK_crypto_results": 11,
+  "actual_native_CFString_values_verified": 17,
+  "original_archive_payload_size": 65537,
+  "authenticated_decryption_and_tamper_checks": true,
+  "original_CommonCrypto_CoreUtils_cases": 852,
+  "CoreUtils_assertions": 13385084,
+  "original_xcode_build_status_marker": null,
+  "build_wrapper_exit_status": -9,
+  "actual_project_compilation_started": false,
+  "original_filecoordinationd_selected": true,
+  "original_filecoordinationd_functional": false,
+  "stock_Darling_filecoordination_protocol_matches_original": false,
+  "native_mount_enumeration_functional": false,
+  "real_BSD_mount_count": 10,
+  "original_FileIDTree_mount_count": 0,
+  "original_CF_mount_enumerator_result": 3,
+  "hardware_SecureEnclave_verified": false,
+  "LocalAuthentication_implemented": false,
+  "source_changes": "Real SHA3-224/256/384/512, Curve25519/Ed25519 backed by pinned no-C++-runtime BoringSSL in the source candidate; selected execution now uses matched complete original Apple CoreCrypto/CommonCrypto/CryptoKit/C bridge/CryptoTokenKit, unchanged cryptographic calls, with a leaf-only original typed-allocator fallback. Genuine native-valued Security/token/auth constants added in Darling source. Original Xcode binary unchanged.",
+  "source_runtime": {
+    "LINUXCODE_DARLING_SERVER": {
+      "path": "runtime/xpc-sent-message-source/darlingserver",
+      "sha256": "85a1f81617e5155ffeb967d75560d327564e5a0db69e759004f3e3c12f499cae"
+    },
+    "LINUXCODE_LIBXPC": {
+      "path": "runtime/xpc-sent-message-source/libxpc.dylib",
+      "sha256": "47206adcc6b5d48056d0f9561c4fa678a3f8b39755d372384d77bbe981ad1226"
+    },
+    "LINUXCODE_LAUNCHD": {
+      "path": "runtime/xpc-sent-message-source/launchd",
+      "sha256": "f8500434446bd490af768a1a0a051a0073a0330f65b9dae1170ea78838bf471f"
+    },
+    "LINUXCODE_LIBSYSTEM_KERNEL": {
+      "path": "runtime/xpc-sent-message-source/libsystem_kernel.dylib",
+      "sha256": "0d2d44bfe593b4c87b40c880b79628ca16e31daf4c63e54615b44520ca9f92d7"
+    },
+    "LINUXCODE_QUARANTINE": {
+      "path": "runtime/xpc-sent-message-source/libquarantine.dylib",
+      "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+    },
+    "LINUXCODE_SANDBOX": {
+      "path": "runtime/xpc-sent-message-source/libsystem_sandbox.dylib",
+      "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+    },
+    "LINUXCODE_LIBDYLD": {
+      "path": "runtime/xpc-sent-message-source/libdyld.dylib",
+      "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+    }
+  },
+  "selected_original_libraries": {
+    "corecrypto-original-native-v2": {
+      "exports": 1088,
+      "reconstruction_sha256": "b847b4972b13ee376131475fa0f34d887a65640a6684a363f112ad67ba99874e",
+      "typed_allocator_redirect": true
+    },
+    "commoncrypto-original-native": {
+      "exports": 245,
+      "reconstruction_sha256": "454ae356ee437b49b53b90cfbd293f665e583e0381c153831c5bb4fbe88e8ca6",
+      "typed_allocator_redirect": true
+    },
+    "cryptokit-native-original": {
+      "exports": 1823,
+      "reconstruction_sha256": "00695865db50b9c58a10c4c4c1f257337f1bb6ca5264bd7792a8c96f5b5d0160",
+      "typed_allocator_redirect": false
+    },
+    "cryptokit-cbridging-native-original": {
+      "exports": 29,
+      "reconstruction_sha256": "62c5092ea49d6658c02d6ef7c011345329c80153c1ef18c8dd2168c765631e47",
+      "typed_allocator_redirect": false
+    },
+    "crypto-token-kit-native-original": {
+      "exports": 207,
+      "reconstruction_sha256": "5e58a2222bce3cb17bacb38a907062a94483fad85dbd62969f1cd6557b6731d4",
+      "typed_allocator_redirect": false
+    },
+    "apple-archive-crypto-native": {
+      "exports": 232,
+      "reconstruction_sha256": "9c9820c845f2826355cbff79c40065e71b7dcb29aec3dbdc99791a868fee347d",
+      "typed_allocator_redirect": false
+    },
+    "swift-apple-archive-crypto-native": {
+      "exports": 909,
+      "reconstruction_sha256": "f1cc655dafe302d1a68e4deb5b7ef5ae520b1023d7e476fce9c043bd81bc9d44",
+      "typed_allocator_redirect": false
+    },
+    "swift-compression-archive-native": {
+      "exports": 70,
+      "reconstruction_sha256": "fd41ab3afa661c519d8943377676e51aff5efe087cfb0ffae27edb7cb1a5bd78",
+      "typed_allocator_redirect": false
+    },
+    "argument-parser-internal-native": {
+      "exports": 707,
+      "reconstruction_sha256": "05e761221ad0ca6a9c8ddbaf1eba9d3b52d8f4919bdaca4b9d9bda588cf64116",
+      "typed_allocator_redirect": false
+    }
+  },
+  "source_crypto_comparison_cases": {
+    "hkdf": 210,
+    "ctr": 81,
+    "sha3": 236,
+    "25519": 113
+  },
+  "native_crypto_comparison_cases": {
+    "hkdf": 210,
+    "ctr": 81,
+    "sha3": 236,
+    "25519": 113
+  },
+  "original_xcode_probes": {
+    "version": {
+      "report": "artifacts/xcode-service-runtime-nativecrypto-parser-hkdf-archive-sent-diskmanagement-dispatch-workqueue-cryptex-device-vfs-crypto-extended-mobile-generation-policy-expected-sandbox-typed-cloud-prefs-daemon-version.json",
+      "report_sha256": "f2eeba65701f1bf352bffef252d34524ab16e8fe0badd2af6b8919451503716f",
+      "wrapper_exit_status": 0,
+      "original_xcode_returned": true
+    },
+    "showsdks": {
+      "report": "artifacts/xcode-service-runtime-nativecrypto-parser-hkdf-archive-sent-diskmanagement-dispatch-workqueue-cryptex-device-vfs-crypto-extended-mobile-generation-policy-expected-sandbox-typed-cloud-prefs-daemon-showsdks.json",
+      "report_sha256": "8c83455f0077c053ac5baf254cd27028f547abeb132dd91f22ca42ca0f640138",
+      "wrapper_exit_status": 0,
+      "original_xcode_returned": true
+    },
+    "build": {
+      "report": "artifacts/xcode-service-runtime-coordination-nativecrypto-parser-hkdf-archive-sent-diskmanagement-dispatch-workqueue-cryptex-device-vfs-crypto-extended-mobile-generation-policy-expected-sandbox-typed-cloud-prefs-daemon-build.json",
+      "report_sha256": "dd01cbeb4206d84b64f42160ea9c01a82e03c2061307dede4af35bb4dc91311d",
+      "wrapper_exit_status": -9,
+      "original_xcode_returned": true
+    }
+  },
+  "original_CF_mount_enumerator_error": {
+    "domain": "NSCocoaErrorDomain",
+    "code": 256
+  },
+  "private_ABI_analysis": {
+    "legacy_Darling_CTR_offsets": {
+      "size": 0,
+      "block_size": 8,
+      "ecb_block_size": 16,
+      "init": 24,
+      "ctr": 32,
+      "setctr": 40,
+      "custom": 48
+    },
+    "current_native_CTR_offsets": {
+      "size": 0,
+      "block_size": 8,
+      "ecb_block_size": 16,
+      "init": 24,
+      "setctr": 32,
+      "ctr": 40,
+      "custom": 48
+    },
+    "primary_declaration_reference": "https://raw.githubusercontent.com/apple/corecrypto/main/ccmode/corecrypto/ccmode_impl.h",
+    "native_layout_probe": "logs/corecrypto-native-mode-layout.log",
+    "native_CTR_vectors_report": "artifacts/corecrypto-ctr-native-test.json",
+    "production_solution": "Select the matched complete original CommonCrypto library, so its private CoreCrypto callbacks use the original ABI. Test-only native struct view never changes runtime descriptors.",
+    "legacy_CoreCrypto_exports_absent_from_current_native": [
+      "_cc_muxp",
+      "_ccdh_compute_key",
+      "_ccdh_init_gp",
+      "_ccn_addmul1",
+      "_ccn_div_euclid",
+      "_ccn_mul",
+      "_ccn_mul1",
+      "_ccn_n",
+      "_ccn_random_bits",
+      "_ccn_set",
+      "_ccn_shift_left",
+      "_ccn_shift_right",
+      "_ccn_sub1",
+      "_ccn_zero_multi",
+      "_ccnistkdf_fb_hmac",
+      "_ccnistkdf_fb_hmac_fixed",
+      "_ccrsa_make_fips186_key",
+      "_ccrsa_verify_pss",
+      "_ccz_gcd",
+      "_ccz_invmod",
+      "_ccz_lcm",
+      "_ccz_lprint",
+      "_ccz_print",
+      "_ccz_sqr",
+      "_ccz_sqrmod",
+      "_cczp_init",
+      "_cczp_init_with_recip",
+      "_cczp_power"
+    ],
+    "legacy_private_ABI_complete": false,
+    "original_CodeSigning_verified": false
+  },
+  "current_candidate_runtime": {
+    "LINUXCODE_DARLING_SERVER": {
+      "path": "runtime/swb-swift-logging-normal/darlingserver",
+      "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+    },
+    "LINUXCODE_LIBXPC": {
+      "path": "runtime/swb-swift-logging-normal/libxpc.dylib",
+      "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+    },
+    "LINUXCODE_LAUNCHD": {
+      "path": "runtime/swb-swift-logging-normal/launchd",
+      "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+    },
+    "LINUXCODE_LIBSYSTEM_KERNEL": {
+      "path": "runtime/swb-swift-logging-normal/libsystem_kernel.dylib",
+      "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
+    },
+    "LINUXCODE_QUARANTINE": {
+      "path": "runtime/swb-swift-logging-normal/libquarantine.dylib",
+      "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+    },
+    "LINUXCODE_SANDBOX": {
+      "path": "runtime/swb-swift-logging-normal/libsystem_sandbox.dylib",
+      "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+    },
+    "LINUXCODE_LIBDYLD": {
+      "path": "runtime/swb-swift-logging-normal/libdyld.dylib",
+      "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+    }
+  },
+  "archives": {
+    "artifacts/archive-crypto-history/manifest.json": {
+      "sha256": "3b217d90115c9581e60d5ca690b58f688e8238ca10658f3460db155950686b0a",
+      "verified_files": 347
+    },
+    "artifacts/native-crypto-recorder-history/manifest.json": {
+      "sha256": "cd5294e12912ffc03ca4017c644c295d24a2bbf61030e19a73c34b170315857a",
+      "verified_files": 33
+    },
+    "artifacts/crypto-token-parameters-source-history/manifest.json": {
+      "sha256": "5eb0c69811da277b375256d7df92604fbb15c93e83b2c5c705040757c3ab3412",
+      "verified_files": 1
+    },
+    "artifacts/security-cryptokit-profile-history/manifest.json": {
+      "sha256": "a913a874850a6a1b33b55f6474e6353ae79de25cb6dbddcffb5b2ccfb6f0b11f",
+      "verified_files": 1
+    },
+    "artifacts/native-corecrypto-precondition-history/manifest.json": {
+      "sha256": "8f2a2a021f1648738ddc6973485b9bd6425108b43156e41c17e5bee0a4acf719",
+      "verified_files": 4
+    }
+  },
+  "next_work": [
+    "Restore the genuine FSEventsGetCurrentEventId API and CoreServices umbrella export path required by original clang-stat-cache. Audit its other FSEvents imports and cache invalidation/replay semantics against actual Linux events; do not disable the cache, return a fabricated event ID or change the original build arguments.",
+    "Retry unchanged XcodeSmoke through actual CompileC/link and verify the produced program. Preserve real build-service task execution and inspect child environment selection as needed. CoreSimulator service bootstrap and CreatedByBuildSystem xattr warnings remain unresolved.",
+    "Continue full Unity/CocoaPods, iOS/macOS archive, signing and export; complete restrictive Sandbox, startup volumes, actual RunningBoard monitoring and other recorded runtime gaps. Current original RSA verification is not a signing/keychain/provisioning completion claim.",
+    "Audit the 28 missing legacy CoreCrypto private exports when exercised; signing, hardware/authentication and complete Xcode compilation remain unverified."
+  ],
+  "latest_original_xcode_probes": {
+    "version": {
+      "report": "artifacts/xcode-service-runtime-swb-swift-logging-version-76aff2a5fc4a.json",
+      "sha256": "aebd762ddb4b9436fa46530cc7dd01360f56288ea4dce8a43c614187838b3236",
+      "exit_status": 0
+    },
+    "showsdks": {
+      "report": "artifacts/xcode-service-runtime-swb-swift-logging-showsdks-e15ef6cbe791.json",
+      "sha256": "c405c498ed9635080013c4375cf2e683e264e21bf09b5ab0e6d5717f2f899a70",
+      "exit_status": 0
+    }
+  },
+  "latest_original_project": {
+    "report": "artifacts/xcode-service-runtime-swb-swift-logging-diagnostic-build-7658d962f551.json",
+    "sha256": "ac8adf79f0f9ce38d79c2adb1e2dc04af05aaa8bda0e2d2ac487d2b6dbca45da",
+    "exit_status": 65,
+    "xcode_process_returned": true,
+    "UTI_preflight_verified": true
+  },
+  "checkpoint_note": "Selected fields from the local report, not a full artifact archive; see local-evidence-index.json."
+}

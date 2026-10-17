@@ -1,0 +1,15 @@
+{
+  "host_architecture": "x86_64",
+  "darling_dispatch_source_revision": "380f03c180b80d940134fb35783ddc714784a53a",
+  "darling_dispatch_sha256": "0b072fca6001452670a7c1946ad51930adfbef07a2077f403a7902fbd2980087",
+  "reference_dispatch_sha256": "f344ddc7084ed3ab18be205835738e0d007a3d14bf108be7ce58dba269978316",
+  "swift_abi_revision": "064859e41d68596f486c5d724401cb370f260409",
+  "queue_instance_size": 8,
+  "source_descriptor_size": 64,
+  "source_create_callback_offset": 32,
+  "inserted_class": "OS_dispatch_queue_serial_executor",
+  "inserted_parent": "OS_dispatch_queue",
+  "rewired_subclasses": [
+    "OS_dispatch_queue_serial"
+  ]
+}

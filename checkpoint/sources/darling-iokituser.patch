@@ -1,0 +1,59 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 76bf733..76997c9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -74,6 +74,7 @@ set(iokit_sources
+ 	IOCFURLAccess.c
+ 	IODataQueueClient.c
+ 	IOKitLib.c
++	IOMainPort.c
+ 	IOMIGMachPort.c
+ 	IOSystemConfiguration.c
+ 	#IOTrap.S # we don't need it and even if we did, our IOKit is in userspace, so we would have a define a custom `iokit_user_client_trap` function
+diff --git a/IOKitLib.c b/IOKitLib.c
+index 81ed8f7..5cf6acc 100644
+--- a/IOKitLib.c
++++ b/IOKitLib.c
+@@ -110,6 +110,7 @@ gIOKitLibSerializeOptions = kIOCFSerializeToBinary;
+ 
+ extern 	mach_port_t 	mach_task_self();
+ const 	mach_port_t 	kIOMasterPortDefault = MACH_PORT_NULL;
++const mach_port_t kIOMainPortDefault = MACH_PORT_NULL;
+ 
+ static mach_port_t
+ __IOGetDefaultMasterPort()
+diff --git a/IOKitLib.h b/IOKitLib.h
+index ffdf1f4..e0e0f3e 100644
+--- a/IOKitLib.h
++++ b/IOKitLib.h
+@@ -94,6 +94,16 @@ typedef void
+ 
+ /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ 
++/*! @const kIOMainPortDefault
++    @abstract The default port sentinel used to initiate IOKit communication.
++    @discussion MACH_PORT_NULL asks the existing backend to find its default port. */
++extern const mach_port_t kIOMainPortDefault;
++
++/*! @function IOMainPort
++    @abstract Returns the port used to initiate communication with IOKit.
++    @discussion Equivalent to IOMasterPort; retains its port ownership and errors. */
++kern_return_t IOMainPort(mach_port_t bootstrapPort, mach_port_t *mainPort);
++
+ /*! @const kIOMasterPortDefault
+     @abstract The default mach port used to initiate communication with IOKit.
+     @discussion When specifying a master port to IOKit functions, the NULL argument indicates "use the default". This is a synonym for NULL, if you'd rather use a named constant.
+diff --git a/IOMainPort.c b/IOMainPort.c
+new file mode 100644
+index 0000000..25bc13a
+--- /dev/null
++++ b/IOMainPort.c
+@@ -0,0 +1,8 @@
++#include <IOKit/IOKitLib.h>
++
++/* The native Intel implementation forwards directly to IOMasterPort. */
++kern_return_t
++IOMainPort(mach_port_t bootstrapPort, mach_port_t *mainPort)
++{
++    return IOMasterPort(bootstrapPort, mainPort);
++}

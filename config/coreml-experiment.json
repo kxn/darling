@@ -1,0 +1,184 @@
+{
+  "targets": [
+    {
+      "target": "coreml",
+      "swift_relative": true
+    },
+    {
+      "target": "mlcompute"
+    },
+    {
+      "target": "mil"
+    },
+    {
+      "target": "runningboardservices"
+    },
+    {
+      "target": "usermanagement"
+    },
+    {
+      "target": "baseboard"
+    },
+    {
+      "target": "mlassetio"
+    },
+    {
+      "target": "mpsgraph",
+      "swift_relative": true
+    },
+    {
+      "target": "collectionsinternal",
+      "swift_relative": true
+    },
+    {
+      "target": "anecompiler"
+    },
+    {
+      "target": "mobilekeybag"
+    },
+    {
+      "target": "perfdata"
+    },
+    {
+      "target": "applekeystore",
+      "swift_relative": true
+    },
+    {
+      "target": "swift-asn1-internal",
+      "swift_relative": true
+    },
+    {
+      "target": "apfs",
+      "analyze_code": true
+    },
+    {
+      "target": "swift-dispatch",
+      "swift_relative": true
+    },
+    {
+      "target": "swift-stdio"
+    },
+    {
+      "target": "swift-darwin-foundation2"
+    },
+    {
+      "target": "mps"
+    },
+    {
+      "target": "mpscore",
+      "swift_relative": false
+    },
+    {
+      "target": "mpsimage",
+      "swift_relative": false
+    },
+    {
+      "target": "mpsneuralnetwork",
+      "swift_relative": false
+    },
+    {
+      "target": "mpsmatrix",
+      "swift_relative": false
+    },
+    {
+      "target": "mpsrayintersector",
+      "swift_relative": false
+    },
+    {
+      "target": "mpsndarray",
+      "swift_relative": false
+    },
+    {
+      "target": "mpsfunctions",
+      "swift_relative": false
+    },
+    {
+      "target": "mpsbenchmarkloop",
+      "swift_relative": false
+    },
+    {
+      "target": "mpshost",
+      "swift_relative": false
+    },
+    {
+      "target": "aggregate-dictionary",
+      "swift_relative": false
+    },
+    {
+      "target": "ioaccel-memory-info",
+      "swift_relative": false
+    },
+    {
+      "target": "ioaccelerator",
+      "swift_relative": false
+    },
+    {
+      "target": "metal-tools",
+      "swift_relative": false
+    },
+    {
+      "target": "metal"
+    },
+    {
+      "target": "core-fs-cache"
+    },
+    {
+      "target": "core-services"
+    },
+    {
+      "target": "launch-services"
+    },
+    {
+      "target": "core-services-store"
+    },
+    {
+      "target": "espresso"
+    },
+    {
+      "target": "iosurface"
+    },
+    {
+      "target": "swift-accelerate",
+      "swift_relative": true
+    },
+    {
+      "target": "accelerate"
+    },
+    {
+      "target": "veclib"
+    },
+    {
+      "target": "vimage"
+    },
+    {
+      "target": "bnns"
+    },
+    {
+      "target": "vdsp"
+    },
+    {
+      "target": "odie",
+      "swift_relative": true
+    },
+    {
+      "target": "ml-model-asset",
+      "swift_relative": true
+    },
+    {
+      "target": "swift-metal",
+      "swift_relative": true
+    },
+    {
+      "target": "natural-language"
+    },
+    {
+      "target": "montreal"
+    },
+    {
+      "target": "metadata"
+    },
+    {
+      "target": "metadata-utilities"
+    }
+  ]
+}

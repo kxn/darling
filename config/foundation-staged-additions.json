@@ -1,0 +1,11 @@
+{
+  "provider": "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+  "provider_sha256": "37aa85f7da365c9c81244c8dc67c95362edef4dacf495db2fa7655840a254c7d",
+  "enum_case_literals": [
+    "_$s10Foundation3URLV13DirectoryHintO02isC0yA2EmFWC",
+    "_$s10Foundation3URLV13DirectoryHintO03notC0yA2EmFWC",
+    "_$s10Foundation3URLV13DirectoryHintO15checkFileSystemyA2EmFWC",
+    "_$s10Foundation3URLV13DirectoryHintO13inferFromPathyA2EmFWC"
+  ],
+  "scope": "Staged existing Foundation wrapper plus original four-byte Swift enum index, original recovered DirectoryHint enum metadata/value witnesses and reexport of validated float-number class. No URL operation implementation."
+}

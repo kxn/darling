@@ -1,0 +1,13 @@
+{
+  "darling_source": "vendor/darling",
+  "darling_commit": "60ba801decee7a00782f74f6be4c8ffb013f79ff",
+  "header_repositories": {
+    "vendor/darling/src/external/bsm": "bec0dd61bb07469d1fcb3985822d350abc9934f7",
+    "vendor/darling/src/external/Libinfo": "93d242ce3f86d1de67522279edb3a2dcb23f30c7"
+  },
+  "original_launchd": "runtime/rootfs/usr/libexec/darling/sbin/launchd",
+  "original_launchd_sha256": "972e2603b56839a309c423ce8679026a801756daa237b35c930b1b537441f2f5",
+  "native_reference": "runtime/launchd-native-recovery/macOS Base System/sbin/launchd",
+  "native_reference_sha256": "687c9472ec21bdb5e81ce57ceba4aeec531e26923abd5d545ae33ad38ac8b832",
+  "scope": "Complete launchd source/MIG build and selected launch-control service-exit statistics. No macOS boot, full record-extension or non-root entitlement support claim."
+}

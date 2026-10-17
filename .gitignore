@@ -1,0 +1,12 @@
+/downloads/
+/runtime/
+/vendor/
+/logs/
+/artifacts/
+__pycache__/
+*.pyc
+*.xip
+core.*
+/fixtures/CocoaPodsSmoke/Pods/
+/fixtures/CocoaPodsSmoke/*.xcworkspace/
+/fixtures/CocoaPodsSmoke/LocalSpecs/.git/

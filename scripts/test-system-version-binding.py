@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+from pathlib import Path
+from datetime import datetime,timezone
+import hashlib,json,runpy,subprocess
+root=Path(__file__).resolve().parent.parent;m=runpy.run_path(str(root/'scripts/system-version-runtime-profile.py'));p=m['profile']();digest=lambda n:hashlib.sha256((root/n).read_bytes()).hexdigest();folder=root/'runtime/system-version-tests';folder.mkdir(exist_ok=True);source='fixtures/hello/system-version-resource.m';binary=folder/'native';obj=folder/'native.o';sdk=root/'runtime/state/prefix/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk'
+subprocess.run(['clang-19','-target','x86_64-apple-macos14','-isysroot',str(sdk),'-c',str(root/source),'-o',str(obj)],check=True)
+subprocess.run(['ld64.lld-19','-arch','x86_64','-platform_version','macos','14','14','-syslibroot',str(sdk),'-framework','Foundation','-lSystem','-lobjc',str(obj),'-o',str(binary)],check=True)
+original='runtime/state/prefix/System/Library/CoreServices/SystemVersion.plist';before=digest(original);reference=next(iter(p['original_system_version']['original_resources']));command=p['command'][:-2]+['/Volumes/SystemRoot/workspace/'+str(binary.relative_to(root)),'/Volumes/SystemRoot/workspace/'+reference];command[3]='60'
+a=subprocess.run(command,env=m['environment'](p),capture_output=True,text=True);text=a.stdout+a.stderr;log='logs/system-version-binding-native.log';(root/log).write_text(text);assert digest(original)==before
+record=dict(checked_at=datetime.now(timezone.utc).isoformat(),source=source,source_sha256=digest(source),binary=str(binary.relative_to(root)),binary_sha256=digest(str(binary.relative_to(root))),command=command,source_runtime=p['source_runtime'],original_system_version=p['original_system_version'],unmodified_prefix_metadata=original,unmodified_prefix_metadata_sha256=before,log=log,log_sha256=digest(log),exit_status=a.returncode,verified=a.returncode==0 and 'ORIGINAL_REFERENCE_SYSTEM_VERSION_VISIBLE_IN_PRIVATE_OVERLAY_OK version=26.6.2 build=25G83' in text,host_is_still_Linux=True)
+(root/'artifacts/system-version-binding-test.json').write_text(json.dumps(record,indent=2)+'\n');print(text,flush=True);assert record['verified']

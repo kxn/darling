@@ -1,0 +1,22 @@
+{
+  "source_repositories": {
+    "vendor/darling": "60ba801decee7a00782f74f6be4c8ffb013f79ff",
+    "vendor/darling/src/external/libxpc": "394e033333d3c253a12f08a99090c113b0917d00",
+    "vendor/darling/src/external/corefoundation": "a3640a77410cf1825f7855172b1551ae7917c461",
+    "vendor/darling/src/external/corefoundation/submodules/swift-corelibs-foundation": "ea1ea0bb416025a8cc5a282df03c2e8f12788e2d",
+    "vendor/darling/src/external/libclosure": "b4122f19c89512d9e930259a85c5f2674eff2b2b",
+    "vendor/darling/src/external/cfnetwork": "e7e3db881008d883f82914765a72ce842bcba735",
+    "vendor/darling/src/external/cocotron": "c8d38d16a9f613d300157bebbab2b9501bc0c274",
+    "vendor/darling/src/external/IOKitUser": "534684e6748dffbd875c6cd1942477a52b66a077",
+    "vendor/darling/src/external/IOKitUser/darling/submodules/IOHIDFamily": "189e98e32092d5f5a2c365cc85fd36ac7da2d371",
+    "vendor/darling/src/external/IOKitUser/darling/submodules/IOGraphics": "905186151d713259296f3ae9458195a7097ea323",
+    "vendor/darling/src/external/bsm": "bec0dd61bb07469d1fcb3985822d350abc9934f7",
+    "vendor/darling/src/external/Libinfo": "93d242ce3f86d1de67522279edb3a2dcb23f30c7"
+  },
+  "base_libraries": {
+    "runtime/rootfs/usr/libexec/darling/usr/lib/system/libxpc.dylib": "955cd32cb3cc5292506bc1200233b843d537d924fd48eda91e4f4155555d196d",
+    "runtime/rootfs/usr/libexec/darling/usr/lib/libSystem.B.dylib": "9f223b1d97c85bc01dfc52e3a7133c4c126339c9a0171d680349c8dc7d53d988",
+    "runtime/rootfs/usr/libexec/darling/usr/lib/libobjc.A.dylib": "be403b8c3d55a1b9a3d589dc819c6495354a6685b66cfb44ad5856b55ccff016"
+  },
+  "scope": "Complete 39-file x86_64 Darling libxpc source build; original Xcode linker runs locally under the default Darling runtime to preserve upward Objective-C dependency and 112 selected launch reexports. Source library and server are explicitly selected in one private namespace, not installed as defaults."
+}

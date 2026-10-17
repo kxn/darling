@@ -1,0 +1,93 @@
+{
+  "checked_at": "2026-10-17T09:08:28.772724+00:00",
+  "goal_status": "active",
+  "complete": false,
+  "full_xcode_build_ready": false,
+  "signing_ready": false,
+  "default_entry_promoted": false,
+  "previous_goal_turn_classification": "progress",
+  "current_goal_turn_classification": "progress",
+  "source_libxpc_files": 39,
+  "source_kernel_files": 879,
+  "source_libxpc_exports_preserved": 630,
+  "source_libxpc_launch_reexports_preserved": 112,
+  "real_unknown_service_invalid_event_and_sync_async_errors_verified": true,
+  "explicit_cancel_errors_use_invalid_rather_than_interrupted": true,
+  "native_XPC_loopback_checkins": 16,
+  "native_XPC_reply_payloads": 256,
+  "native_connection_cancel_lifecycles": 33,
+  "native_connection_concurrent_readers": 8,
+  "native_shmem_lifecycles": 32,
+  "native_malformed_shmem_packets": 96,
+  "native_thread_materialization_checks": 1066,
+  "native_thread_materialization_updates": 512,
+  "native_thread_materialization_workers": 8,
+  "materialization_process_scope_supported": false,
+  "dataless_file_provider_implemented": false,
+  "materialization_ORIG_modifier_supported": false,
+  "original_filecoordinationd_granted_actual_Xcode_claims": 2,
+  "original_filecoordinationd_invoked_actual_Xcode_claims": 2,
+  "original_RunningBoard_service_available": false,
+  "original_RunningBoard_handshake_failure_handled": true,
+  "original_filecoordination_read_write_exclusion_fully_verified": false,
+  "original_Xcode_materialization_assertion_resolved": true,
+  "current_observed_failure": "Original Xcode passes real file-access arbitration and the thread materialization assertion. It now calls the Darling MAAssetQuery initWithType: stub; downloadedAssets(assetType:attributesQuery:) leaks its Swift continuation. No compiler steps have executed.",
+  "diagnostic_build_uses_explicit_permissive_coreservices_policy": true,
+  "strict_Sandbox_enforcement_verified": false,
+  "actual_project_compilation_started": false,
+  "source_runtime": {
+    "LINUXCODE_DARLING_SERVER": {
+      "path": "runtime/materialize-policy-normal/darlingserver",
+      "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+    },
+    "LINUXCODE_LIBXPC": {
+      "path": "runtime/materialize-policy-normal/libxpc.dylib",
+      "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+    },
+    "LINUXCODE_LAUNCHD": {
+      "path": "runtime/materialize-policy-normal/launchd",
+      "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+    },
+    "LINUXCODE_LIBSYSTEM_KERNEL": {
+      "path": "runtime/materialize-policy-normal/libsystem_kernel.dylib",
+      "sha256": "433141327e681e5307933567a5fec312097ace3465542b5a75884e2d7ef2087b"
+    },
+    "LINUXCODE_QUARANTINE": {
+      "path": "runtime/materialize-policy-normal/libquarantine.dylib",
+      "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+    },
+    "LINUXCODE_SANDBOX": {
+      "path": "runtime/materialize-policy-normal/libsystem_sandbox.dylib",
+      "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+    },
+    "LINUXCODE_LIBDYLD": {
+      "path": "runtime/materialize-policy-normal/libdyld.dylib",
+      "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+    }
+  },
+  "original_xcode_regressions": {
+    "version": {
+      "report": "artifacts/xcode-service-runtime-materialize-policy-version-da1f9303796c.json",
+      "sha256": "b6c9cb1218225e37a05c7393eb7fd878c36d9727002b594b17f83215250aab0a",
+      "exit_status": 0
+    },
+    "showsdks": {
+      "report": "artifacts/xcode-service-runtime-materialize-policy-showsdks-55e728beea3a.json",
+      "sha256": "e219c3fe62044d296dd4bd6787eb2ee2ad0c264f68700a468592bea6616ae050",
+      "exit_status": 0
+    }
+  },
+  "latest_original_project": {
+    "report": "artifacts/xcode-service-runtime-materialize-policy-diagnostic-build-b6f4ac906c91.json",
+    "sha256": "cfcdb0e30d03466cbe197b543e16cbf7a95f3b213f86062f7d6dec205292be12",
+    "exit_status": 1,
+    "UTI_preflight_verified": true,
+    "xcode_process_returned": false
+  },
+  "next_work": [
+    "Implement actual MobileAsset query construction, local catalog/results and correctly typed async completion/error delivery for the original downloadedAssets caller; do not fabricate asset availability or download success.",
+    "Retry the unchanged original project through actual compile/link, then Unity/CocoaPods, archive, signing and export. Add real coordinated read/write/exclusion coverage as FileCoordination is exercised.",
+    "Complete process-scoped/ORIG materialization policies and actual dataless-provider behavior if needed, real RunningBoard monitoring, startup media/volumes, restrictive Sandbox and other earlier gaps; current valid thread policy values are DEFAULT/OFF/ON only."
+  ],
+  "checkpoint_note": "Selected fields from the local report, not a full artifact archive; see local-evidence-index.json."
+}

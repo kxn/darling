@@ -1,0 +1,2232 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4920879..6054e17 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -110,6 +110,8 @@ add_executable(darlingserver
+ 	src/server.cpp
+ 	src/message.cpp
+ 	src/call.cpp
++	src/sandbox-policy.cpp
++	src/fsevents-device.cpp
+ 	src/registry.cpp
+ 	src/logging.cpp
+ 	src/process.cpp
+diff --git a/duct-tape/include/darlingserver/duct-tape.h b/duct-tape/include/darlingserver/duct-tape.h
+index a5ddfc7..bc055ab 100644
+--- a/duct-tape/include/darlingserver/duct-tape.h
++++ b/duct-tape/include/darlingserver/duct-tape.h
+@@ -52,6 +52,7 @@ typedef void (*dtape_kqchan_mach_port_notification_callback_f)(void* context);
+  * An @p nsid value of `0` indicates the task being created is the kernel task.
+  */
+ dtape_task_t* dtape_task_create(dtape_task_t* parent_task, uint32_t nsid, void* context, dserver_rpc_architecture_t architecture);
++void dtape_task_set_process_generation(dtape_task_t* task, dtape_eternal_id_t identity, uint32_t pid_version);
+ dtape_thread_t* dtape_thread_create(dtape_task_t* task, uint64_t nsid, void* context);
+ dtape_kqchan_mach_port_t* dtape_kqchan_mach_port_create(dtape_task_t* owning_task, uint32_t port, uint64_t receive_buffer, uint64_t receive_buffer_size, uint64_t saved_filter_flags, dtape_kqchan_mach_port_notification_callback_f notification_callback, void* context);
+ dtape_semaphore_t* dtape_semaphore_create(dtape_task_t* owning_task, int initial_value);
+diff --git a/duct-tape/include/darlingserver/duct-tape/hooks.h b/duct-tape/include/darlingserver/duct-tape/hooks.h
+index 1dde8b7..ffbc296 100644
+--- a/duct-tape/include/darlingserver/duct-tape/hooks.h
++++ b/duct-tape/include/darlingserver/duct-tape/hooks.h
+@@ -55,6 +55,7 @@ typedef dtape_task_t* (*dtape_hook_task_lookup_f)(int id, bool id_is_nsid, bool
+ typedef dtape_task_t* (*dtape_hook_task_lookup_eternal_f)(dtape_eternal_id_t eid, bool retain);
+ typedef void (*dtape_hook_task_get_memory_info_f)(void* task_context, dtape_memory_info_t* memory_info);
+ typedef bool (*dtape_hook_task_get_memory_region_info_f)(void* task_context, uintptr_t address, dtape_memory_region_info_t* memory_region_info);
++typedef bool (*dtape_hook_file_identity_f)(int fd, uint64_t* device, uint64_t* inode);
+ typedef uintptr_t (*dtape_hook_task_allocate_pages_f)(void* task_context, size_t page_count, int protection, uintptr_t address_hint, dtape_memory_flags_t flags);
+ typedef int (*dtape_hook_task_free_pages_f)(void* task_context, uintptr_t address, size_t page_count);
+ typedef uintptr_t (*dtape_hook_task_map_file_f)(void* task_context, int fd, size_t page_count, int protection, uintptr_t address_hint, size_t page_offset, dtape_memory_flags_t flags);
+@@ -106,6 +107,7 @@ typedef struct dtape_hooks {
+ 	dtape_hook_task_lookup_eternal_f task_lookup_eternal;
+ 	dtape_hook_task_get_memory_info_f task_get_memory_info;
+ 	dtape_hook_task_get_memory_region_info_f task_get_memory_region_info;
++	dtape_hook_file_identity_f file_identity;
+ 	dtape_hook_task_allocate_pages_f task_allocate_pages;
+ 	dtape_hook_task_free_pages_f task_free_pages;
+ 	dtape_hook_task_map_file_f task_map_file;
+diff --git a/duct-tape/include/darlingserver/duct-tape/types.h b/duct-tape/include/darlingserver/duct-tape/types.h
+index b53134d..eb212cb 100644
+--- a/duct-tape/include/darlingserver/duct-tape/types.h
++++ b/duct-tape/include/darlingserver/duct-tape/types.h
+@@ -47,6 +47,8 @@ typedef struct dtape_memory_region_info {
+ 	uintptr_t start_address;
+ 	uint64_t page_count;
+ 	uint64_t map_offset;
++	uint64_t file_device;
++	uint64_t file_inode;
+ 	dtape_memory_protection_t protection;
+ 	bool shared;
+ } dtape_memory_region_info_t;
+diff --git a/duct-tape/internal-include/darlingserver/duct-tape/memory.h b/duct-tape/internal-include/darlingserver/duct-tape/memory.h
+index d0a83c0..aceb88f 100644
+--- a/duct-tape/internal-include/darlingserver/duct-tape/memory.h
++++ b/duct-tape/internal-include/darlingserver/duct-tape/memory.h
+@@ -14,6 +14,8 @@ typedef struct dtape_map_shared_descriptor {
+ 	os_refcnt_t refcount;
+ 	int memfd;
+ 	uint64_t size;
++	uint64_t file_device;
++	uint64_t file_inode;
+ } dtape_map_shared_descriptor_t;
+ 
+ typedef struct dtape_map_shared_entry {
+diff --git a/duct-tape/internal-include/darlingserver/duct-tape/processor.h b/duct-tape/internal-include/darlingserver/duct-tape/processor.h
+index 92d4178..5ff32e4 100644
+--- a/duct-tape/internal-include/darlingserver/duct-tape/processor.h
++++ b/duct-tape/internal-include/darlingserver/duct-tape/processor.h
+@@ -1,6 +1,9 @@
+ #ifndef _DARLINGSERVER_DUCT_TAPE_PROCESOR_H_
+ #define _DARLINGSERVER_DUCT_TAPE_PROCESOR_H_
+ 
++#include <mach/machine.h>
++
+ void dtape_processor_init(void);
++cpu_subtype_t dtape_processor_cpu_subtype(void);
+ 
+ #endif // _DARLINGSERVER_DUCT_TAPE_PROCESOR_H_
+diff --git a/duct-tape/src/host.c b/duct-tape/src/host.c
+index a841dfd..826888c 100644
+--- a/duct-tape/src/host.c
++++ b/duct-tape/src/host.c
+@@ -1,4 +1,5 @@
+ #include <darlingserver/duct-tape/stubs.h>
++#include <darlingserver/duct-tape/processor.h>
+ 
+ #include <kern/host.h>
+ #include <mach_debug/mach_debug.h>
+@@ -61,7 +62,7 @@ kern_return_t host_info(host_t host, host_flavor_t flavor, host_info_t info, mac
+ #if __x86_64__ || __i386__
+ 			basic_info->cpu_type = CPU_TYPE_X86;
+ #if __x86_64__
+-			basic_info->cpu_subtype = CPU_SUBTYPE_X86_64_ALL;
++			basic_info->cpu_subtype = dtape_processor_cpu_subtype();
+ #else
+ 			basic_info->cpu_subtype = CPU_SUBTYPE_I386_ALL;
+ #endif
+@@ -133,7 +134,7 @@ kern_return_t host_info(host_t host, host_flavor_t flavor, host_info_t info, mac
+ #if __x86_64__ || __i386__
+ 			user_arch_info->cpu_type = CPU_TYPE_X86;
+ #if __x86_64__
+-			user_arch_info->cpu_subtype = CPU_SUBTYPE_X86_64_ALL;
++			user_arch_info->cpu_subtype = dtape_processor_cpu_subtype();
+ #else
+ 			user_arch_info->cpu_subtype = CPU_SUBTYPE_I386_ALL;
+ #endif
+diff --git a/duct-tape/src/memory.c b/duct-tape/src/memory.c
+index 3114947..2309cb6 100644
+--- a/duct-tape/src/memory.c
++++ b/duct-tape/src/memory.c
+@@ -8,6 +8,8 @@
+ #include <kern/zalloc.h>
+ #include <kern/kalloc.h>
+ #include <vm/vm_kern.h>
++#include <kern/ipc_kobject.h>
++#include <ipc/ipc_port.h>
+ 
+ #include <stdlib.h>
+ 
+@@ -37,6 +39,7 @@ int memfd_create(const char *name, unsigned int flags);
+ 
+ int close(int fd);
+ int ftruncate(int fd, off_t length);
++int open(const char* path, int flags, ...);
+ 
+ #define MAP_ANONYMOUS 0x20
+ #define MAP_SHARED 0x01
+@@ -51,6 +54,7 @@ int ftruncate(int fd, off_t length);
+ #define _SC_PAGESIZE 30
+ 
+ #define MFD_CLOEXEC 0x1
++#define LINUX_O_CLOEXEC 0x80000
+ 
+ void dtape_memory_init(void) {
+ 
+@@ -106,6 +110,10 @@ static dtape_map_shared_descriptor_t* dtape_map_shared_descriptor_create(int mem
+ 
+ 	desc->memfd = memfd;
+ 	desc->size = size;
++	if (!dtape_hooks->file_identity(memfd, &desc->file_device, &desc->file_inode)) {
++		free(desc);
++		return NULL;
++	}
+ 
+ 	return desc;
+ };
+@@ -123,6 +131,15 @@ static void dtape_map_shared_descriptor_release(dtape_map_shared_descriptor_t* d
+ 	free(desc);
+ };
+ 
++/* All named entries created by this backend use this prefix-compatible
++ * representation. The descriptor owns the Linux shared-memory backing file;
++ * the Mach send right is the transferable capability for that file.
++ */
++typedef struct dtape_named_entry {
++	struct vm_named_entry base;
++	dtape_map_shared_descriptor_t* descriptor;
++} dtape_named_entry_t;
++
+ static dtape_map_shared_entry_t* dtape_map_shared_entry_create(uint64_t address, uint64_t size, uint64_t page_offset, dtape_map_shared_descriptor_t* descriptor) {
+ 	dtape_map_shared_entry_t* shared_entry = malloc(sizeof(dtape_map_shared_entry_t));
+ 	if (!shared_entry) {
+@@ -145,7 +162,15 @@ static void dtape_map_shared_entry_destroy(dtape_map_shared_entry_t* shared_entr
+ };
+ 
+ static void dtape_map_insert_shared_entry_locked(dtape_map_t* map, dtape_map_shared_entry_t* shared_entry) {
+-	RB_INSERT(dtape_map_shared_entry_head, &map->shared_entries, shared_entry);
++	dtape_map_shared_entry_t* old = RB_INSERT(dtape_map_shared_entry_head, &map->shared_entries, shared_entry);
++	if (old) {
++		// The client can locally unmap an address while another server call
++		// is completing a new mapping there. Keep the newer mapping record;
++		// ignoring RB_INSERT's collision would leak its descriptor reference.
++		RB_REMOVE(dtape_map_shared_entry_head, &map->shared_entries, old);
++		dtape_map_shared_entry_destroy(old);
++		RB_INSERT(dtape_map_shared_entry_head, &map->shared_entries, shared_entry);
++	}
+ };
+ 
+ static void dtape_map_insert_shared_entry(dtape_map_t* map, dtape_map_shared_entry_t* shared_entry) {
+@@ -169,7 +194,7 @@ static size_t dtape_map_find_shared_entries_locked(dtape_map_t* map, uint64_t ad
+ 	}
+ 
+ 	RB_FOREACH(entry, dtape_map_shared_entry_head, &map->shared_entries) {
+-		if (entry->address + entry->size < address || entry->address > address + size) {
++		if (entry->address + entry->size <= address || entry->address >= address + size) {
+ 			continue;
+ 		}
+ 
+@@ -183,8 +208,80 @@ static size_t dtape_map_find_shared_entries_locked(dtape_map_t* map, uint64_t ad
+ 	return count;
+ };
+ 
+-// TODO: we should have the process inform us when it unmaps a shared entry that we remapped;
+-//       right now, we only close the memfd when the process dies (so the memory is potentially in-use needlessly).
++/* The client optimizes self-task deallocation into a local munmap. Reconcile
++ * records before reusing them, checking device/inode AND the file offset so
++ * that an address reused for an unrelated mapping never inherits an old
++ * memory-entry capability. Kernel-dispatched unmaps also update records below.
++ */
++static kern_return_t dtape_map_sync_shared_entries(dtape_map_t* map) {
++	uint64_t page_size = sysconf(_SC_PAGESIZE);
++	kern_return_t result = KERN_SUCCESS;
++	dtape_mutex_lock(&map->shared_entry_lock);
++	dtape_map_shared_entry_head_t fresh;
++	RB_INIT(&fresh);
++	dtape_map_shared_entry_t* entry;
++	dtape_map_shared_entry_t* next;
++	// Build a separate tree. Replacing nodes while walking the old tree
++	// could invalidate a saved iterator when concurrently reused addresses
++	// result in duplicate keys.
++	RB_FOREACH(entry, dtape_map_shared_entry_head, &map->shared_entries) {
++		uint64_t cursor = entry->address;
++		uint64_t end = cursor + entry->size;
++		while (cursor < end) {
++			dtape_memory_region_info_t region;
++			if (!dtape_hooks->task_get_memory_region_info(map->dtape_task->context, cursor, &region)) {
++				uintptr_t following = dtape_hooks->task_get_next_region(map->dtape_task->context, cursor);
++				if (!following || following <= cursor) break;
++				cursor = following;
++				continue;
++			}
++			uint64_t limit = region.start_address + region.page_count * page_size;
++			if (limit > end) limit = end;
++			if (limit <= cursor || region.start_address > cursor) { result = KERN_FAILURE; break; }
++			uint64_t expected_offset = entry->page_offset * page_size + cursor - entry->address;
++			if (region.shared && region.file_device == entry->descriptor->file_device
++					&& region.file_inode == entry->descriptor->file_inode
++					&& region.map_offset + cursor - region.start_address == expected_offset) {
++				dtape_map_shared_entry_t* piece = dtape_map_shared_entry_create(cursor, limit - cursor, expected_offset / page_size, entry->descriptor);
++				if (!piece) { result = KERN_RESOURCE_SHORTAGE; break; }
++				dtape_map_shared_entry_t* other;
++				dtape_map_shared_entry_t* following;
++				RB_FOREACH_SAFE(other, dtape_map_shared_entry_head, &fresh, following) {
++					if (other->address + other->size < piece->address
++							|| other->address > piece->address + piece->size) continue;
++					if (other->descriptor != piece->descriptor
++							|| other->page_offset * page_size + piece->address
++							!= piece->page_offset * page_size + other->address) {
++						if (other->address + other->size != piece->address
++								&& other->address != piece->address + piece->size)
++							result = KERN_ABORTED;
++						continue;
++					}
++					uint64_t combined_start = other->address < piece->address ? other->address : piece->address;
++					uint64_t combined_end = other->address + other->size > piece->address + piece->size
++							? other->address + other->size : piece->address + piece->size;
++					if (combined_start < piece->address) piece->page_offset = other->page_offset;
++					piece->address = combined_start;
++					piece->size = combined_end - combined_start;
++					RB_REMOVE(dtape_map_shared_entry_head, &fresh, other);
++					dtape_map_shared_entry_destroy(other);
++				}
++				if (result != KERN_SUCCESS) { dtape_map_shared_entry_destroy(piece); break; }
++				RB_INSERT(dtape_map_shared_entry_head, &fresh, piece);
++			}
++			cursor = limit;
++		}
++		if (result != KERN_SUCCESS) break;
++	}
++	dtape_map_shared_entry_head_t discard = result == KERN_SUCCESS ? map->shared_entries : fresh;
++	if (result == KERN_SUCCESS) map->shared_entries = fresh;
++	RB_FOREACH_SAFE(entry, dtape_map_shared_entry_head, &discard, next) {
++		RB_REMOVE(dtape_map_shared_entry_head, &discard, entry);
++		dtape_map_shared_entry_destroy(entry);
++	}
++	dtape_mutex_unlock(&map->shared_entry_lock);
++	return result;
++}
+ 
+ void dtape_vm_map_destroy(vm_map_t map) {
+ 	if (os_ref_release(&map->map_refcnt) != 0) {
+@@ -500,9 +597,49 @@ kern_return_t vm_map_remove(vm_map_t map, vm_map_offset_t start, vm_map_offset_t
+ 		}
+ 		return KERN_SUCCESS;
+ 	} else {
++		dtape_mutex_lock(&map->shared_entry_lock);
++		dtape_map_shared_entry_t* right = NULL;
++		dtape_map_shared_entry_t* entry;
++		dtape_map_shared_entry_t* next;
++		uint64_t page_size = sysconf(_SC_PAGESIZE);
++		// At most one interval can contain both ends of a contiguous unmap.
++		// Reserve a split record before changing the actual process mapping.
++		RB_FOREACH(entry, dtape_map_shared_entry_head, &map->shared_entries) {
++			if (entry->address < start && end < entry->address + entry->size) {
++				right = dtape_map_shared_entry_create(end, entry->address + entry->size - end,
++						entry->page_offset + (end - entry->address) / page_size, entry->descriptor);
++				if (!right) { dtape_mutex_unlock(&map->shared_entry_lock); return KERN_RESOURCE_SHORTAGE; }
++				break;
++			}
++		}
+ 		if (dtape_hooks->task_free_pages(map->dtape_task->context, start, dtape_byte_count_to_page_count_round_down(end - start)) < 0) {
++			if (right) dtape_map_shared_entry_destroy(right);
++			dtape_mutex_unlock(&map->shared_entry_lock);
+ 			return KERN_FAILURE;
+ 		}
++		RB_FOREACH_SAFE(entry, dtape_map_shared_entry_head, &map->shared_entries, next) {
++			uint64_t old_end = entry->address + entry->size;
++			if (old_end <= start || entry->address >= end)
++				continue;
++			if (start <= entry->address && end >= old_end) {
++				RB_REMOVE(dtape_map_shared_entry_head, &map->shared_entries, entry);
++				dtape_map_shared_entry_destroy(entry);
++			} else if (start > entry->address) {
++				entry->size = start - entry->address;
++				if (end < old_end) {
++					dtape_map_insert_shared_entry_locked(map, right);
++					right = NULL;
++				}
++			} else {
++				RB_REMOVE(dtape_map_shared_entry_head, &map->shared_entries, entry);
++				entry->page_offset += (end - entry->address) / page_size;
++				entry->address = end;
++				entry->size = old_end - end;
++				dtape_map_insert_shared_entry_locked(map, entry);
++			}
++		}
++		if (right) dtape_map_shared_entry_destroy(right);
++		dtape_mutex_unlock(&map->shared_entry_lock);
+ 		return KERN_SUCCESS;
+ 	}
+ };
+@@ -527,7 +664,96 @@ kern_return_t mach_vm_allocate_kernel(vm_map_t map, mach_vm_offset_t* addr, mach
+ };
+ 
+ kern_return_t _mach_make_memory_entry(vm_map_t target_map, memory_object_size_t* size, memory_object_offset_t offset, vm_prot_t permission, ipc_port_t* object_handle, ipc_port_t parent_entry) {
+-	dtape_stub_unsafe();
++	if (!target_map || target_map == kernel_map || !size || !object_handle)
++		return KERN_INVALID_ARGUMENT;
++	*object_handle = IP_NULL;
++	if (IP_VALID(parent_entry))
++		return KERN_NOT_SUPPORTED;
++	if (permission & ~(VM_PROT_ALL | VM_PROT_IS_MASK | MAP_MEM_VM_SHARE))
++		return KERN_NOT_SUPPORTED;
++	kern_return_t sync_result = dtape_map_sync_shared_entries(target_map);
++	if (sync_result != KERN_SUCCESS) return sync_result;
++	uint64_t page_size = sysconf(_SC_PAGESIZE);
++	if (!*size || (offset & (page_size - 1)) || *size > INT64_MAX - page_size
++			|| offset > UINT64_MAX - *size - (page_size - 1))
++		return KERN_INVALID_ARGUMENT;
++	uint64_t length = (*size + page_size - 1) & ~(page_size - 1);
++	dtape_memory_region_info_t region;
++	if (!dtape_hooks->task_get_memory_region_info(target_map->dtape_task->context, offset, &region)
++			|| offset < region.start_address
++			|| offset + length > region.start_address + region.page_count * page_size)
++		return KERN_INVALID_ADDRESS;
++	vm_prot_t actual_protection = region.protection & VM_PROT_ALL;
++	vm_prot_t protection = permission & VM_PROT_ALL;
++	if (permission & VM_PROT_IS_MASK)
++		protection &= actual_protection;
++	if ((protection & ~actual_protection) || !(actual_protection & VM_PROT_READ))
++		return KERN_PROTECTION_FAILURE;
++	dtape_named_entry_t* entry = calloc(1, sizeof(*entry));
++	if (!entry)
++		return KERN_RESOURCE_SHORTAGE;
++	named_entry_lock_init(&entry->base);
++	entry->base.ref_count = 1;
++	entry->base.size = length;
++	entry->base.protection = protection;
++	kern_return_t result = KERN_SUCCESS;
++	dtape_mutex_lock(&target_map->shared_entry_lock);
++	dtape_map_shared_entry_t* existing[2];
++	size_t count = dtape_map_find_shared_entries_locked(target_map, offset, length, existing, 2);
++	if (count) {
++		if (count != 1 || existing[0]->address > offset
++				|| offset + length > existing[0]->address + existing[0]->size) {
++			result = KERN_NOT_SUPPORTED;
++			goto out;
++		}
++		entry->descriptor = existing[0]->descriptor;
++		dtape_map_shared_descriptor_retain(entry->descriptor);
++		entry->base.offset = existing[0]->page_offset * page_size + offset - existing[0]->address;
++	} else {
++		// Replacing an already shared, untracked file mapping with a new
++		// memfd would disconnect its existing peers. That requires importing
++		// the original backing file rather than copying it.
++		if (region.shared) { result = KERN_NOT_SUPPORTED; goto out; }
++		int fd = memfd_create("darling-memory-entry", MFD_CLOEXEC);
++		if (fd < 0) { result = KERN_RESOURCE_SHORTAGE; goto out; }
++		if (ftruncate(fd, length)) { close(fd); result = KERN_RESOURCE_SHORTAGE; goto out; }
++		entry->descriptor = dtape_map_shared_descriptor_create(fd, length);
++		if (!entry->descriptor) { close(fd); result = KERN_RESOURCE_SHORTAGE; goto out; }
++		void* buffer = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
++		if (buffer == MAP_FAILED) { result = KERN_RESOURCE_SHORTAGE; goto out; }
++		result = copyinmap(target_map, offset, buffer, length);
++		munmap(buffer, length);
++		if (result != KERN_SUCCESS)
++			goto out;
++		dtape_map_shared_entry_t* shared = dtape_map_shared_entry_create(offset, length, 0, entry->descriptor);
++		if (!shared) { result = KERN_RESOURCE_SHORTAGE; goto out; }
++		/* As in the existing shared-remap backend, converting an anonymous
++		 * mapping requires a copy followed by replacement. Concurrent writes
++		 * during this conversion are not made atomic by this implementation.
++		 */
++		uintptr_t mapped = dtape_hooks->task_map_file(target_map->dtape_task->context,
++				fd, length / page_size, actual_protection, offset, 0,
++				dtape_memory_flag_fixed | dtape_memory_flag_overwrite);
++		if (mapped != offset) {
++			dtape_map_shared_entry_destroy(shared);
++			result = KERN_FAILURE;
++			goto out;
++		}
++		dtape_map_insert_shared_entry_locked(target_map, shared);
++	}
++	*object_handle = ipc_kobject_alloc_port((ipc_kobject_t)entry, IKOT_NAMED_ENTRY,
++			IPC_KOBJECT_ALLOC_MAKE_SEND | IPC_KOBJECT_ALLOC_NSREQUEST);
++	if (!IP_VALID(*object_handle)) { result = KERN_RESOURCE_SHORTAGE; goto out; }
++	*size = length;
++	entry = NULL; // The named-entry port now owns it.
++out:
++	dtape_mutex_unlock(&target_map->shared_entry_lock);
++	if (entry) {
++		if (entry->descriptor) dtape_map_shared_descriptor_release(entry->descriptor);
++		named_entry_lock_destroy(&entry->base);
++		free(entry);
++	}
++	return result;
+ };
+ 
+ kern_return_t mach_memory_entry_access_tracking(ipc_port_t entry_port, int* access_tracking, uint32_t* access_tracking_reads, uint32_t* access_tracking_writes) {
+@@ -591,7 +817,82 @@ kern_return_t mach_vm_machine_attribute(vm_map_t map, mach_vm_address_t addr, ma
+ };
+ 
+ kern_return_t mach_vm_map_external(vm_map_t target_map, mach_vm_offset_t* address, mach_vm_size_t initial_size, mach_vm_offset_t mask, int flags, ipc_port_t port, vm_object_offset_t offset, boolean_t copy, vm_prot_t cur_protection, vm_prot_t max_protection, vm_inherit_t inheritance) {
+-	dtape_stub_safe();
++	if (!target_map || target_map == kernel_map || !address || !initial_size || !IP_VALID(port))
++		return KERN_INVALID_ARGUMENT;
++	kern_return_t sync_result = dtape_map_sync_shared_entries(target_map);
++	if (sync_result != KERN_SUCCESS) return sync_result;
++	/* Fixed/COW/complex-alignment mappings need additional VM bookkeeping.
++	 * Reject them rather than claiming success without creating a mapping.
++	 */
++	if (copy || mask || flags != VM_FLAGS_ANYWHERE)
++		return KERN_NOT_SUPPORTED;
++	boolean_t mask_cur_protection = cur_protection & VM_PROT_IS_MASK;
++	boolean_t mask_max_protection = max_protection & VM_PROT_IS_MASK;
++	cur_protection &= ~VM_PROT_IS_MASK;
++	max_protection &= ~VM_PROT_IS_MASK;
++	if ((cur_protection | max_protection) & ~VM_PROT_ALL)
++		return KERN_INVALID_ARGUMENT;
++	if (((cur_protection & ~max_protection) && !mask_cur_protection && !mask_max_protection)
++			|| inheritance < VM_INHERIT_SHARE
++			|| inheritance > VM_INHERIT_NONE)
++		return KERN_INVALID_ARGUMENT;
++	uint64_t page_size = sysconf(_SC_PAGESIZE);
++	if ((offset & (page_size - 1)) || initial_size > INT64_MAX - page_size)
++		return KERN_INVALID_ARGUMENT;
++	uint64_t length = (initial_size + page_size - 1) & ~(page_size - 1);
++	ip_lock(port);
++	if (!ip_active(port) || ip_kotype(port) != IKOT_NAMED_ENTRY) {
++		ip_unlock(port);
++		return KERN_INVALID_ARGUMENT;
++	}
++	dtape_named_entry_t* entry = (dtape_named_entry_t*)ip_get_kobject(port);
++	named_entry_lock(&entry->base);
++	/* XNU allows callers (including libxpc) to request the intersection
++	 * with the capability's protections instead of demanding every bit.
++	 */
++	if (mask_cur_protection) cur_protection &= entry->base.protection;
++	if (mask_max_protection) max_protection &= entry->base.protection;
++	if ((cur_protection | max_protection) & ~entry->base.protection) {
++		named_entry_unlock(&entry->base); ip_unlock(port);
++		return KERN_PROTECTION_FAILURE;
++	}
++	if (cur_protection & ~max_protection) {
++		named_entry_unlock(&entry->base); ip_unlock(port);
++		return KERN_PROTECTION_FAILURE;
++	}
++	if (offset > entry->base.size || length > entry->base.size - offset) {
++		named_entry_unlock(&entry->base); ip_unlock(port);
++		return KERN_INVALID_ARGUMENT;
++	}
++	dtape_map_shared_descriptor_t* descriptor = entry->descriptor;
++	uint64_t file_offset = entry->base.offset + offset;
++	dtape_map_shared_descriptor_retain(descriptor);
++	named_entry_unlock(&entry->base);
++	ip_unlock(port);
++	dtape_map_shared_entry_t* shared = dtape_map_shared_entry_create(0, length, file_offset / page_size, descriptor);
++	if (!shared) { dtape_map_shared_descriptor_release(descriptor); return KERN_RESOURCE_SHORTAGE; }
++	int mapping_fd = descriptor->memfd;
++	if (!(max_protection & VM_PROT_WRITE)) {
++		// A read-only file description also prevents the recipient from
++		// turning the mapping writable later with a raw Linux mprotect.
++		char path[64];
++		snprintf(path, sizeof(path), "/proc/self/fd/%d", descriptor->memfd);
++		mapping_fd = open(path, LINUX_O_CLOEXEC);
++		if (mapping_fd < 0) {
++			dtape_map_shared_entry_destroy(shared);
++			dtape_map_shared_descriptor_release(descriptor);
++			return KERN_RESOURCE_SHORTAGE;
++		}
++	}
++	uintptr_t mapped = dtape_hooks->task_map_file(target_map->dtape_task->context,
++			mapping_fd, length / page_size, cur_protection, *address,
++			file_offset / page_size, dtape_memory_flag_none);
++	if (mapping_fd != descriptor->memfd) close(mapping_fd);
++	dtape_map_shared_descriptor_release(descriptor);
++	if (!mapped) { dtape_map_shared_entry_destroy(shared); return KERN_NO_SPACE; }
++	shared->address = mapped;
++	dtape_map_insert_shared_entry(target_map, shared);
++	*address = mapped;
+ 	return KERN_SUCCESS;
+ };
+ 
+@@ -1457,6 +1758,12 @@ mach_destroy_memory_entry(
+ 		named_entry_unlock(named_entry);
+ 		named_entry_lock_destroy(named_entry);
+ 
++		// The backing shared file is owned by our named-entry extension, not
++		// by an XNU VM object. Existing mappings keep independent references.
++		dtape_named_entry_t* entry = (dtape_named_entry_t*)named_entry;
++		if (entry->descriptor)
++			dtape_map_shared_descriptor_release(entry->descriptor);
++
+ #if VM_NAMED_ENTRY_LIST
+ 		lck_mtx_lock_spin(&vm_named_entry_list_lock_data);
+ 		queue_remove(&vm_named_entry_list, named_entry,
+@@ -1466,7 +1773,7 @@ mach_destroy_memory_entry(
+ 		lck_mtx_unlock(&vm_named_entry_list_lock_data);
+ #endif /* VM_NAMED_ENTRY_LIST */
+ 
+-		kfree(named_entry, sizeof(struct vm_named_entry));
++		kfree(named_entry, sizeof(dtape_named_entry_t));
+ 	} else {
+ 		named_entry_unlock(named_entry);
+ 	}
+diff --git a/duct-tape/src/processor.c b/duct-tape/src/processor.c
+index 76fdd4f..7086650 100644
+--- a/duct-tape/src/processor.c
++++ b/duct-tape/src/processor.c
+@@ -1,5 +1,6 @@
+ #include <darlingserver/duct-tape/stubs.h>
+ #include <darlingserver/duct-tape/hooks.internal.h>
++#include <darlingserver/duct-tape/processor.h>
+ 
+ #include <kern/processor.h>
+ #include <kern/kalloc.h>
+@@ -27,6 +28,32 @@ processor_t master_processor;
+ int get_nprocs(void);
+ int get_nprocs_conf(void);
+ 
++cpu_subtype_t dtape_processor_cpu_subtype(void) {
++#if __x86_64__
++	unsigned a, b, c, d;
++	__asm__ volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(0), "c"(0));
++	if (a < 7) return CPU_SUBTYPE_X86_64_ALL;
++	__asm__ volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(1), "c"(0));
++	// pclmul, ssse3, fma, cx16, sse4.1/4.2, movbe, popcnt, aes,
++	// xsave/osxsave, avx, f16c and rdrand (the x86_64h feature set).
++	const unsigned leaf1 = 0x7ed83202;
++	if ((c & leaf1) != leaf1) return CPU_SUBTYPE_X86_64_ALL;
++	unsigned xcr0_low, xcr0_high;
++	// OSXSAVE was checked above: XGETBV is legal and XMM/YMM must be enabled.
++	__asm__ volatile("xgetbv" : "=a"(xcr0_low), "=d"(xcr0_high) : "c"(0));
++	if ((xcr0_low & 6) != 6) return CPU_SUBTYPE_X86_64_ALL;
++	__asm__ volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(7), "c"(0));
++	if ((b & 0x128) != 0x128) return CPU_SUBTYPE_X86_64_ALL; // bmi1, avx2, bmi2
++	__asm__ volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(0x80000000), "c"(0));
++	if (a < 0x80000001) return CPU_SUBTYPE_X86_64_ALL;
++	__asm__ volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(0x80000001), "c"(0));
++	if ((c & 0x21) != 0x21) return CPU_SUBTYPE_X86_64_ALL; // lahf_sahf, lzcnt
++	return CPU_SUBTYPE_X86_64_H;
++#else
++	return CPU_SUBTYPE_I386_ALL;
++#endif
++}
++
+ void dtape_processor_init(void) {
+ 	simple_lock_init(&processor_list_lock, 0);
+ 
+@@ -94,7 +121,7 @@ kern_return_t processor_info(processor_t processor, processor_flavor_t flavor, h
+ #if __x86_64__ || __i386__
+ 			info->cpu_type = CPU_TYPE_X86;
+ #if __x86_64__
+-			info->cpu_subtype = CPU_SUBTYPE_X86_64_ALL;
++			info->cpu_subtype = dtape_processor_cpu_subtype();
+ #else
+ 			info->cpu_subtype = CPU_SUBTYPE_I386_ALL;
+ #endif
+diff --git a/duct-tape/src/task.c b/duct-tape/src/task.c
+index a9eb4bc..17ca9e6 100644
+--- a/duct-tape/src/task.c
++++ b/duct-tape/src/task.c
+@@ -44,6 +44,13 @@ void dtape_task_init(void) {
+ 	}
+ };
+ 
++void dtape_task_set_process_generation(dtape_task_t* task, dtape_eternal_id_t identity, uint32_t pid_version) {
++	task_lock(&task->xnu_task);
++	task->p_ident.eid = identity;
++	task->xnu_task.audit_token.val[7] = pid_version;
++	task_unlock(&task->xnu_task);
++}
++
+ dtape_task_t* dtape_task_create(dtape_task_t* parent_task, uint32_t nsid, void* context, dserver_rpc_architecture_t architecture) {
+ 	if (parent_task == NULL && nsid == 0 && kernel_task) {
+ 		dtape_task_t* task = dtape_task_for_xnu_task(kernel_task);
+@@ -748,6 +755,10 @@ struct proc_ident proc_ident(void* p) {
+ 	return ((dtape_task_t*)p)->p_ident;
+ };
+ 
++int proc_pidversion(void* p) {
++	return (int)((dtape_task_t*)p)->xnu_task.audit_token.val[7];
++};
++
+ //
+ // end for task_ident.c
+ //
+diff --git a/duct-tape/xnu/osfmk/ipc/ipc_kmsg.c b/duct-tape/xnu/osfmk/ipc/ipc_kmsg.c
+index 7c2559b..4081fdb 100644
+--- a/duct-tape/xnu/osfmk/ipc/ipc_kmsg.c
++++ b/duct-tape/xnu/osfmk/ipc/ipc_kmsg.c
+@@ -3819,7 +3819,9 @@ ipc_kmsg_copyin_body(
+ 				goto clean_message;
+ 			}
+ 
+-			if ((size >= MSG_OOL_SIZE_SMALL) &&
++			// Empty OOL descriptors allocate no VM space, including when the
++			// userspace backend disables the small kalloc-copy optimization.
++			if (size != 0 && (size >= MSG_OOL_SIZE_SMALL) &&
+ 			    (daddr->out_of_line.copy == MACH_MSG_PHYSICAL_COPY) &&
+ 			    !(daddr->out_of_line.deallocate)) {
+ 				/*
+diff --git a/internal-include/darlingserver/call.hpp b/internal-include/darlingserver/call.hpp
+index fa40665..c3a5daf 100644
+--- a/internal-include/darlingserver/call.hpp
++++ b/internal-include/darlingserver/call.hpp
+@@ -53,6 +53,7 @@ namespace DarlingServer {
+ 		static DarlingServer::Log rpcReplyLog;
+ 
+ 		static void sendReply(Message&& reply);
++		int _checkout(int& execListener, bool executingMacho, bool disclaim);
+ 
+ 	public:
+ 		Call(std::shared_ptr<Thread> thread, Address replyAddress, dserver_rpc_callhdr_t* callHeader);
+diff --git a/internal-include/darlingserver/fsevents-device.hpp b/internal-include/darlingserver/fsevents-device.hpp
+new file mode 100644
+index 0000000..a29b7cb
+--- /dev/null
++++ b/internal-include/darlingserver/fsevents-device.hpp
+@@ -0,0 +1,21 @@
++#ifndef DARLINGSERVER_FSEVENTS_DEVICE_HPP
++#define DARLINGSERVER_FSEVENTS_DEVICE_HPP
++
++#include <cstdint>
++#include <string>
++#include <vector>
++
++namespace DarlingServer::FSEvents {
++// A host directory and its name in the calling process's virtual root.
++struct Root { std::string host; std::string guest; };
++// Descriptors are real Unix sockets: dup, SCM_RIGHTS, fork, exec and final-close
++// lifetime use Linux's open-file descriptions rather than a guest FD-number map.
++int openDevice(const std::vector<Root>& roots, int flags);
++int cloneDevice(int device, const std::vector<int8_t>& actions, unsigned depth);
++int filterDevices(int stream, const std::vector<uint32_t>& devices);
++int setCompact(int stream);
++int setExtended(int stream);
++bool isDevice(int fd);
++size_t activeDevices();
++}
++#endif
+diff --git a/internal-include/darlingserver/process.hpp b/internal-include/darlingserver/process.hpp
+index c97be30..e434f27 100644
+--- a/internal-include/darlingserver/process.hpp
++++ b/internal-include/darlingserver/process.hpp
+@@ -41,6 +41,7 @@ namespace DarlingServer {
+ 	class Thread;
+ 	class Server;
+ 	class Call;
++	namespace Sandbox { class Policy; }
+ 
+ 	class Process: public Loggable, public std::enable_shared_from_this<Process> {
+ 		friend class Thread;
+@@ -75,7 +76,19 @@ namespace DarlingServer {
+ 			uint64_t regionCount;
+ 		};
+ 
++		// Darwin Sandbox state is separate from Linux credentials and MAC rules.
++		// Only graphs proven to permit every operation can currently attach.
++		enum class SandboxState { Unconfined, UnrestrictedProfile, Unsupported };
++
++		struct Responsibility {
++			pid_t pid = 0;
++			uint64_t uniqueID = 0;
++			EternalID generation = EternalIDInvalid;
++		};
++
+ 		struct MemoryRegionInfo {
++			uint64_t fileDevice;
++			uint64_t fileInode;
+ 			uintptr_t startAddress;
+ 			uint64_t pageCount;
+ 			int protection;
+@@ -86,7 +99,19 @@ namespace DarlingServer {
+ 	private:
+ 		pid_t _pid;
+ 		pid_t _nspid;
+-		EternalID _eid;
++		EternalID _eid = EternalIDInvalid;
++		uint32_t _pidVersion = 0;
++		struct QuarantineState {
++			std::string identifier;
++			std::vector<uint8_t> metadata;
++			uint32_t flags;
++		};
++		std::shared_ptr<const QuarantineState> _quarantineState;
++		uint32_t _quarantineKernelCapabilities = 0;
++		SandboxState _sandboxState = SandboxState::Unconfined;
++		std::shared_ptr<const Sandbox::Policy> _sandboxPolicy;
++		uint64_t _uniqueID = 0;
++		Responsibility _responsibility;
+ 		std::shared_ptr<FD> _pidfd;
+ 		mutable std::shared_mutex _rwlock;
+ 		std::unordered_map<uint64_t, std::weak_ptr<Thread>> _threads;
+@@ -172,7 +197,8 @@ namespace DarlingServer {
+ 		bool writeMemory(uintptr_t remoteAddress, const void* localBuffer, size_t length, int* errorCode = nullptr) const;
+ 
+ 		void notifyCheckin(Architecture architecture);
+-		void setPendingReplacement();
++		void setPendingReplacement(bool disclaim = false);
++		Responsibility responsibility() const;
+ 
+ 		void registerKqchan(std::shared_ptr<Kqchan> kqchan);
+ 		void unregisterKqchan(std::shared_ptr<Kqchan> kqchan);
+diff --git a/internal-include/darlingserver/sandbox-policy.hpp b/internal-include/darlingserver/sandbox-policy.hpp
+new file mode 100644
+index 0000000..e7a2052
+--- /dev/null
++++ b/internal-include/darlingserver/sandbox-policy.hpp
+@@ -0,0 +1,54 @@
++/* SPDX-License-Identifier: GPL-3.0-or-later */
++#pragma once
++#include <cstdint>
++#include <memory>
++#include <optional>
++#include <string>
++#include <string_view>
++#include <vector>
++
++namespace DarlingServer::Sandbox {
++enum class Decision { Allow, Deny, Unsupported };
++struct Context {
++    std::optional<std::string> path, globalName, localName, posixName, controlName;
++    std::optional<std::string> iokitClass, iokitProperty, preferenceDomain, sysctlName, xpcServiceName;
++    // Missing context is unknown; a known-inapplicable filter is false. For
++    // example, a global bootstrap lookup has no local or XPC-service name.
++    uint64_t knownAbsentFilters = 0;
++    std::optional<bool> targetSelf, targetSamePgrp, targetChild, targetSameSandbox;
++    std::optional<uint32_t> vnodeType, fsctlBaseCommand;
++    // A bit at the native attribute ordinal, not the ordinal itself.
++    std::optional<uint64_t> processAttributes, systemAttributes;
++};
++// This evaluates the original compiler's decision graph. It does not attach a
++// policy or claim that the filesystem/Mach operations have been confined.
++class Policy {
++public:
++    static std::shared_ptr<const Policy> parse(std::vector<uint8_t> bytes, std::string& error);
++    Decision evaluate(std::string_view operation, const Context& context) const;
++    // True only when every leaf reachable from all native operation entries
++    // allows. Unreachable compiler sentinel deny nodes do not restrict policy.
++    bool allowsAllOperations() const { return _alwaysAllow; }
++    size_t nodeCount() const { return _nodes.size(); }
++    static std::string_view operationName(size_t index);
++private:
++    struct PatternInstruction {
++        enum class Kind { Sequence, End, Range, RepeatRange, Seek, SeekRetry, Accept } kind;
++        std::vector<uint8_t> bytes;
++        size_t next = 0, fallback = SIZE_MAX;
++    };
++    struct Pattern { std::vector<PatternInstruction> instructions; };
++    struct Node {
++        uint8_t type = 0, filter = 0;
++        uint16_t argument = 0, match = 0, unmatch = 0;
++        std::shared_ptr<const Pattern> pattern;
++    };
++    std::vector<uint8_t> _bytes;
++    std::vector<uint16_t> _operations;
++    std::vector<Node> _nodes;
++    bool _alwaysAllow = false;
++    static bool parsePattern(const uint8_t* bytes, size_t length, Pattern& result, std::string& error);
++    static std::optional<bool> matches(const Pattern& pattern, std::string_view input);
++    static std::optional<bool> filter(const Node& node, const Context& context);
++};
++}
+diff --git a/scripts/generate-rpc-wrappers.py b/scripts/generate-rpc-wrappers.py
+index e35221c..05f1cf2 100755
+--- a/scripts/generate-rpc-wrappers.py
++++ b/scripts/generate-rpc-wrappers.py
+@@ -643,6 +643,34 @@ calls = [
+ 		('message_count', 'uint64_t'),
+ 		('fd', '@fd'),
+ 	], UNMANAGED_CALL),
++
++	# Append only: all existing packaged-client call numbers remain stable.
++	('checkout_disclaim', [
++		('exec_listener_pipe', '@fd'),
++		('executing_macho', 'bool'),
++	], []),
++
++	('mac_syscall', [
++		('policy', 'const char*', 'uint64_t'),
++		('operation', 'int32_t'),
++		('arguments', 'void*', 'uint64_t'),
++	], [('bsd_error', 'int32_t')]),
++
++	# Keep libproc's PID version consistent with Mach audit tokens. Append this
++	# call so existing packaged clients retain all their previous call numbers.
++	('process_get_generation', [
++		('pid', 'int32_t'),
++	], [('generation', 'uint32_t')]),
++
++	# Internal versioned registration by the source kernel implementing actual
++	# file creation/rename marking, exec checks, and xattr mutation checks.
++	('quarantine_kernel_ready', [('capabilities', 'uint32_t')], []),
++
++	# Append only: a real Linux event channel for the legacy device ABI.
++	('fsevents_open', [('flags', 'int32_t')], [('fd', '@fd')]),
++	('fsevents_ioctl', [
++		('fd', '@fd'), ('command', 'uint32_t'), ('argument', 'uint64_t'),
++	], [('fd', '@fd')]),
+ ]
+ 
+ ALLOWED_PRIVATE_TYPES = [
+diff --git a/src/call.cpp b/src/call.cpp
+index cc10f1d..dbfe652 100644
+--- a/src/call.cpp
++++ b/src/call.cpp
+@@ -21,6 +21,7 @@
+ #include <darlingserver/call.hpp>
+ #include <darlingserver/server.hpp>
+ #include <sys/uio.h>
++#include <cstring>
+ 
+ #include <darlingserver/logging.hpp>
+ #include <darlingserver/duct-tape.h>
+@@ -28,6 +29,8 @@
+ #include <sys/fcntl.h>
+ #include <sys/syscall.h>
+ #include <darlingserver/kqchan.hpp>
++#include <darlingserver/sandbox-policy.hpp>
++#include <darlingserver/fsevents-device.hpp>
+ 
+ static DarlingServer::Log callLog("calls");
+ 
+@@ -309,32 +312,32 @@ void DarlingServer::Call::Checkin::processCall() {
+ 	_sendReply(code);
+ };
+ 
+-void DarlingServer::Call::Checkout::processCall() {
++int DarlingServer::Call::_checkout(int& execListener, bool executingMacho, bool disclaim) {
+ 	int code = 0;
+ 
+ 	if (auto thread = _thread.lock()) {
+ 		if (auto process = thread->process()) {
+-			if (_body.exec_listener_pipe >= 0) {
++			if (execListener >= 0) {
+ 				// this is actually an execve;
+ 				// let's monitor the FD we got
+ 
+ 				// make it non-blocking
+-				int flags = fcntl(_body.exec_listener_pipe, F_GETFL);
++				int flags = fcntl(execListener, F_GETFL);
+ 				if (flags < 0) {
+ 					code = -errno;
+ 				} else {
+ 					flags |= O_NONBLOCK;
+-					if (fcntl(_body.exec_listener_pipe, F_SETFL, flags) < 0) {
++					if (fcntl(execListener, F_SETFL, flags) < 0) {
+ 						code = -errno;
+ 					} else {
+ 						// now monitor it
+-						auto fd = std::make_shared<FD>(_body.exec_listener_pipe);
+-						_body.exec_listener_pipe = -1; // the FD instance now owns the descriptor
++						auto fd = std::make_shared<FD>(execListener);
++						execListener = -1; // the FD instance now owns the descriptor
+ 
+-						auto replacingWithDarlingProcess = _body.executing_macho;
++						auto replacingWithDarlingProcess = executingMacho;
+ 
+ 						std::weak_ptr<Process> weakProcess = process;
+-						Server::sharedInstance().addMonitor(std::make_shared<Monitor>(fd, Monitor::Event::HangUp, false, true, [fd, weakProcess, replacingWithDarlingProcess](std::shared_ptr<Monitor> monitor, Monitor::Event events) {
++						Server::sharedInstance().addMonitor(std::make_shared<Monitor>(fd, Monitor::Event::HangUp, false, true, [fd, weakProcess, replacingWithDarlingProcess, disclaim](std::shared_ptr<Monitor> monitor, Monitor::Event events) {
+ 							Server::sharedInstance().removeMonitor(monitor);
+ 
+ 							auto process = weakProcess.lock();
+@@ -355,7 +358,7 @@ void DarlingServer::Call::Checkout::processCall() {
+ 							if (result == 0) {
+ 								// the execve succeeded
+ 								if (replacingWithDarlingProcess) {
+-									process->setPendingReplacement();
++									process->setPendingReplacement(disclaim);
+ 								} else {
+ 									// the Darling process was replaced with a non-Darling process
+ 									// treat it like death
+@@ -384,7 +387,250 @@ void DarlingServer::Call::Checkout::processCall() {
+ 	// (otherwise, we would attempt to send it through the thread, which is now dead)
+ 	_thread.reset();
+ 
+-	_sendReply(code);
++	return code;
++};
++
++void DarlingServer::Call::Checkout::processCall() {
++    int code = _checkout(_body.exec_listener_pipe, _body.executing_macho, false);
++    _sendReply(code);
++};
++
++void DarlingServer::Call::CheckoutDisclaim::processCall() {
++    int code = _checkout(_body.exec_listener_pipe, _body.executing_macho, true);
++    _sendReply(code);
++};
++
++void DarlingServer::Call::QuarantineKernelReady::processCall() {
++    int code = -ESRCH;
++    auto thread = _thread.lock();
++    auto process = thread ? thread->process() : nullptr;
++    if (process) {
++        if (_body.capabilities != 0x0001000f) code = -EINVAL;
++        else {
++            std::unique_lock lock(process->_rwlock);
++            process->_quarantineKernelCapabilities = _body.capabilities;
++            code = 0;
++        }
++    }
++    _sendReply(code);
++};
++
++void DarlingServer::Call::ProcessGetGeneration::processCall() {
++    int code = -ESRCH;
++    uint32_t generation = 0;
++    auto thread = _thread.lock();
++    auto process = thread ? thread->process() : nullptr;
++    if (process) {
++        if (_body.pid <= 0) code = -EINVAL;
++        else {
++            auto entry = processRegistry().lookupEntryByNSID(_body.pid);
++            auto target = entry ? *entry : nullptr;
++            if (target && !target->isDead()) {
++                std::shared_lock lock(target->_rwlock);
++                generation = target->_pidVersion;
++                code = 0;
++            }
++        }
++    }
++    _sendReply(code, generation);
++};
++
++void DarlingServer::Call::MacSyscall::processCall() {
++    int code = -ESRCH;
++    auto thread = _thread.lock();
++    auto process = thread ? thread->process() : nullptr;
++    if (process) {
++        std::string policy;
++        char ch = 0;
++        code = 0;
++        for (size_t i = 0; i < 32; ++i) {
++            if (!process->readMemory(_body.policy + i, &ch, 1)) { code = -EFAULT; break; }
++            if (!ch) break;
++            policy += ch;
++        }
++        // Preserve Darwin policy errno separately from Linux RPC transport.
++        if (!code && ch) code = -63; // ENAMETOOLONG
++        if (!code && policy == "Sandbox") {
++            if (_body.operation == 0) {
++                // Pinned Intel sandbox_apply_container ABI: data, byte count,
++                // optional container string, container string byte count.
++                // Copy the upload once before parsing it; guest memory is not
++                // stable across separate validation and execution passes.
++                uint64_t upload[4] = {};
++                if (!process->readMemory(_body.arguments, upload, sizeof(upload))) code = -EFAULT;
++                if (!code && (upload[2] || upload[3])) code = -45; // containers not implemented
++                if (!code && (!upload[1] || upload[1] > 1024 * 1024)) code = -EINVAL;
++                if (!code && (!upload[0] || upload[0] > UINT64_MAX - upload[1])) code = -EFAULT;
++                if (!code) {
++                    std::vector<uint8_t> bytes(upload[1]);
++                    if (!process->readMemory(upload[0], bytes.data(), bytes.size())) code = -EFAULT;
++                    else {
++                        std::string error;
++                        auto decoded = Sandbox::Policy::parse(std::move(bytes), error);
++                        if (!decoded) {
++                            callLog.debug() << "Sandbox upload rejected: " << error;
++                            code = -EINVAL;
++                        } else if (decoded->allowsAllOperations()) {
++                            std::unique_lock lock(process->_rwlock);
++                            if (process->_sandboxState != Process::SandboxState::Unconfined) code = -EPERM;
++                            else {
++                                process->_sandboxPolicy = std::move(decoded);
++                                process->_sandboxState = Process::SandboxState::UnrestrictedProfile;
++                                callLog.info() << "Attached native Sandbox policy proven unrestricted for all operations";
++                            }
++                        } else {
++                            callLog.error() << "Sandbox upload decoded: " << decoded->nodeCount()
++                                << " nodes; attachment refused because operation enforcement is unavailable";
++                            // Keep process state unchanged. A decoded graph is
++                            // not a successfully applied Sandbox policy.
++                            code = -45;
++                        }
++                    }
++                }
++                _sendReply(0, -code);
++                return;
++            }
++            // Query actual process state. Restrictive policies, extensions,
++            // approvals and target-credential POSIX access remain unsupported.
++            if (_body.operation != 2) code = -45;
++            uint64_t args[20] = {};
++            if (!code && !process->readMemory(_body.arguments, args, sizeof(args))) code = -EFAULT;
++            if (!code && !args[0]) code = -EFAULT;
++            if (!code && args[1] > INT32_MAX) code = -EINVAL;
++            if (!code && (args[5] & ~uint64_t(0x4000007b))) code = -EINVAL;
++            if (!code && (args[5] & 0x60)) code = -45; // POSIX checks are not Sandbox state queries
++            for (unsigned i = 7; !code && i < 20; ++i) if (args[i]) code = -EINVAL;
++            if (!code && !(args[5] & 0x40000000) && args[6]) code = -EINVAL;
++            auto target = process;
++            if (!code && args[1]) {
++                auto entry = processRegistry().lookupEntryByNSID(args[1]);
++                target = entry ? *entry : nullptr;
++            }
++            if (!code && (!target || target->isDead())) code = -ESRCH;
++            auto readString = [&](uintptr_t address, size_t limit, std::string& value) {
++                for (size_t i = 0; i < limit; ++i) {
++                    char byte;
++                    if (!process->readMemory(address + i, &byte, 1)) return -EFAULT;
++                    if (!byte) return 0;
++                    value += byte;
++                }
++                return -63; // Darwin ENAMETOOLONG
++            };
++            std::string operation;
++            if (!code && args[2]) {
++                code = readString(args[2], 256, operation);
++                if (!code && operation.empty()) code = -EINVAL;
++            }
++            bool scalar = false, compound = false, string = false;
++            if (!code) {
++                switch (args[3]) {
++                    case 0: if (args[4]) code = -EINVAL; break;
++                    case 240: case 65: case 75: case 52: scalar = true; break;
++                    case 35: case 241: compound = true; break;
++                    case 28: break; // descriptor value is opaque to an unconfined-state query
++                    case 1: case 6: case 7: case 25: case 27:
++                    case 33: case 34: case 50: case 19: case 45: case 5: case 69:
++                        string = true; break;
++                    default: code = -EINVAL;
++                }
++            }
++            if (!code && scalar && args[4] > UINT32_MAX) code = -EINVAL;
++            uint64_t pair[2] = {};
++            if (!code && compound && !process->readMemory(args[4], pair, sizeof(pair))) code = -EFAULT;
++            if (!code && compound && args[3] == 35) { args[4] = pair[0]; string = true; }
++            std::string argument;
++            if (!code && string) code = readString(args[4], 4096, argument);
++            if (!code) {
++                Process::SandboxState state;
++                std::shared_ptr<const Sandbox::Policy> attached;
++                {
++                    std::shared_lock lock(target->_rwlock);
++                    state = target->_sandboxState;
++                    attached = target->_sandboxPolicy;
++                    if ((args[5] & 0x40000000) && args[6] != target->_pidVersion) code = -ESRCH;
++                }
++                if (code) { _sendReply(0, -code); return; }
++                if (state == Process::SandboxState::Unsupported) code = -45;
++                else {
++                    uint64_t decision = 0;
++                    if (state == Process::SandboxState::UnrestrictedProfile) {
++                        if (!attached || !attached->allowsAllOperations()) code = -45;
++                        else if (!args[2]) decision = 1; // a real profile is attached
++                        else if (attached->evaluate(operation, Sandbox::Context{}) != Sandbox::Decision::Allow) code = -EINVAL;
++                    }
++                    if (!code && !process->writeMemory(args[0], &decision, sizeof(decision))) code = -EFAULT;
++                }
++            }
++        } else if (!code && policy == "Quarantine" && _body.operation == 87) {
++            // Native nine-slot setprocinfo ABI. Only the actual flags-6 policy
++            // implemented by the paired source VFS is supported here; do not
++            // turn unknown approval/tracking/exclusion requests into success.
++            uint64_t args[9] = {};
++            if (!process->readMemory(_body.arguments, args, sizeof(args))) code = -EFAULT;
++            if (!code && (!args[1] || args[2] > 1024 || args[5] > 2048 || args[7] > 2048 || args[8] > 0x1fff)) code = -EINVAL;
++            if (!code && (args[0] || args[5] || args[6] || args[7] || args[8] != 6 || args[2] > 64)) code = -45;
++            std::string identifier;
++            if (!code) {
++                for (size_t i = 0; i < 256; ++i) {
++                    char byte;
++                    if (!process->readMemory(args[1]+i, &byte, 1)) { code = -EFAULT; break; }
++                    if (!byte) break;
++                    identifier += byte;
++                    if (i == 255) code = -63;
++                }
++            }
++            std::vector<uint8_t> metadata;
++            if (!code && args[2]) {
++                metadata.resize(args[2]);
++                if (!process->readMemory(args[3], metadata.data(), metadata.size())) code = -EFAULT;
++            }
++            if (!code) {
++                std::unique_lock lock(process->_rwlock);
++                if (process->_quarantineKernelCapabilities != 0x0001000f) code = -45;
++                else if (process->_quarantineState &&
++                    (process->_quarantineState->identifier != identifier || process->_quarantineState->metadata != metadata)) code = -45;
++                else process->_quarantineState = std::make_shared<const Process::QuarantineState>(Process::QuarantineState{std::move(identifier), std::move(metadata), 6});
++            }
++        } else if (!code && policy == "Quarantine" && _body.operation == 84) {
++            // Native getprocinfo writes lengths and flags back to its eight
++            // argument slots, plus the three caller-provided output buffers.
++            std::shared_ptr<const Process::QuarantineState> state;
++            { std::shared_lock lock(process->_rwlock); state = process->_quarantineState; }
++            if (!state) code = -93; // actual absent process Quarantine label
++            uint64_t args[8] = {};
++            if (!code && !process->readMemory(_body.arguments, args, sizeof(args))) code = -EFAULT;
++            if (!code && (!args[1] || !args[3] || !args[5])) code = -EINVAL;
++            if (!code) {
++                args[0] = state->identifier.size(); args[2] = state->metadata.size(); args[4] = 0; args[6] = state->flags;
++                if (!process->writeMemory(_body.arguments, args, sizeof(args))) code = -EFAULT;
++                if (!code && args[0] && !process->writeMemory(args[1], state->identifier.data(), args[0])) code = -EFAULT;
++                if (!code && args[2] && !process->writeMemory(args[3], state->metadata.data(), args[2])) code = -EFAULT;
++            }
++        } else if (!code && policy != "Quarantine") code = -103; // ENOPOLICY
++        else if (!code && _body.operation != 180) code = -45; // ENOTSUP
++        else if (!code) {
++            // The native libquarantine query SPI passes five 64-bit slots:
++            // pid, optional pid output, optional unique-ID output, reserved x2.
++            uint64_t args[5];
++            if (!process->readMemory(_body.arguments, args, sizeof(args))) code = -EFAULT;
++            else if (args[0] > INT32_MAX) code = -EINVAL;
++            else if (args[3] || args[4]) code = -45;
++            else {
++                auto target = process;
++                if (args[0]) {
++                    auto entry = processRegistry().lookupEntryByNSID(args[0]);
++                    target = entry ? *entry : nullptr;
++                }
++                if (!target || target->isDead()) code = -ESRCH;
++                else {
++                    auto info = target->responsibility();
++                    if (args[1] && !process->writeMemory(args[1], &info.pid, sizeof(info.pid))) code = -EFAULT;
++                    if (!code && args[2] && !process->writeMemory(args[2], &info.uniqueID, sizeof(info.uniqueID))) code = -EFAULT;
++                }
++            }
++        }
++    }
++    _sendReply(0, -code);
+ };
+ 
+ void DarlingServer::Call::VchrootPath::processCall() {
+@@ -770,6 +1016,55 @@ void DarlingServer::Call::InterruptExit::processCall() {
+ 	}
+ };
+ 
++void DarlingServer::Call::FseventsOpen::processCall() {
++    int result=-ESRCH;
++    if (auto thread=_thread.lock()) if (auto process=thread->process()) {
++        // This initial backend covers the actual virtual-root tree. External
++        // SystemRoot aliases need additional roots before general CI promotion.
++        try { result=FSEvents::openDevice({{process->vchrootPath(),"/"}},_body.flags); }
++        catch (const std::bad_alloc&) { result=-ENOMEM; }
++        catch (...) { result=-EIO; }
++    }
++    _sendReply(result<0?result:0,result<0?-1:result);
++}
++
++void DarlingServer::Call::FseventsIoctl::processCall() {
++    int result=-ESRCH,output=-1;
++    auto thread=_thread.lock();auto process=thread?thread->process():nullptr;
++    if (process) {
++        try {
++            if (!FSEvents::isDevice(_body.fd)) result=-ENOTTY;
++            else switch (_body.command) {
++                case 0x80187301: { // FSEVENTS_CLONE, x86_64 24-byte structure
++                    struct Clone { uint64_t actions;int32_t count,depth;uint64_t output; } args{};
++                    if (!process->readMemory(_body.argument,&args,sizeof args)) { result=-EFAULT;break; }
++                    if (args.count<1 || args.count>64 || args.depth<1 || args.depth>65536) { result=-EINVAL;break; }
++                    std::vector<int8_t> actions(args.count);
++                    if (!process->readMemory(args.actions,actions.data(),actions.size())) { result=-EFAULT;break; }
++                    result=FSEvents::cloneDevice(_body.fd,actions,args.depth);
++                    if (result>=0) { output=result;result=0; }
++                    break;
++                }
++                case 0x800c7364: { // packed FSEVENTS_DEVICE_FILTER (exclusion list)
++                    uint8_t bytes[12];uint32_t count;uint64_t address;
++                    if (!process->readMemory(_body.argument,bytes,sizeof bytes)) { result=-EFAULT;break; }
++                    std::memcpy(&count,bytes,4);std::memcpy(&address,bytes+4,8);
++                    if (count>256) { result=-EINVAL;break; }
++                    std::vector<uint32_t> devices(count);
++                    if (count && !process->readMemory(address,devices.data(),count*4)) { result=-EFAULT;break; }
++                    result=FSEvents::filterDevices(_body.fd,devices);break;
++                }
++                case 0x20007365: result=FSEvents::setCompact(_body.fd);break;
++                case 0x20007366: result=FSEvents::setExtended(_body.fd);break;
++                case 0x40087367: result=-ENOTSUP;break; // persistent event IDs not provided by inotify
++                default: result=-ENOTTY;break;
++            }
++        } catch (const std::bad_alloc&) { result=-ENOMEM; }
++        catch (...) { result=-EIO; }
++    }
++    _sendReply(result,output);
++}
++
+ void DarlingServer::Call::ConsoleOpen::processCall() {
+ 	static Log consoleLog("console");
+ 
+diff --git a/src/fsevents-device.cpp b/src/fsevents-device.cpp
+new file mode 100644
+index 0000000..e1b4144
+--- /dev/null
++++ b/src/fsevents-device.cpp
+@@ -0,0 +1,322 @@
++// Linux backend for the legacy /dev/fsevents ABI. The wire layout is derived
++// from XNU bsd/sys/fsevents.h and copy_out_kfse() in bsd/vfs/vfs_fsevents.c.
++// This first backend supports delete/rename watchers (CoreServices' request).
++// It refuses other event selections. inotify has no originating PID; records
++// explicitly use PID 0, and incomplete observations produce EVENTS_DROPPED.
++#include <darlingserver/fsevents-device.hpp>
++
++#include <sys/inotify.h>
++#include <sys/socket.h>
++#include <sys/stat.h>
++#include <sys/vfs.h>
++#include <sys/un.h>
++#include <poll.h>
++#include <fcntl.h>
++#include <unistd.h>
++#include <cerrno>
++#include <algorithm>
++#include <atomic>
++#include <chrono>
++#include <cstring>
++#include <cstdio>
++#include <deque>
++#include <filesystem>
++#include <memory>
++#include <mutex>
++#include <thread>
++#include <unordered_map>
++#include <unordered_set>
++
++namespace DarlingServer::FSEvents {
++namespace {
++namespace fs = std::filesystem;
++constexpr int Delete=1, Rename=3, Dropped=999;
++constexpr uint16_t String=2, Int64=5, Inode=7, Uid=8, Dev=9, Mode=10, Gid=11, Finfo=12, Done=0xb33f;
++constexpr uint32_t Mask=IN_CREATE|IN_DELETE|IN_MOVED_FROM|IN_MOVED_TO|IN_DELETE_SELF|IN_MOVE_SELF|IN_UNMOUNT;
++constexpr size_t MaxEntries=2000000;
++struct Info { uint64_t inode; uint32_t dev,mode,uid,gid; };
++struct Entry { std::string host,guest; Info info; };
++struct Pending { Entry entry; std::chrono::steady_clock::time_point time; };
++struct Device;
++struct Registry {
++    std::mutex mutex;
++    std::unordered_map<ino_t,std::weak_ptr<Device>> devices;
++    std::atomic<uint64_t> serial{1};
++};
++// Kept alive until process exit; detached workers can finish while globals in
++// the rest of darlingserver are being torn down.
++Registry& registry() { static auto* value=new Registry; return *value; }
++template<class T> void append(std::vector<uint8_t>& bytes,T value) {
++    auto* p=reinterpret_cast<const uint8_t*>(&value);bytes.insert(bytes.end(),p,p+sizeof value);
++}
++template<class T> void arg(std::vector<uint8_t>& bytes,uint16_t type,T value) {
++    append(bytes,type);append(bytes,uint16_t(sizeof value));append(bytes,value);
++}
++bool beneath(const std::string& name,const std::string& parent) {
++    return name==parent || (name.size()>parent.size() && name.compare(0,parent.size(),parent)==0 && name[parent.size()]=='/');
++}
++bool infoFor(const std::string& path,Info& info) {
++    struct stat st;
++    if (lstat(path.c_str(),&st)<0) return false;
++    // This is the same Linux dev_t narrowing used by Darling's stat converter.
++    info={uint64_t(st.st_ino),uint32_t(st.st_dev),uint32_t(st.st_mode),st.st_uid,st.st_gid};
++    return true;
++}
++struct Device : std::enable_shared_from_this<Device> {
++    int peer=-1,notify=-1;
++    ino_t key=0;
++    std::vector<Root> roots;
++    std::vector<int8_t> actions;
++    unsigned depth=0;
++    std::mutex mutex;
++    bool compact=false,extended=false,filtered=false;
++    std::unordered_set<uint32_t> filter;
++    std::unordered_map<int,Entry> watches;
++    std::unordered_map<std::string,Entry> entries;
++    std::unordered_map<uint32_t,Pending> moves;
++    std::deque<std::vector<uint8_t>> queue;
++    bool lost=false;
++    ~Device() {
++        if (notify>=0) close(notify);
++        if (peer>=0) close(peer);
++        std::lock_guard lock(registry().mutex);
++        registry().devices.erase(key);
++    }
++    bool selected(int type,uint32_t dev) {
++        std::lock_guard lock(mutex);
++        return type<int(actions.size()) && actions[type]==1 && (!filtered || !filter.count(dev));
++    }
++    void loss() { lost=true; }
++    void path(std::vector<uint8_t>& bytes,const Entry& entry,bool packed) {
++        if (entry.guest.size()+1>UINT16_MAX) { loss();return; }
++        append(bytes,String);append(bytes,uint16_t(entry.guest.size()+1));
++        bytes.insert(bytes.end(),entry.guest.begin(),entry.guest.end());bytes.push_back(0);
++        auto& i=entry.info;
++        if (!i.dev && !i.inode) return; // absent rename destination, as in XNU
++        if (packed) {
++            append(bytes,Finfo);append(bytes,uint16_t(24));
++            // XNU emits the packed fields starting at cur->ino (8+4+4+4+4).
++            append(bytes,i.inode);append(bytes,i.dev);append(bytes,i.mode);append(bytes,i.uid);append(bytes,i.gid);
++        } else {
++            arg(bytes,Dev,i.dev);arg(bytes,Inode,i.inode);arg(bytes,Mode,i.mode);arg(bytes,Uid,i.uid);arg(bytes,Gid,i.gid);
++        }
++    }
++    void emit(int type,const Entry& first,const Entry* second=nullptr) {
++        if (!selected(type,first.info.dev) && !(second && selected(type,second->info.dev))) return;
++        if (queue.size()>=depth) { loss();return; }
++        bool packed;
++        { std::lock_guard lock(mutex);packed=compact; }
++        std::vector<uint8_t> bytes;append(bytes,int32_t(type));append(bytes,int32_t(0));
++        path(bytes,first,packed);if (second) path(bytes,*second,packed);
++        // Darling's x86_64 mach_absolute_time uses Linux's monotonic nanoseconds.
++        auto stamp=std::chrono::steady_clock::now().time_since_epoch();
++        arg(bytes,Int64,uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(stamp).count()));
++        append(bytes,Done);queue.push_back(std::move(bytes));
++    }
++    int inventory(const std::string& host,const std::string& guest,bool initial) {
++        Entry entry{host,guest,{}};
++        if (!infoFor(host,entry.info)) { int error=errno;fprintf(stderr,"fsevents inventory lstat: %s: %s\n",host.c_str(),strerror(error));return -error; }
++        if (entries.size()>=MaxEntries) return -ENOSPC;
++        entries[host]=entry;
++        if (!S_ISDIR(entry.info.mode)) return 0;
++        // The Linux proc/sys/devpts mounts exposed by the container are not
++        // disk-backed vnode trees. They cannot produce these legacy events,
++        // and descending into /proc would also follow changing task entries.
++        struct statfs filesystem;
++        if (statfs(host.c_str(),&filesystem)<0) return -errno;
++        switch (filesystem.f_type) {
++            case 0x9fa0: case 0x62656572: case 0x1cd1: // proc, sysfs, devpts
++            case 0x27e0eb: case 0x63677270: // cgroup, cgroup2
++            case 0x42494e4d: case 0x6e736673: // binfmt_misc, nsfs
++            case 0x74726163: case 0x73636673: case 0x64626720: // tracing/security/debug
++            case 0xde5e81e4: case 0x19800202: return 0; // efivarfs, mqueue
++        }
++        int wd=inotify_add_watch(notify,host.c_str(),Mask|IN_ONLYDIR|IN_DONT_FOLLOW);
++        if (wd<0) { int error=errno;fprintf(stderr,"fsevents inventory watch: %s: %s\n",host.c_str(),strerror(error));return -error; }
++        // Directory aliases can name the same inode; preserve one stable name.
++        if (watches.count(wd)) return 0;
++        watches[wd]=entry;
++        std::error_code error;
++        fs::directory_iterator it(host,error),end;
++        if (error) {fprintf(stderr,"fsevents inventory enumerate: %s: %s\n",host.c_str(),error.message().c_str());return -error.value();}
++        for (;it!=end;it.increment(error)) {
++            if (error) return -error.value();
++            auto leaf=it->path().filename().string();
++            int result=inventory(it->path().string(),guest+(guest=="/"?"":"/")+leaf,initial);
++            if (result<0) {
++                if (result==-ENOENT) { if (!initial) loss();continue; }
++                return result;
++            }
++        }
++        // Events may precede a newly installed subtree watch. Tell consumers
++        // to rescan instead of pretending the entire interval was observed.
++        if (!initial) loss();
++        return 0;
++    }
++    void forget(const std::string& parent) {
++        for (auto it=entries.begin();it!=entries.end();) {
++            if (beneath(it->first,parent)) it=entries.erase(it);else ++it;
++        }
++        for (auto it=watches.begin();it!=watches.end();) {
++            if (beneath(it->second.host,parent)) { inotify_rm_watch(notify,it->first);it=watches.erase(it); }
++            else ++it;
++        }
++    }
++    void relocate(const Entry& from,const Entry& to) {
++        std::vector<Entry> changed;
++        for (auto it=entries.begin();it!=entries.end();) {
++            if (beneath(it->first,from.host)) {
++                auto entry=it->second;entry.host=to.host+entry.host.substr(from.host.size());
++                entry.guest=to.guest+entry.guest.substr(from.guest.size());
++                changed.push_back(std::move(entry));it=entries.erase(it);
++            } else ++it;
++        }
++        for (auto& entry:changed) entries[entry.host]=entry;
++        for (auto& [wd,entry]:watches) if (beneath(entry.host,from.host)) {
++            entry.host=to.host+entry.host.substr(from.host.size());
++            entry.guest=to.guest+entry.guest.substr(from.guest.size());
++        }
++    }
++    void event(const inotify_event& event) {
++        if (event.mask&IN_Q_OVERFLOW) { moves.clear();loss();return; }
++        auto watch=watches.find(event.wd);
++        if (watch==watches.end()) { if (!(event.mask&IN_IGNORED)) loss();return; }
++        if (event.mask&IN_IGNORED) { watches.erase(watch);return; }
++        if (event.mask&IN_UNMOUNT) { loss();return; }
++        if (!event.len) return; // parent watch supplies paired directory moves/deletes
++        auto host=watch->second.host+"/"+event.name;
++        auto guest=watch->second.guest+(watch->second.guest=="/"?"":"/")+event.name;
++        auto found=entries.find(host);
++        if (event.mask&(IN_DELETE|IN_MOVED_FROM)) {
++            if (found==entries.end()) { loss();return; }
++            auto old=found->second;
++            if (event.mask&IN_MOVED_FROM) moves[event.cookie]={old,std::chrono::steady_clock::now()};
++            else { emit(Delete,old);forget(host); }
++        }
++        if (event.mask&IN_MOVED_TO) {
++            auto pending=moves.find(event.cookie);
++            if (pending!=moves.end()) {
++                Entry target{host,guest,pending->second.entry.info};
++                auto old=pending->second.entry;
++                // XNU's second metadata tuple identifies the overwritten
++                // destination, not a second copy of the source inode.
++                Entry destination{host,guest,found==entries.end()?Info{}:found->second.info};
++                if (found!=entries.end()) forget(host);
++                relocate(old,target);emit(Rename,old,&destination);moves.erase(pending);
++            } else {
++                // The source is outside this watch set. We cannot invent it.
++                loss();if (inventory(host,guest,false)<0) loss();
++            }
++        } else if (event.mask&IN_CREATE) {
++            if (inventory(host,guest,false)<0) loss();
++        }
++    }
++    void flush() {
++        while (!queue.empty()) {
++            auto& bytes=queue.front();
++            auto n=send(peer,bytes.data(),bytes.size(),MSG_DONTWAIT|MSG_NOSIGNAL);
++            if (n<0) { if (errno!=EAGAIN && errno!=EWOULDBLOCK) throw errno;return; }
++            if (n!=ssize_t(bytes.size())) throw EIO;
++            queue.pop_front();
++        }
++        if (lost) {
++            std::vector<uint8_t> bytes;append(bytes,int32_t(Dropped));append(bytes,int32_t(0));append(bytes,Done);
++            auto n=send(peer,bytes.data(),bytes.size(),MSG_DONTWAIT|MSG_NOSIGNAL);
++            if (n==ssize_t(bytes.size())) lost=false;
++            else if (n<0 && errno!=EAGAIN && errno!=EWOULDBLOCK) throw errno;
++        }
++    }
++    void run() noexcept {
++        try {
++            while (true) {
++                pollfd fds[2]={{peer,short(POLLIN|POLLRDHUP|((lost||!queue.empty())?POLLOUT:0)),0},{notify,POLLIN,0}};
++                int n=poll(fds,notify<0?1:2,50);
++                if (n<0) { if (errno==EINTR) continue;break; }
++                if (fds[0].revents&(POLLHUP|POLLRDHUP|POLLERR|POLLNVAL|POLLIN)) break;
++                if (notify>=0 && (fds[1].revents&POLLIN)) {
++                    alignas(inotify_event) char buffer[65536];
++                    auto count=read(notify,buffer,sizeof buffer);
++                    if (count<0) { if (errno!=EAGAIN && errno!=EINTR) break; }
++                    else for (size_t at=0;at<size_t(count);) {
++                        auto* ev=reinterpret_cast<const inotify_event*>(buffer+at);
++                        event(*ev);at+=sizeof(*ev)+ev->len;
++                    }
++                }
++                auto now=std::chrono::steady_clock::now();
++                for (auto it=moves.begin();it!=moves.end();) {
++                    if (now-it->second.time>std::chrono::milliseconds(100)) {
++                        auto host=it->second.entry.host;loss();it=moves.erase(it);forget(host);
++                    } else ++it;
++                }
++                flush();
++            }
++        } catch (...) { /* A broken event channel terminates, never returns false success. */ }
++    }
++};
++std::shared_ptr<Device> find(int fd) {
++    struct stat st;
++    if (fstat(fd,&st)<0) return nullptr;
++    std::lock_guard lock(registry().mutex);
++    auto it=registry().devices.find(st.st_ino);
++    return it==registry().devices.end()?nullptr:it->second.lock();
++}
++int publish(const std::shared_ptr<Device>& device,int flags) {
++    int pair[2];
++    if (socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_CLOEXEC,0,pair)<0) return -errno;
++    device->peer=pair[0];
++    sockaddr_un name{};name.sun_family=AF_UNIX;
++    auto text=std::string("darling.fsevents.v1.")+std::to_string(getpid())+"."+std::to_string(registry().serial++);
++    memcpy(name.sun_path+1,text.data(),text.size());
++    if (bind(pair[0],reinterpret_cast<sockaddr*>(&name),offsetof(sockaddr_un,sun_path)+1+text.size())<0) {
++        int error=errno;close(pair[1]);return -error;
++    }
++    struct stat st;
++    if (fstat(pair[1],&st)<0) { int error=errno;close(pair[1]);return -error; }
++    device->key=st.st_ino;
++    if (flags&O_NONBLOCK) fcntl(pair[1],F_SETFL,O_NONBLOCK);
++    { std::lock_guard lock(registry().mutex);registry().devices[device->key]=device; }
++    try { std::thread([device] { device->run(); }).detach(); }
++    catch (...) { close(pair[1]);return -EAGAIN; }
++    return pair[1];
++}
++}
++int openDevice(const std::vector<Root>& roots,int flags) {
++    if (roots.empty() || (flags&O_ACCMODE)!=O_RDONLY) return -EINVAL;
++    auto device=std::make_shared<Device>();device->roots=roots;
++    return publish(device,flags);
++}
++int cloneDevice(int fd,const std::vector<int8_t>& actions,unsigned depth) {
++    auto control=find(fd);
++    if (!control) return -ENOTTY;
++    if (control->notify>=0) return -ENOTTY;
++    if (actions.empty() || actions.size()>64 || depth==0 || depth>65536) return -EINVAL;
++    for (unsigned i=0;i<actions.size();i++) {
++        if (actions[i]<0 || actions[i]>1) return -EINVAL;
++        if (actions[i] && i!=Delete && i!=Rename) return -ENOTSUP;
++    }
++    auto device=std::make_shared<Device>();device->roots=control->roots;device->actions=actions;device->depth=depth;
++    device->notify=inotify_init1(IN_NONBLOCK|IN_CLOEXEC);
++    if (device->notify<0) return -errno;
++    for (auto& root:device->roots) {
++        if (root.host.empty() || root.guest.empty() || root.guest[0]!='/') return -EINVAL;
++        int result=device->inventory(root.host,root.guest,true);
++        if (result<0) return result;
++    }
++    return publish(device,0);
++}
++int filterDevices(int fd,const std::vector<uint32_t>& devices) {
++    auto stream=find(fd);if (!stream || stream->notify<0) return -ENOTTY;
++    if (devices.size()>256) return -EINVAL;
++    std::lock_guard lock(stream->mutex);stream->filter={devices.begin(),devices.end()};stream->filtered=!devices.empty();return 0;
++}
++int setCompact(int fd) {
++    auto stream=find(fd);if (!stream || stream->notify<0) return -ENOTTY;
++    std::lock_guard lock(stream->mutex);stream->compact=true;return 0;
++}
++int setExtended(int fd) {
++    auto stream=find(fd);if (!stream || stream->notify<0) return -ENOTTY;
++    std::lock_guard lock(stream->mutex);stream->extended=true;return 0;
++}
++bool isDevice(int fd) { return bool(find(fd)); }
++size_t activeDevices() { std::lock_guard lock(registry().mutex);return registry().devices.size(); }
++}
+diff --git a/src/process.cpp b/src/process.cpp
+index 9cd7b81..db28727 100644
+--- a/src/process.cpp
++++ b/src/process.cpp
+@@ -26,10 +26,16 @@
+ 
+ #include <fstream>
+ #include <regex>
++#include <sstream>
++#include <atomic>
+ 
+ #include <sys/mman.h>
++#include <sys/sysmacros.h>
+ 
+ static DarlingServer::Log processLog("process");
++// Like XNU's nextpidversion, this changes on both fork and successful exec.
++// The registry EternalID instead identifies the whole process lifetime.
++static std::atomic<uint32_t> nextPIDVersion{1};
+ 
+ DarlingServer::Process::Process(ID id, NSID nsid, Architecture architecture, int pipe):
+ 	_pid(id),
+@@ -42,6 +48,24 @@ DarlingServer::Process::Process(ID id, NSID nsid, Architecture architecture, int
+ 	}
+ 
+ 	_pidfd = std::make_shared<FD>(pidfd);
++	// Match libproc's existing Darwin unique-ID representation, using the real
++	// Linux process birth time and the PID in the client's namespace. Never look
++	// up a responsible PID later: PID reuse must not substitute a new process.
++	std::ifstream statFile("/proc/" + std::to_string(id) + "/stat");
++	std::string statLine;
++	std::getline(statFile, statLine);
++	auto endComm = statLine.rfind(')');
++	if (endComm == std::string::npos) {
++		throw std::system_error(ESRCH, std::generic_category(), "Missing process birth record");
++	}
++	std::istringstream statFields(statLine.substr(endComm + 1));
++	std::string field;
++	for (int number = 3; number <= 22; ++number) {
++		if (!(statFields >> field)) {
++			throw std::system_error(ESRCH, std::generic_category(), "Incomplete process birth record");
++		}
++	}
++	_uniqueID = (std::stoull(field) << 16) | (_nspid & 0xffff);
+ 
+ 	// we could use stat instead of status, but it's more complicated with comm potentially getting in the way of parsing (it can include whitespace and parentheses)
+ 	std::ifstream statusFile("/proc/" + std::to_string(id) + "/status");
+@@ -80,6 +104,11 @@ DarlingServer::Process::Process(ID id, NSID nsid, Architecture architecture, int
+ 
+ 		// inherit groups from parent process
+ 		_groups = parentProcess->_groups;
++		_responsibility = parentProcess->_responsibility;
++		_sandboxState = parentProcess->_sandboxState;
++		_sandboxPolicy = parentProcess->_sandboxPolicy;
++		_quarantineState = parentProcess->_quarantineState;
++		_quarantineKernelCapabilities = parentProcess->_quarantineKernelCapabilities;
+ 	}
+ 
+ 	// NOTE: see thread.cpp for why it's okay to use `this` here
+@@ -125,6 +154,11 @@ DarlingServer::EternalID DarlingServer::Process::eternalID() const {
+ 
+ void DarlingServer::Process::_setEternalID(EternalID eid) {
+ 	_eid = eid;
++	_pidVersion = nextPIDVersion.fetch_add(1, std::memory_order_relaxed);
++	dtape_task_set_process_generation(_dtapeTask, eid, _pidVersion);
++	if (_responsibility.pid == 0) {
++		_responsibility = {_nspid, _uniqueID, eid};
++	}
+ };
+ 
+ std::vector<std::shared_ptr<DarlingServer::Thread>> DarlingServer::Process::threads() const {
+@@ -317,6 +351,9 @@ void DarlingServer::Process::notifyCheckin(Architecture architecture) {
+ 		auto oldTask = _dtapeTask;
+ 		auto newTask = dtape_task_create(oldTask, _nspid, this, static_cast<dserver_rpc_architecture_t>(_architecture));
+ 		_dtapeTask = newTask;
++		_quarantineKernelCapabilities = 0;
++		_pidVersion = nextPIDVersion.fetch_add(1, std::memory_order_relaxed);
++		dtape_task_set_process_generation(_dtapeTask, _eid, _pidVersion);
+ 
+ 		// now replace the main thread's duct-taped thread with a new one
+ 		auto oldThread = mainThread->_dtapeThread;
+@@ -375,12 +412,22 @@ void DarlingServer::Process::notifyCheckin(Architecture architecture) {
+ 	}
+ };
+ 
+-void DarlingServer::Process::setPendingReplacement() {
++void DarlingServer::Process::setPendingReplacement(bool disclaim) {
+ 	std::unique_lock lock(_rwlock);
+ 
+ 	processLog.info() << "Process " << id() << " (" << nsid() << ") is now pending replacement" << processLog.endLog;
+ 
+ 	_pendingReplacement = true;
++	if (disclaim) {
++		// The close-on-exec pipe has confirmed a successful exec. Failed execs
++		// never arrive here and cannot change the old process's responsibility.
++		_responsibility = {_nspid, _uniqueID, _eid};
++	}
++};
++
++DarlingServer::Process::Responsibility DarlingServer::Process::responsibility() const {
++	std::shared_lock lock(_rwlock);
++	return _responsibility;
+ };
+ 
+ void DarlingServer::Process::registerKqchan(std::shared_ptr<Kqchan> kqchan) {
+@@ -465,7 +512,7 @@ DarlingServer::Process::MemoryInfo DarlingServer::Process::memoryInfo() const {
+ 	return info;
+ };
+ 
+-static const std::regex memoryRegionEntryRegex("([0-9a-fA-F]+)\\-([0-9a-fA-F]+)\\s+((?:r|w|x|p|s|\\-)+)\\s+([0-9a-fA-F]+)");
++static const std::regex memoryRegionEntryRegex("([0-9a-fA-F]+)\\-([0-9a-fA-F]+)\\s+((?:r|w|x|p|s|\\-)+)\\s+([0-9a-fA-F]+)\\s+([0-9a-fA-F]+):([0-9a-fA-F]+)\\s+([0-9]+)");
+ 
+ DarlingServer::Process::MemoryRegionInfo DarlingServer::Process::memoryRegionInfo(uintptr_t address) const {
+ 	if (isDead()) {
+@@ -496,6 +543,8 @@ DarlingServer::Process::MemoryRegionInfo DarlingServer::Process::memoryRegionInf
+ 		info.pageCount = (endAddress - info.startAddress) / sysconf(_SC_PAGESIZE);
+ 
+ 		info.mapOffset = std::stoul(match[4].str(), nullptr, 16);
++		info.fileDevice = makedev(std::stoul(match[5].str(), nullptr, 16), std::stoul(match[6].str(), nullptr, 16));
++		info.fileInode = std::stoull(match[7].str());
+ 
+ 		auto perms = match[3].str();
+ 
+@@ -580,21 +629,25 @@ std::shared_ptr<DarlingServer::Thread> DarlingServer::Process::_pickS2CThread(vo
+ 		return Thread::currentThread();
+ 	}
+ 
+-	// otherwise, pick any thread to perform the call
+-
+-	std::shared_ptr<Thread> thread = nullptr;
+-
++	// Thread objects can outlive their Linux thread while an interrupted call
++	// unwinds. A successful weak_ptr::lock() does not prove that the thread can
++	// receive an S2C request. Snapshot the candidates without nesting the process
++	// lock with their individual locks (or their destructors).
++	std::vector<std::shared_ptr<Thread>> candidates;
+ 	{
+ 		std::shared_lock lock(_rwlock);
+ 		for (auto& [id, weakThread]: _threads) {
+-			thread = weakThread.lock();
+-			if (thread) {
+-				break;
+-			}
++			if (auto thread = weakThread.lock()) candidates.push_back(std::move(thread));
+ 		}
+ 	}
+-
+-	return thread;
++	std::shared_ptr<Thread> fallback;
++	for (auto& thread: candidates) {
++		if (thread->isDead()) continue;
++		// A thread already waiting for a server reply needs no signal roundtrip.
++		if (thread->activeCall()) return thread;
++		if (!fallback) fallback = thread;
++	}
++	return fallback;
+ };
+ 
+ std::string DarlingServer::Process::executablePath() const {
+diff --git a/src/sandbox-operation-names.inc b/src/sandbox-operation-names.inc
+new file mode 100644
+index 0000000..b3e93d1
+--- /dev/null
++++ b/src/sandbox-operation-names.inc
+@@ -0,0 +1,199 @@
++// Intel macOS 26.6 operation order, extracted from the pinned original compiler.
++    "default",
++    "appleevent-send",
++    "authorization-right-obtain",
++    "boot-arg-set",
++    "consume-extension",
++    "device*",
++    "device-camera",
++    "device-microphone",
++    "darwin-notification-post",
++    "distributed-notification-post",
++    "dynamic-code-generation",
++    "file*",
++    "file-chroot",
++    "file-clone",
++    "file-graft",
++    "file-ioctl",
++    "file-issue-extension",
++    "file-link",
++    "file-lock",
++    "file-map-executable",
++    "file-mknod",
++    "file-mount",
++    "file-mount-update",
++    "file-read*",
++    "file-read-data",
++    "file-read-metadata",
++    "file-read-xattr",
++    "file-revoke",
++    "file-search",
++    "file-test-existence",
++    "file-ungraft",
++    "file-unmount",
++    "file-write*",
++    "file-write-acl",
++    "file-write-create",
++    "file-write-data",
++    "file-write-finderinfo",
++    "file-write-flags",
++    "file-write-mode",
++    "file-write-owner",
++    "file-write-setugid",
++    "file-write-times",
++    "file-write-unlink",
++    "file-write-xattr",
++    "fs-quota*",
++    "fs-quota-get",
++    "fs-quota-on",
++    "fs-quota-off",
++    "fs-quota-set*",
++    "fs-quota-set-limits",
++    "fs-quota-set-usage",
++    "fs-quota-stat",
++    "fs-quota-sync",
++    "fs-rename",
++    "fs-snapshot*",
++    "fs-snapshot-create",
++    "fs-snapshot-delete",
++    "fs-snapshot-mount",
++    "fs-snapshot-revert",
++    "generic-issue-extension",
++    "qtn-user",
++    "hid-control",
++    "iokit*",
++    "iokit-get-properties",
++    "iokit-issue-extension",
++    "iokit-open*",
++    "iokit-open-user-client",
++    "iokit-open-service",
++    "iokit-set-properties",
++    "ipc*",
++    "ipc-posix*",
++    "ipc-posix-sem*",
++    "ipc-posix-sem-create",
++    "ipc-posix-sem-open",
++    "ipc-posix-sem-post",
++    "ipc-posix-sem-unlink",
++    "ipc-posix-sem-wait",
++    "ipc-posix-shm*",
++    "ipc-posix-shm-read-data",
++    "ipc-posix-shm-write*",
++    "ipc-posix-shm-write-create",
++    "ipc-posix-shm-write-data",
++    "ipc-posix-shm-write-unlink",
++    "ipc-sysv*",
++    "ipc-sysv-msg",
++    "ipc-sysv-sem",
++    "ipc-sysv-shm",
++    "job-creation",
++    "lsopen",
++    "mach*",
++    "mach-bootstrap",
++    "mach-cross-domain-lookup",
++    "mach-derive-port",
++    "mach-host*",
++    "mach-host-exception-port-set",
++    "mach-host-special-port-set",
++    "mach-issue-extension",
++    "mach-lookup",
++    "mach-priv*",
++    "mach-priv-host-port",
++    "mach-priv-task-port",
++    "mach-register",
++    "mach-task*",
++    "mach-task-exception-port-set",
++    "mach-task-inspect",
++    "mach-task-name",
++    "mach-task-read",
++    "mach-task-special-port*",
++    "mach-task-special-port-get",
++    "mach-task-special-port-set",
++    "necp-client-open",
++    "network*",
++    "network-inbound",
++    "network-bind",
++    "network-outbound",
++    "nvram*",
++    "nvram-delete",
++    "nvram-get",
++    "nvram-set",
++    "opendirectory-user-modify",
++    "process*",
++    "process-codesigning",
++    "process-exec*",
++    "process-exec-interpreter",
++    "process-fork",
++    "process-info*",
++    "process-info-codesignature",
++    "process-info-dirtycontrol",
++    "process-info-ledger",
++    "process-info-listpids",
++    "process-info-pidinfo",
++    "process-info-pidfdinfo",
++    "process-info-pidfileportinfo",
++    "process-info-rusage",
++    "process-info-sandbox-container",
++    "process-info-setcontrol",
++    "process-iopolicy*",
++    "process-iopolicy-get",
++    "process-iopolicy-set",
++    "process-legacy-codesigning*",
++    "process-legacy-codesigning-blob-get",
++    "process-legacy-codesigning-cdhash-get",
++    "process-legacy-codesigning-entitlements-blob-get",
++    "process-legacy-codesigning-entitlements-der-blob-get",
++    "process-legacy-codesigning-identity-get",
++    "process-legacy-codesigning-status*",
++    "process-legacy-codesigning-status-get",
++    "process-legacy-codesigning-status-set",
++    "process-legacy-codesigning-teamid-get",
++    "process-legacy-codesigning-text-offset-get",
++    "pseudo-tty",
++    "sandbox-check",
++    "signal",
++    "socket-ioctl",
++    "socket-option*",
++    "socket-option-get",
++    "socket-option-set",
++    "syscall*",
++    "syscall-unix",
++    "syscall-mach",
++    "syscall-mig",
++    "sysctl*",
++    "sysctl-read",
++    "sysctl-write",
++    "system*",
++    "system-acct",
++    "system-audit",
++    "system-automount",
++    "system-debug",
++    "system-fcntl",
++    "system-fsctl",
++    "system-info",
++    "system-kas-info",
++    "system-kext*",
++    "system-kext-load",
++    "system-kext-unload",
++    "system-kext-query",
++    "system-mac*",
++    "system-mac-label",
++    "system-mac-syscall",
++    "system-memorystatus-control",
++    "system-necp-client-action",
++    "system-nfssvc",
++    "system-package-check",
++    "system-privilege",
++    "system-reboot",
++    "system-sched",
++    "system-set-time",
++    "system-socket",
++    "system-suspend-resume",
++    "system-swap",
++    "user-preference*",
++    "user-preference-read",
++    "managed-preference-read",
++    "user-preference-write",
++    "exception-entitlement",
++    "storage-class-map",
++    "process-exec-update-label",
+diff --git a/src/sandbox-policy.cpp b/src/sandbox-policy.cpp
+new file mode 100644
+index 0000000..f8a91e7
+--- /dev/null
++++ b/src/sandbox-policy.cpp
+@@ -0,0 +1,260 @@
++/* SPDX-License-Identifier: GPL-3.0-or-later
++ * Binary graph layout was cross-checked against the BSD-licensed SandBlaster
++ * format research (vendor/sandblaster_26). Pattern instruction encodings are
++ * checked against the pinned original Intel compiler's serializer.
++ */
++#include <darlingserver/sandbox-policy.hpp>
++#include <algorithm>
++#include <limits>
++#include <unordered_map>
++#include <unordered_set>
++
++namespace DarlingServer::Sandbox {
++namespace {
++constexpr std::string_view operations[] = {
++#include "sandbox-operation-names.inc"
++};
++uint16_t u16(const uint8_t* p) { return uint16_t(p[0]) | (uint16_t(p[1]) << 8); }
++bool stringFilter(uint8_t filter) {
++    switch (filter) {
++        case 1: case 5: case 6: case 7: case 10: case 17: case 18: case 28: case 38: case 50: return true;
++        default: return false;
++    }
++}
++}
++std::string_view Policy::operationName(size_t index) {
++    return index < std::size(operations) ? operations[index] : std::string_view{};
++}
++
++bool Policy::parsePattern(const uint8_t* bytes, size_t length, Pattern& result, std::string& error) {
++    if (!length || length > 65535) { error = "invalid pattern length"; return false; }
++    struct Pending { size_t pc, next, fallback; PatternInstruction value; };
++    std::vector<Pending> pending;
++    std::unordered_map<size_t,size_t> index;
++    size_t pc = 0;
++    while (pc < length) {
++        Pending p{}; p.pc = pc;
++        uint8_t op = bytes[pc++];
++        auto require = [&](size_t count) { return count <= length - pc; };
++        if (op == 0x0a) {
++            p.value.kind = PatternInstruction::Kind::Accept;
++            p.next = p.fallback = SIZE_MAX;
++        } else {
++            if ((op >= 0x40 && op < 0x80) || op == 4) {
++                size_t count;
++                if (op == 4) { if (!require(1)) { error="truncated long sequence"; return false; } count=65+bytes[pc++]; }
++                else count=(op & 0x3f)+1;
++                if (!require(count)) { error="truncated pattern sequence"; return false; }
++                p.value.kind = PatternInstruction::Kind::Sequence;
++                p.value.bytes.assign(bytes+pc,bytes+pc+count); pc+=count;
++            } else if (op == 0) p.value.kind = PatternInstruction::Kind::End;
++            else if (op == 0x0b) {
++                if (!require(1)) { error="truncated range count"; return false; }
++                uint8_t count=bytes[pc++];size_t ranges=(count & 0x7f)+1;
++                if (!require(ranges*2)) { error="truncated pattern ranges"; return false; }
++                p.value.kind = (count & 0x80) ? PatternInstruction::Kind::RepeatRange : PatternInstruction::Kind::Range;
++                p.value.bytes.assign(bytes+pc,bytes+pc+ranges*2); pc+=ranges*2;
++                for(size_t i=0;i<ranges*2;i+=2) if(p.value.bytes[i]>p.value.bytes[i+1]) { error="invalid pattern range"; return false; }
++            } else if (op == 2 || op == 3) {
++                if (!require(1)) { error="truncated seek byte"; return false; }
++                p.value.kind=op==2?PatternInstruction::Kind::Seek:PatternInstruction::Kind::SeekRetry;p.value.bytes.push_back(bytes[pc++]);
++            } else { error="unsupported pattern opcode "+std::to_string(op); return false; }
++            if (p.value.kind==PatternInstruction::Kind::RepeatRange) {
++                p.next=pc;p.fallback=SIZE_MAX;
++                if(pc>=length) {error="missing repeat continuation";return false;}
++                index[p.pc]=pending.size();pending.push_back(std::move(p));continue;
++            }
++            if (!require(1)) { error="missing pattern conditional"; return false; }
++            uint8_t branch=bytes[pc++];size_t distance=0;
++            if (branch==0x0f) p.fallback=SIZE_MAX;
++            else if (branch>=0x80) distance=(branch & 0x7f)+1;
++            else if (branch==8) {
++                if (!require(2)) { error="truncated long branch"; return false; }
++                distance=129+u16(bytes+pc);pc+=2;
++            } else { error="invalid pattern conditional"; return false; }
++            p.next=pc;
++            if (distance) {
++                if (distance >= length-pc) { error="pattern branch out of bounds"; return false; }
++                p.fallback=pc+distance;
++            }
++            if (pc>=length) { error="missing pattern continuation"; return false; }
++        }
++        index[p.pc]=pending.size();pending.push_back(std::move(p));
++    }
++    for (auto& p: pending) {
++        auto resolve=[&](size_t target,size_t& into) {
++            if(target==SIZE_MAX) {into=SIZE_MAX;return true;}
++            auto i=index.find(target);if(i==index.end())return false;into=i->second;return true;
++        };
++        if(!resolve(p.next,p.value.next)||!resolve(p.fallback,p.value.fallback)) { error="pattern branch enters instruction data";return false; }
++        result.instructions.push_back(std::move(p.value));
++    }
++    return !result.instructions.empty();
++}
++
++std::shared_ptr<const Policy> Policy::parse(std::vector<uint8_t> bytes, std::string& error) {
++    error.clear();
++    if(bytes.size()<16||bytes.size()>1024*1024) {error="invalid policy length";return {};}
++    auto b=bytes.data();
++    if(u16(b)!=0||b[4]!=std::size(operations)||b[5]||b[6]||b[7]||u16(b+8)||u16(b+10)||u16(b+12)||u16(b+14)) {
++        error="unsupported policy header; expected the pinned Intel standalone graph";return {};
++    }
++    size_t count=u16(b+2), table=16, nodes=(16+std::size(operations)*2+7)&~size_t(7), data=nodes+count*8;
++    if(!count||data>bytes.size()) {error="truncated policy node table";return {};}
++    auto policy=std::shared_ptr<Policy>(new Policy);policy->_bytes=std::move(bytes);b=policy->_bytes.data();
++    for(size_t i=0;i<std::size(operations);i++) {
++        uint16_t entry=u16(b+table+i*2);if(entry>=count) {error="operation node out of bounds";return {};}
++        policy->_operations.push_back(entry);
++    }
++    std::unordered_map<uint16_t,std::shared_ptr<const Pattern>> patterns;
++    size_t patternBudget=1024*1024;
++    for(size_t i=0;i<count;i++) {
++        auto raw=b+nodes+i*8;Node n{raw[0],raw[1],u16(raw+2),u16(raw+4),u16(raw+6),{}};
++        if(n.type==1) {
++            if((n.filter!=0 && n.filter!=1 && n.filter!=5)||n.argument||n.match||n.unmatch) {error="unsupported terminal action/modifier";return {};}
++        } else if(n.type==0) {
++            if(n.match>=count||n.unmatch>=count) {error="filter edge out of bounds";return {};}
++            if(stringFilter(n.filter)) {
++                size_t start=data+size_t(n.argument)*8;
++                if(start>policy->_bytes.size()||policy->_bytes.size()-start<2) {error="pattern reference out of bounds";return {};}
++                size_t size=u16(b+start);start+=2;
++                if(size>policy->_bytes.size()-start) {error="pattern data out of bounds";return {};}
++                auto found=patterns.find(n.argument);
++                if(found!=patterns.end())n.pattern=found->second;
++                else {
++                    if(size>patternBudget) {error="policy pattern complexity limit";return {};}
++                    patternBudget-=size;auto pattern=std::make_shared<Pattern>();
++                    if(!parsePattern(b+start,size,*pattern,error)){error="pattern "+std::to_string(n.argument)+": "+error;return {};}
++                    n.pattern=pattern;patterns.emplace(n.argument,std::move(pattern));
++                }
++            } else if(n.filter!=14&&n.filter!=15&&n.filter!=26&&n.filter!=29&&n.filter!=43) {
++                error="unsupported filter "+std::to_string(n.filter);return {};
++            }
++        } else {error="unknown policy node type";return {};}
++        policy->_nodes.push_back(std::move(n));
++    }
++    // Reject cycles without trusting recursion depth from an uploaded graph.
++    std::vector<uint8_t> color(count);
++    for(size_t start=0;start<count;start++) {
++        if(color[start])continue;
++        std::vector<std::pair<size_t,bool>> stack{{start,false}};
++        while(!stack.empty()) {
++            auto [index,leaving]=stack.back();stack.pop_back();
++            if(leaving) {color[index]=2;continue;}
++            if(color[index]==1) {error="cyclic decision graph";return {};}
++            if(color[index]==2)continue;
++            color[index]=1;stack.emplace_back(index,true);
++            auto& n=policy->_nodes[index];if(!n.type) {stack.emplace_back(n.unmatch,false);stack.emplace_back(n.match,false);}
++        }
++    }
++    // A conservative, context-independent proof. A reachable deny rejects
++    // this supported attachment class even if its predicate seems unlikely.
++    policy->_alwaysAllow=true;
++    std::vector<uint8_t> seen(count);
++    std::vector<size_t> pending(policy->_operations.begin(),policy->_operations.end());
++    while(!pending.empty()) {
++        size_t index=pending.back();pending.pop_back();
++        if(seen[index])continue;
++        seen[index]=1;const auto& n=policy->_nodes[index];
++        if(n.type==1) {if(n.filter&1) {policy->_alwaysAllow=false;break;}}
++        else {pending.push_back(n.match);pending.push_back(n.unmatch);}
++    }
++    return policy;
++}
++
++std::optional<bool> Policy::matches(const Pattern& p, std::string_view input) {
++    if(input.size()>65535)return std::nullopt;
++    // A transition restores its original cursor on the alternative edge. This
++    // preserves sharing/backtracking in the original serialized pattern FSA.
++    struct Frame {size_t node,pos;};
++    std::vector<Frame> stack{{0,0}};
++    std::unordered_set<uint64_t> visited;
++    size_t budget=2000000;
++    auto inRange=[](const auto& ranges,uint8_t c) {
++        for(size_t i=0;i<ranges.size();i+=2)if(c>=ranges[i]&&c<=ranges[i+1])return true;
++        return false;
++    };
++    while(!stack.empty()) {
++        if(!budget--)return std::nullopt;
++        auto [index,pos]=stack.back();stack.pop_back();
++        if(index==SIZE_MAX)continue;
++        uint64_t key=(uint64_t(index)<<32)|pos;if(!visited.insert(key).second)continue;
++        auto& n=p.instructions[index];
++        if(n.kind==PatternInstruction::Kind::Accept)return true;
++        if(n.fallback!=SIZE_MAX)stack.push_back({n.fallback,pos});
++        if(n.kind==PatternInstruction::Kind::Sequence) {
++            if(pos<=input.size()&&n.bytes.size()<=input.size()-pos && std::equal(n.bytes.begin(),n.bytes.end(),reinterpret_cast<const uint8_t*>(input.data()+pos)))stack.push_back({n.next,pos+n.bytes.size()});
++        } else if(n.kind==PatternInstruction::Kind::End) {
++            if(pos==input.size())stack.push_back({n.next,pos+1});
++        } else if(n.kind==PatternInstruction::Kind::Range) {
++            if(pos<=input.size()&&inRange(n.bytes,pos==input.size()?0:uint8_t(input[pos])))stack.push_back({n.next,pos+1});
++        } else if(n.kind==PatternInstruction::Kind::RepeatRange) {
++            size_t end=pos;while(end<input.size()&&inRange(n.bytes,uint8_t(input[end])))end++;
++            for(size_t at=pos;at<=end;at++)stack.push_back({n.next,at});
++        } else if(n.kind==PatternInstruction::Kind::Seek) {
++            // The serializer distinguishes one-shot and retrying seeks.
++            size_t at=input.find(char(n.bytes[0]),pos);if(at!=std::string_view::npos)stack.push_back({n.next,at+1});
++        } else if(n.kind==PatternInstruction::Kind::SeekRetry) {
++            for(size_t at=input.find(char(n.bytes[0]),pos);at!=std::string_view::npos;at=input.find(char(n.bytes[0]),at+1))stack.push_back({n.next,at+1});
++        }
++    }
++    return false;
++}
++
++std::optional<bool> Policy::filter(const Node& n,const Context& c) {
++    const std::optional<std::string>* value=nullptr;
++    switch(n.filter) {
++        case 1:value=&c.path;break;case 5:value=&c.posixName;break;
++        case 6:value=&c.globalName;break;case 7:value=&c.localName;break;
++        case 10:value=&c.controlName;break;case 17:value=&c.iokitClass;break;
++        case 18:value=&c.iokitProperty;break;case 28:value=&c.preferenceDomain;break;
++        case 38:value=&c.sysctlName;break;case 50:value=&c.xpcServiceName;break;
++        case 14:
++            switch(n.argument) {
++                case 1:return c.targetSelf;case 2:return c.targetSamePgrp;
++                case 3:if(c.targetSelf)return !*c.targetSelf;return std::nullopt;
++                case 4:return c.targetChild;case 5:return c.targetSameSandbox;
++                default:return std::nullopt;
++            }
++        case 15:if(c.fsctlBaseCommand)return *c.fsctlBaseCommand==n.argument;return std::nullopt;
++        case 26:if(c.systemAttributes && n.argument<64)return (*c.systemAttributes & (uint64_t(1)<<n.argument))!=0;return std::nullopt;
++        case 29:if(c.vnodeType)return *c.vnodeType==n.argument;return std::nullopt;
++        case 43:if(c.processAttributes && n.argument<64)return (*c.processAttributes & (uint64_t(1)<<n.argument))!=0;return std::nullopt;
++        default:return std::nullopt;
++    }
++    bool absent=(c.knownAbsentFilters & (uint64_t(1)<<n.filter))!=0;
++    if(absent)return *value?std::optional<bool>{}:std::optional<bool>{false};
++    if(!*value)return std::nullopt;
++    if((**value).empty())return false;
++    if((**value).find('\0')!=std::string::npos)return std::nullopt;
++    std::string path;
++    if(n.filter==1) {
++        // Path predicates are serialized case-folded by this compiler. Other
++        // filter strings (notably Mach names and IOKit keys) preserve case.
++        path=**value;
++        if(path[0]!='/')return std::nullopt;
++        for(size_t at=1;at<path.size();) {
++            size_t end=path.find('/',at);if(end==std::string::npos)end=path.size();
++            auto part=std::string_view(path).substr(at,end-at);
++            if(part.empty()||part=="."||part=="..")return std::nullopt;
++            at=end+1;
++        }
++        for(char& ch:path)if(ch>='A'&&ch<='Z')ch+=32;
++        return matches(*n.pattern,path);
++    }
++    return matches(*n.pattern,**value);
++}
++
++Decision Policy::evaluate(std::string_view operation,const Context& context) const {
++    auto found=std::find(std::begin(operations),std::end(operations),operation);
++    if(found==std::end(operations))return Decision::Unsupported;
++    if(_alwaysAllow)return Decision::Allow;
++    size_t index=_operations[found-std::begin(operations)];
++    for(size_t steps=0;steps<_nodes.size();steps++) {
++        auto& n=_nodes[index];if(n.type==1)return (n.filter&1)?Decision::Deny:Decision::Allow;
++        auto matched=filter(n,context);if(!matched)return Decision::Unsupported;
++        index=*matched?n.match:n.unmatch;
++    }
++    return Decision::Unsupported;
++}
++}
+diff --git a/src/server.cpp b/src/server.cpp
+index e502e28..64728e3 100644
+--- a/src/server.cpp
++++ b/src/server.cpp
+@@ -285,6 +285,8 @@ struct DTapeHooks {
+ 			memory_region_info->start_address = info.startAddress;
+ 			memory_region_info->page_count = info.pageCount;
+ 			memory_region_info->map_offset = info.mapOffset;
++			memory_region_info->file_device = info.fileDevice;
++			memory_region_info->file_inode = info.fileInode;
+ 			protection = info.protection;
+ 			memory_region_info->shared = info.shared;
+ 		} catch (...) {
+@@ -305,6 +307,14 @@ struct DTapeHooks {
+ 		return true;
+ 	};
+ 
++	static bool dtape_hook_file_identity(int fd, uint64_t* device, uint64_t* inode) {
++		struct stat info;
++		if (fstat(fd, &info) < 0) return false;
++		*device = info.st_dev;
++		*inode = info.st_ino;
++		return true;
++	};
++
+ 	static uintptr_t dtape_hook_task_allocate_pages(void* task_context, size_t page_count, int protection, uintptr_t address_hint, dtape_memory_flags_t flags) {
+ 		try {
+ 			return static_cast<DarlingServer::Process*>(task_context)->allocatePages(page_count, protection, address_hint, flags & dtape_memory_flag_fixed, flags & dtape_memory_flag_overwrite);
+@@ -419,6 +429,7 @@ struct DTapeHooks {
+ 		.task_lookup_eternal = dtape_hook_task_lookup_eternal,
+ 		.task_get_memory_info = dtape_hook_task_get_memory_info,
+ 		.task_get_memory_region_info = dtape_hook_task_get_memory_region_info,
++		.file_identity = dtape_hook_file_identity,
+ 		.task_allocate_pages = dtape_hook_task_allocate_pages,
+ 		.task_free_pages = dtape_hook_task_free_pages,
+ 		.task_map_file = dtape_hook_task_map_file,
+diff --git a/src/thread.cpp b/src/thread.cpp
+index 5563ad9..22ff572 100644
+--- a/src/thread.cpp
++++ b/src/thread.cpp
+@@ -1010,6 +1010,10 @@ static DarlingServer::Log s2cLog("s2c");
+ std::optional<DarlingServer::Message> DarlingServer::Thread::_s2cPerform(Message&& call, dserver_s2c_msgnum_t expectedReplyNumber, size_t expectedReplySize) {
+ 	std::optional<Message> reply = std::nullopt;
+ 	bool usingInterrupt = false;
++	{
++		std::shared_lock lock(_rwlock);
++		if (_dead || _terminating) return std::nullopt;
++	}
+ 
+ 	// make sure we're the only one performing an S2C call on this thread
+ 	if (!dtape_semaphore_down_simple(_s2cPerformSempahore)) {
+@@ -1022,6 +1026,14 @@ std::optional<DarlingServer::Message> DarlingServer::Thread::_s2cPerform(Message
+ 	{
+ 		std::unique_lock lock(_rwlock);
+ 
++		// Selection and acquisition are separate: reject a thread that exited
++		// while this caller waited for another S2C operation to finish.
++		if (_dead || _terminating) {
++			lock.unlock();
++			dtape_semaphore_up(_s2cPerformSempahore);
++			return std::nullopt;
++		}
++
+ 		if (!_activeCall) {
+ 			// signal the thread that we want to perform an S2C call and wait for it to give us the green light
+ 			lock.unlock();

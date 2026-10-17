@@ -1,0 +1,31 @@
+{
+  "native_reference": {
+    "path": "/usr/lib/system/libxpc.dylib",
+    "sha256": "9fd39e678c12bf9d82f8245459ab15f15acd3f4e8e0399f6d986838661bd43dc",
+    "routines": {
+      "create": {
+        "address": "0x7ff802b7718e",
+        "bytes": "554889e5535089fb488b3da3d54e3dbe08000000e85987feff895818804810024883c4085b5dc3"
+      },
+      "extract": {
+        "address": "0x7ff802b771b5",
+        "bytes": "554889e553504889fbe8318afeff4889c131c0483b0d71d54e3d750db8feffffff87431883f8fe74074883c4085b5dc3488d3d3c75020031c0e8beb8feff4889c7e896380200"
+      },
+      "copy_equal_hash": {
+        "address": "0x7ff802b76f6b",
+        "bytes": "e9a08ffeff8b47183b46180f94c0c38b4718c3"
+      },
+      "dispose": {
+        "address": "0x7ff802b77162",
+        "bytes": "4889f8bfffffffff8778188d47ff83f8fc770e554889e5e8f0effeff85c075025dc34863f8e8ee580200ebf4"
+      }
+    }
+  },
+  "backend_library": "runtime/rootfs/usr/libexec/darling/usr/lib/system/libxpc.dylib",
+  "backend_sha256": "955cd32cb3cc5292506bc1200233b843d537d924fd48eda91e4f4155555d196d",
+  "backend_source_commit": "394e033333d3c253a12f08a99090c113b0917d00",
+  "backend_object_header_size": 16,
+  "adapter_instance_size": 24,
+  "consumed_right_sentinel": "0xfffffffe",
+  "scope": "Actual send-once rights ownership, retain-copy, extraction, disposal and direct Mach delivery. XPC wire serialization for this new type remains unsupported."
+}

@@ -1,0 +1,24 @@
+diff --git a/src/queue.c b/src/queue.c
+index 336c657..0813755 100644
+--- a/src/queue.c
++++ b/src/queue.c
+@@ -4371,9 +4371,19 @@ void
+ _dispatch_workloop_invoke(dispatch_workloop_t dwl,
+ 		dispatch_invoke_context_t dic, dispatch_invoke_flags_t flags)
+ {
++#if !DISPATCH_USE_KEVENT_WORKLOOP
++	// An anonymous pthread root queue invokes the user-space workloop when
++	// kernel workloops are disabled. Nested lane/channel drains still carry
++	// WORKLOOP_DRAIN and consult this context for the workloop's QoS. Scope
++	// the borrowed context to the invocation, as the synchronous path does.
++	dispatch_wlh_t old_wlh = _dispatch_fake_wlh((dispatch_queue_t)dwl);
++#endif
+ 	flags &= ~(dispatch_invoke_flags_t)DISPATCH_INVOKE_REDIRECTING_DRAIN;
+ 	flags |= DISPATCH_INVOKE_WORKLOOP_DRAIN;
+ 	_dispatch_queue_class_invoke(dwl, dic, flags, 0, _dispatch_workloop_invoke2);
++#if !DISPATCH_USE_KEVENT_WORKLOOP
++	_dispatch_restore_wlh(old_wlh);
++#endif
+ }
+ 
+ DISPATCH_ALWAYS_INLINE

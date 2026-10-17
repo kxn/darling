@@ -1,0 +1,50 @@
+{
+  "sdk": "runtime/state/prefix/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+  "backend_binary": "runtime/rootfs/usr/libexec/darling/usr/lib/system/libsystem_c.dylib",
+  "backend_sha256": "b1a578ba173b705843e113f99348623f8923a57424ee2aac13c13617677ac6e3",
+  "backend_uuid": "d31fe383b47a37b38edaa7421f43bfb1",
+  "probe": {
+    "address": "0x67670",
+    "bytes": "554889e54883ec2048897df8e84fffffff488b45f8488945e0e8d2c0ffff488b7de0488b10488d75f4e892fdffff488945e8e849ffffff488b45e84883c4205d"
+  },
+  "environment_lock": {
+    "address": "0x675d0",
+    "bytes": "554889e5488d3d09c30900be00000100e839a908005dc3660f1f840000000000"
+  },
+  "environment_unlock": {
+    "address": "0x675f0",
+    "bytes": "554889e5488d3de9c20900e824a908005dc366666666662e0f1f840000000000"
+  },
+  "files": {
+    "runtime/state/prefix/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/malloc/malloc.h": "b86fab47ff11f522c1495469969c093fe63bb0dfec5376f37d4b72ebb75fa121",
+    "runtime/state/prefix/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/EndpointSecurity/ESTypes.h": "4b0da5ce994f58c9d0e0357237abf20afface84076c6632a1e2e49725dbf7700",
+    "vendor/darling/src/external/libc/darwin/libc_private.h": "76edf8006b278bbca0b07d54a33da12cc74857835191492af5867c92fc555271",
+    "vendor/darling/src/external/libc/stdlib/FreeBSD/getenv.c": "1a06b22dddd5c0e88bed2bb7b9d7c1d55974dc7db45f422d05edfb105c544177",
+    "vendor/darling/src/external/libc/stdlib/FreeBSD/setenv.c": "85f9e482541999ef87718619a95581de9056713867184f9c66a4bc9d6bfec4c0",
+    "vendor/darling/src/external/xnu/darling/src/libsystem_kernel/emulation/src/xnu_syscall/bsd/impl/misc/csops.c": "3a84867460f1ea0ea09375bc090ce0fa877b04c2795fe9b8f79e0309518561e7",
+    "runtime/thread-stack-pcs-reference.c": "328098d0f051db6822687c9e7809565e9c197e9de85f1a16061fdebca4be6549",
+    "runtime/thread-stack-pcs-reference.h": "4e03fcbaff81f5959b99c3f4f30d6408389793a5dda18564685c6953f3179ec2",
+    "vendor/darling/src/external/libpthread/private/pthread/tsd_private.h": "20c58024567f1e1e1051fbff05a2de4bd1c4ab1074feea0ea11a3af1f8d1888c",
+    "vendor/darling/src/external/libpthread/src/pthread.c": "0d4a85173acaf4d21def83fb52c8f0c9c428267292298fa5b06e292bea597130",
+    "vendor/swift-abi-reference/include/swift/ABI/Task.h": "6d54012a1d69fcead2b4188c5d111b787a1899fe6e3cf3729926ba4d51fac210",
+    "vendor/darling/src/external/xnu/bsd/vfs/vfs_attrlist.c": "c8ff759cf2a50cd4de6459e68e6aee4fc26b47495e60ea4be94873a5e0c6d4b8",
+    "vendor/darling/src/external/xnu/darling/src/libsystem_kernel/emulation/include/xnu_syscall/bsd/helper/xattr/getattrlist_generic.c": "471fd8f8fc7d5af70da1b39dd0b2fdb4699eb9c186047dbeb3c2f65fa9240cba",
+    "runtime/state/prefix/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/sys/attr.h": "5118b9245bc932bc32dcc60084b1e40d70bb5479a360b31cdbf188ef866deefe",
+    "runtime/state/prefix/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/sys/vnode.h": "78c28f3683a36610649795747318937e2ec5e3335d4745a611c150e59f9b3ddb",
+    "runtime/statfs-ext-reference.c": "77518f9d0b787dcd3ef0a59d1b1d02cd34d1d1701276e0bbb5e1ae3090dc5a26",
+    "runtime/statfs-ext-mount-reference.h": "049682e582ede05082580d55a5db0647d1ef057dc7966443fab54438f6acdeb5",
+    "runtime/state/prefix/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/sys/mount.h": "45872741bb916b92bddd2e562d2047b552af1f68269081a0aeb58a3e5a2b8a51"
+  },
+  "native_receipt": {
+    "path": "/usr/lib/system/libsystem_c.dylib",
+    "sha256": "d42cc2c31e631a26e82e85d4eae15b6de3c65f408d4b2407a6dd90707a2f5698",
+    "address": "0x7ff802d732b8",
+    "bytes": "554889e54883ec10488d55fcb90400000031ffbe11000000e8332f040085c0750d837dfc047507c605628dc8400131c04883c4105dc3"
+  },
+  "scope": "Selected Foundation libc/zone-allocation APIs over the existing real backend. Environment operations use its own actual lock functions with runtime UUID/code guards. Receipt follows the native unsupported-validation-query path; a reported App Store category terminates because that native exit mode is unavailable. Typed allocation IDs remain metadata hints; no type-isolated allocator is supplied.",
+  "thread_stack_source_commit": "71bbe350ab79eef58113991d817ccc6165061a64",
+  "thread_stack_scope": "Apple source async/ordinary frame walker, x86_64 only. Uses the actual reserved Swift pthread slot and existing frame decoder. Legacy dyld has no alternate dyld stack; those bounds remain empty. No ARM, remote-thread or signal/alternate-stack guarantee.",
+  "file_attributes_scope": "Selected getattrlist object type, full POSIX mode, canonical full path and non-directory link count over actual stat/lstat/realpath; FSOPT_NOFOLLOW and REPORT_FULLSIZE plus truncation packing. Other requests delegate unchanged to the original backend. No volume, ACL, protection or general attribute-list coverage.",
+  "statfs_ext_source_commit": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+  "statfs_ext_scope": "Unmodified Apple statfs_ext/fstatfs_ext wrappers with genuine existing statfs/fstatfs backend and original EINVAL fallback from the new nonblocking attribute request. Does not add VFS-only nonblocking statistics or change existing backend filesystem reporting."
+}

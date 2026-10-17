@@ -1,0 +1,11 @@
+{
+  "source_commit": "63f667cf06d7ed59553adebb0c8d70a117135ac9",
+  "packaged_loader_sha256": "fb661324429a384480b57c8eeeddedb22ec8bb90db2e83a46b2e872e31e55b66",
+  "packaged_libdyld_sha256": "0fb6eb43bc8a844b5566ea77b551b6863c7219815dc4f942cc4418ab7172c07d",
+  "loader_abi_files": {
+    "src/ImageLoader.h": "cec16337bbb98859923b26b4d9585164c5952bd427e33d565491df4428f235ed",
+    "src/dyldAPIs.cpp": "9e95fc9749565cfa68b92fe2997a819a6ba220bc2a06a993129ca006bd2e30f3",
+    "src/dyldLock.cpp": "ea6af5d4d7f98652c265c5dec6637d81d3b2f25c0b5616ba91a5130182adf7d6",
+    "src/dyldLock.h": "6d1edb6125becbcd3379c195ded13a19d8ec3416c33abba87d12ed6794764bf1"
+  }
+}

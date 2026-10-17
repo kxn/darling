@@ -1,0 +1,12 @@
+{
+  "provider": "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+  "provider_sha256": "37aa85f7da365c9c81244c8dc67c95362edef4dacf495db2fa7655840a254c7d",
+  "class": "NSConstantFloatNumber",
+  "instance_start": 8,
+  "instance_size": 12,
+  "ivar_name": "_value",
+  "ivar_type": "f",
+  "ivar_offset": 8,
+  "ivar_size": 4,
+  "ivar_alignment_log2": 2
+}

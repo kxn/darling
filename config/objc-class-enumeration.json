@@ -1,0 +1,36 @@
+{
+  "backend_source_commit": "1a12df76d12bfc9fdfffadb290f7742763568765",
+  "backend_binary": "runtime/rootfs/usr/libexec/darling/usr/lib/libobjc.A.dylib",
+  "backend_sha256": "be403b8c3d55a1b9a3d589dc819c6495354a6685b66cfb44ad5856b55ccff016",
+  "backend_files": {
+    "runtime/objc-runtime-new.h": "f560d13d10f072e688ecdbc257cc4b35de8b519b5c2977054f87b19237bfdeef",
+    "runtime/objc-runtime-new.mm": "5f63999b22b5cfd05f830560140b28e28dc6c20ada41e4b536fdddd590178dca",
+    "runtime/objc-runtime.mm": "c27c85afbbcbc19e2ff2f94994e05d9ac2ae7e0464f13f86266a976a225e26a9",
+    "runtime/objc-class.mm": "901d09b971c3d7cd87105d68d0cdffb03c8f4ae994d871d8a4af84aa7478e7a5",
+    "runtime/objc-sel.mm": "f26ac1088205840c93eb47ab3fa6d3f8585e8508aae09686c43742b933b1056f",
+    "runtime/objc-os.h": "42657ce3d749058ed957f5fdc00d5fee602154dde599da91062470d5811c9bcf",
+    "runtime/objc-private.h": "65568af20b32c36aa124d1cbcdcab3274d94ad9094007b099ed9b3300392c18d",
+    "runtime/DenseMapExtras.h": "963df1d7036aa80f88a9f9810c4b5a3b527a2a8dc223d9316be894f2df01c292",
+    "runtime/llvm-DenseMap.h": "82bbf8165b428bcd588d55b7b0465b235e01826e87ded55cbf11a59beeb684b7",
+    "runtime/llvm-DenseSet.h": "ddcb056200df1582b0c2176e74fa408d542b08437c3ccb9bd2b2372d32424680",
+    "runtime/llvm-DenseMapInfo.h": "a267c3f4f7f789d3eed5b38fb64b02c3a1468b088a4c5af7f835a880806235f0"
+  },
+  "apple_source_commit": "fb265098298302243cd7eeaa1f63f0ba7786dd9a",
+  "apple_files": {
+    "runtime/runtime.h": "027d72cf0995dc1688d4fe0d1013ce1c81e0d7aadb9a18cff858e5f6c6d3592c",
+    "runtime/objc-runtime-new.mm": "53aca9332bafbd084cc0d353d3f80ddb9b5d33279719c480ad5b1e438acd20e3",
+    "runtime/objc-sel.mm": "f00c261c695adb205720f365baf883e38d6f0460925a1875842ea023d846382f"
+  },
+  "scope": "Class enumeration by genuine existing per-image/realized-class snapshots. Selected protocol candidates may be realized by the legacy runtime. No whole-process realization, private dlopen-handle decoding or class registration is performed. Selector lookup reads the pinned existing selector set under its original lock, uses the existing dyld builtin-selector lookup, and never registers unknown names. Runtime UUID and code-prefix guards reject an incompatible backend.",
+  "selector_backend": {
+    "uuid": "614537177a603e38831b09aef15b3a7f",
+    "named_selector_set": "0x5df70",
+    "selector_lock": "0x620dc",
+    "probe_symbol": "sel_isMapped",
+    "probe_address": "0x3bfd0",
+    "probe_bytes": "554889e541574156534883ec184885ff0f84b40000004889fbe8c4e900004839d80f84a80000004c8d35de6002004c8975e04c89f7e8b6b5fdff658b0c251800",
+    "data_mask": "0x00007ffffffffff8",
+    "dense_set_size": 24,
+    "bucket_stride": 8
+  }
+}

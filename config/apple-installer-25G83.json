@@ -1,0 +1,19 @@
+{
+  "product": "140-93587",
+  "build": "25G83",
+  "version": "26.6.2",
+  "url": "https://swcdn.apple.com/content/downloads/37/33/140-93587-A_GRFFH93NOL/f944yaqo1cjhh2m0kxrl0zhcpg9yb9qphv/InstallAssistant.pkg",
+  "length": 18384624402,
+  "catalog_toc_sha1": "9545b959cab5c536998c45f0fdd4b5d3832dc6f7",
+  "sharedsupport_sha1": "65adfb4192ad9e8b6282f3ecc480cd3cafdabfef",
+  "sharedsupport_length": 18366669607,
+  "catalog_url": "https://swscan.apple.com/content/catalogs/others/index-26-15-14-13-12-10.16-10.15-10.14-10.13-10.12-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog",
+  "distribution_url": "https://swdist.apple.com/content/downloads/37/33/140-93587-A_GRFFH93NOL/f944yaqo1cjhh2m0kxrl0zhcpg9yb9qphv/140-93587.English.dist",
+  "package_sha256": "376923d7494cfa32b69f383bcfdce46aeedb609fe6a242ea12a6e015bfb77ba4",
+  "sharedsupport_sha256": "9327c292fb8f804f17b7bcde542aa523d27014606bc3d74e8f3dc3b892399354",
+  "mobileasset_zip_sha256": "0b44a71bd6a721f5ddfb46f8dba39b09ee46bf9678a1c3100b978f512acfc07c",
+  "mobileasset_zip_sha1": "60533a8ae8e47c23593a6965d64c1f00a6396cfe",
+  "mobileasset_zip_length": 18356020461,
+  "mobileasset_zip_name": "60533a8ae8e47c23593a6965d64c1f00a6396cfe.zip",
+  "intel_patch_sha256": "8f53d47470e988b6a26ad392cb96ba8000898d4e9823145750c9da9178179d44"
+}

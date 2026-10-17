@@ -1,0 +1,72 @@
+{
+  "modern_source_commit": "db15acbe6a7f257a859ad9a3bb86097bfe0679d9",
+  "modern_source_files": {
+    "OSX/sec/Security/SecPolicy.c": "0bf1331ed6f076a3711f5c0e067eba02604d3fdcdbe576881027e82bc1771b45",
+    "OSX/utilities/SecCFWrappers.h": "0793a5ebfa4c73b9ce5192c0d0ceba6d2d3c999ea822a35cfd07fd3e73e85972",
+    "OSX/sec/Security/SecPolicy.list": "0cb9e4354e6aa6b74ffa147e5440254df6d819d0dfbc84d4487dff0258d948da",
+    "OSX/sec/Security/SecPolicyChecks.list": "8a1b4c63ab8690a5b4591d29c789dfd5b4ed0d4da65b115d787542f0cd1751bb"
+  },
+  "selected_upstream_functions": {
+    "CFNumberCreateWithCFIndex": "a0acb14eecb411d76d1a237bbc5ce311d7d50981ff35e711bcce15168fdc6fe1",
+    "CFDictionaryCreateMutableForCFTypes": "9b676c4e6a392c3ef6b1a2ca8fbcf1e093969bd0d759b15242e0345b192ad0ce",
+    "add_element": "322b948e10f6ddb67ab813bc773ab7d414292fe6ac01c8f80f825c59fcb7c219",
+    "add_eku_string": "1c2dbcaca96e51590d3431e3333a17527ab343e6ec0c7e87d4e802ad5f9f0d7b",
+    "add_leaf_marker_value_string": "2bb576ad27d238dcc8e35663a1e4c0d4640ebfe37df5c8de33ed168e6039b875",
+    "add_leaf_marker_string": "764b9a497a61134115a2209a9ececb3b88d79a124d69fa66982253034052f60c",
+    "SecPolicyAddBasicCertOptions": "19c51d74d0b0b809576d768f43e44b10b0dd9167a4e580d995100b3d18dec614",
+    "SecPolicyAddBasicX509Options": "4f228a4482fb44a9d46b2284211f41b1731c65649655e1b366be2b4660bdb626",
+    "SecPolicyAddChainLengthOptions": "cfb7b0f7f166f116abdf07c26ecefa588726b930aa6425d0ed879482eceb2c8f",
+    "SecPolicyAddStrongKeySizeOptions": "3e796d4db4c10e48348354da1a3f55f8c4081bc032e575d8569f5a8a402cdace",
+    "SecPolicyAddAppleAnchorOptions": "3009f0cbc7260ab860ad521234ecb83b901c8dbdddea22cd9060f26c44309506",
+    "SecPolicyCreateAppleExternalDeveloperOptionalExpiry": "bfd20932d040537108467b5d8370d901cf1bf6f48dc75ee3ed4091489fe7333f"
+  },
+  "function_providers": {
+    "CFNumberCreateWithCFIndex": "OSX/utilities/SecCFWrappers.h",
+    "CFDictionaryCreateMutableForCFTypes": "OSX/utilities/SecCFWrappers.h",
+    "add_element": "OSX/sec/Security/SecPolicy.c",
+    "add_eku_string": "OSX/sec/Security/SecPolicy.c",
+    "add_leaf_marker_value_string": "OSX/sec/Security/SecPolicy.c",
+    "add_leaf_marker_string": "OSX/sec/Security/SecPolicy.c",
+    "SecPolicyAddBasicCertOptions": "OSX/sec/Security/SecPolicy.c",
+    "SecPolicyAddBasicX509Options": "OSX/sec/Security/SecPolicy.c",
+    "SecPolicyAddChainLengthOptions": "OSX/sec/Security/SecPolicy.c",
+    "SecPolicyAddStrongKeySizeOptions": "OSX/sec/Security/SecPolicy.c",
+    "SecPolicyAddAppleAnchorOptions": "OSX/sec/Security/SecPolicy.c",
+    "SecPolicyCreateAppleExternalDeveloperOptionalExpiry": "OSX/sec/Security/SecPolicy.c"
+  },
+  "source_revision": "3cfffcf2c5b5900169c964facdf42cc05c23005c",
+  "base": "runtime/rootfs/usr/libexec/darling/System/Library/Frameworks/Security.framework/Versions/A/Security",
+  "base_sha256": "e5d73500b647ab6c458a92f89d4012d1339b4545d1639729d0298b6f6784d92a",
+  "base_x86_64_sha256": "a542a595b9b8addd9b42240584422a6b2bddc19fde4eabdcfebc294cb369b60f",
+  "constants": [
+    "kSecAttrKeyTypeEC",
+    "kSecAttrKeyTypeRSA",
+    "kSecPolicyAppleExternalDeveloper",
+    "kSecPolicyCheckAnchorApple",
+    "kSecPolicyCheckBasicCertificateProcessing",
+    "kSecPolicyCheckBasicConstraints",
+    "kSecPolicyCheckBlackListedLeaf",
+    "kSecPolicyCheckChainLength",
+    "kSecPolicyCheckCriticalExtensions",
+    "kSecPolicyCheckDuplicateExtension",
+    "kSecPolicyCheckExtendedKeyUsage",
+    "kSecPolicyCheckGrayListedLeaf",
+    "kSecPolicyCheckIdLinkage",
+    "kSecPolicyCheckIntermediateMarkerOid",
+    "kSecPolicyCheckKeySize",
+    "kSecPolicyCheckLeafMarkerOid",
+    "kSecPolicyCheckNonEmptySubject",
+    "kSecPolicyCheckRevocation",
+    "kSecPolicyCheckRevocationAny",
+    "kSecPolicyCheckTemporalValidity",
+    "kSecPolicyCheckUnparseableExtension",
+    "kSecPolicyCheckWeakKeySize",
+    "kSecPolicyCheckWeakSignature"
+  ],
+  "local_constant": {
+    "kSecPolicyCheckDuplicateExtension": "DuplicateExtension"
+  },
+  "local_policy_name": "Developer",
+  "public_symbol": "_SecPolicyCreateAppleExternalDeveloperOptionalExpiry",
+  "existing_hidden_accessor": "_SecPolicyGetOptions"
+}

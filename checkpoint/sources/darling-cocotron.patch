@@ -1,0 +1,674 @@
+diff --git a/CoreGraphics/CGContextNativeLayer.m b/CoreGraphics/CGContextNativeLayer.m
+new file mode 100644
+index 0000000..d8deaa8
+--- /dev/null
++++ b/CoreGraphics/CGContextNativeLayer.m
+@@ -0,0 +1,35 @@
++/* CoreGraphics private state access needed by native layer rendering. Onyx2D
++ * already retains the immutable initial device transform separately from the
++ * user CTM; read that actual state, not a guessed identity or current CTM. */
++#import <CoreGraphics/CGContext.h>
++#import <Onyx2D/O2Context.h>
++#import <Foundation/NSData.h>
++#import <objc/runtime.h>
++#include <string.h>
++static char darling_base_ctm_key;
++@interface O2Context (DarlingNativeLayer)
++- (O2AffineTransform) _darlingNativeLayerBaseCTM;
++@end
++@implementation O2Context (DarlingNativeLayer)
++- (O2AffineTransform) _darlingNativeLayerBaseCTM { return _userToDeviceTransform; }
++@end
++CGAffineTransform CGContextGetBaseCTM(CGContextRef context)
++{
++    if (!context) return (CGAffineTransform){1,0,0,1,0,0};
++    NSData *stored=objc_getAssociatedObject((id)context,&darling_base_ctm_key);
++    if(stored){CGAffineTransform transform;memcpy(&transform,[stored bytes],sizeof(transform));return transform;}
++    O2AffineTransform value=[(O2Context *)context _darlingNativeLayerBaseCTM];
++    return (CGAffineTransform){value.a,value.b,value.c,value.d,value.tx,value.ty};
++}
++
++/* Native SetBaseCTM only replaces the render-state base matrix; it does not
++ * alter the current graphics-state CTM and SaveGState does not save it. Keep
++ * this metadata separate from Onyx2D's physical initial device transform,
++ * which its ordinary SetCTM implementation still needs for rasterization. */
++void CGContextSetBaseCTM(CGContextRef context,CGAffineTransform transform)
++{
++    if(!context)return;
++    NSData *stored=[[NSData alloc] initWithBytes:&transform length:sizeof(transform)];
++    objc_setAssociatedObject((id)context,&darling_base_ctm_key,stored,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
++    [stored release];
++}
+diff --git a/CoreGraphics/CGFloat.c b/CoreGraphics/CGFloat.c
+new file mode 100644
+index 0000000..4c0c920
+--- /dev/null
++++ b/CoreGraphics/CGFloat.c
+@@ -0,0 +1,17 @@
++/* Floating geometry validation. Classify bits without floating arithmetic so
++ * signaling NaNs do not raise FE_INVALID. Native x86_64 CoreGraphics uses this
++ * same absolute-bit comparison against the infinity encoding. */
++#include <CoreGraphics/CGBase.h>
++#include <stdbool.h>
++#include <stdint.h>
++#include <string.h>
++bool CGFloatIsValid(CGFloat value)
++{
++#if __LP64__
++    uint64_t bits;_Static_assert(sizeof(value)==sizeof(bits),"CGFloat width");
++    memcpy(&bits,&value,sizeof(bits));return (bits&UINT64_C(0x7fffffffffffffff))<UINT64_C(0x7ff0000000000000);
++#else
++    uint32_t bits;_Static_assert(sizeof(value)==sizeof(bits),"CGFloat width");
++    memcpy(&bits,&value,sizeof(bits));return (bits&UINT32_C(0x7fffffff))<UINT32_C(0x7f800000);
++#endif
++}
+diff --git a/CoreGraphics/CGImageIOConstants.c b/CoreGraphics/CGImageIOConstants.c
+new file mode 100644
+index 0000000..4811b86
+--- /dev/null
++++ b/CoreGraphics/CGImageIOConstants.c
+@@ -0,0 +1,38 @@
++// Exact CoreGraphics CFString values consumed by original ImageIO.
++// Provenance: artifacts/imageio-cg-constants-analysis.json. No provider backend is implied.
++#include <CoreFoundation/CoreFoundation.h>
++
++const CFStringRef kCGApplyEXRToneMappingGamma = CFSTR("kCGApplyEXRToneMappingGamma");
++const CFStringRef kCGApplyFlexLumaScaling = CFSTR("kCGApplyFlexLumaScaling");
++const CFStringRef kCGApplyReferenceWhiteToneMapping = CFSTR("kCGApplyReferenceWhiteToneMapping");
++const CFStringRef kCGColorSpaceDisplayP3_PQ = CFSTR("kCGColorSpaceDisplayP3_PQ");
++const CFStringRef kCGColorSpaceITUR_2100_PQ = CFSTR("kCGColorSpaceITUR_2100_PQ");
++const CFStringRef kCGColorSpaceITUR_709_PQ = CFSTR("kCGColorSpaceITUR_709_PQ");
++const CFStringRef kCGDrawPDFPageDrawAnnotationsOptionKey = CFSTR("kCGDrawPDFPageDrawAnnotationsOptionKey");
++const CFStringRef kCGFlexGTCTargetHeadroom = CFSTR("kCGFlexGTCTargetHeadroom");
++const CFStringRef kCGImageBlockBaseAddressAlignmentRequest = CFSTR("kCGImageBlockBaseAddressAlignmentRequest");
++const CFStringRef kCGImageBlockBytesPerRowAlignmentRequest = CFSTR("kCGImageBlockBytesPerRowAlignmentRequest");
++const CFStringRef kCGImageBlockColorSpaceRequest = CFSTR("kCGImageBlockColorSpaceRequest");
++const CFStringRef kCGImageBlockFormatBGRx8 = CFSTR("kCGImageBlockFormatBGRx8");
++const CFStringRef kCGImageBlockFormatRequest = CFSTR("kCGImageBlockFormatRequest");
++const CFStringRef kCGImageBlockMarkAsReadOnlyRequest = CFSTR("kCGImageBlockMarkAsReadOnlyRequest");
++const CFStringRef kCGImageBlockSingletonRequest = CFSTR("kCGImageBlockSingletonRequest");
++const CFStringRef kCGImageBlockTileRequest = CFSTR("kCGImageBlockTileRequest");
++const CFStringRef kCGImageExtendedRangeToneMappingInfo = CFSTR("kCGImageExtendedRangeToneMappingInfo");
++const CFStringRef kCGImageProviderAlphaIsNotPremultiplied = CFSTR("kCGImageProviderAlphaIsNotPremultiplied");
++const CFStringRef kCGImageProviderAlphaIsOne = CFSTR("kCGImageProviderAlphaIsOne");
++const CFStringRef kCGImageProviderAlphaIsPremultiplied = CFSTR("kCGImageProviderAlphaIsPremultiplied");
++const CFStringRef kCGImageProviderBitmapInfo = CFSTR("kCGImageProviderBitmapInfo");
++const CFStringRef kCGImageProviderSupportsMultipleResolutions = CFSTR("kCGImageProviderSupportsMultipleResolutions");
++const CFStringRef kCGPDFDocumentAuthor = CFSTR("kCGPDFDocumentAuthor");
++const CFStringRef kCGPDFDocumentCreationDate = CFSTR("kCGPDFDocumentCreationDate");
++const CFStringRef kCGPDFDocumentCreator = CFSTR("kCGPDFDocumentCreator");
++const CFStringRef kCGPDFDocumentKeywords = CFSTR("kCGPDFDocumentKeywords");
++const CFStringRef kCGPDFDocumentModificationDate = CFSTR("kCGPDFDocumentModificationDate");
++const CFStringRef kCGPDFDocumentProducer = CFSTR("kCGPDFDocumentProducer");
++const CFStringRef kCGPDFDocumentSubject = CFSTR("kCGPDFDocumentSubject");
++const CFStringRef kCGPDFDocumentTitle = CFSTR("kCGPDFDocumentTitle");
++const CFStringRef kCGRWTMEDRHeadroom = CFSTR("kCGRWTMEDRHeadroom");
++const CFStringRef kCGRWTMSourcePeak = CFSTR("kCGRWTMSourcePeak");
++const CFStringRef kCGRWTMSourceReferenceWhite = CFSTR("kCGRWTMSourceReferenceWhite");
++const CFStringRef kCGRWTMVersion = CFSTR("kCGRWTMVersion");
+diff --git a/CoreGraphics/CGSAccelerator.c b/CoreGraphics/CGSAccelerator.c
+new file mode 100644
+index 0000000..b76f434
+--- /dev/null
++++ b/CoreGraphics/CGSAccelerator.c
+@@ -0,0 +1,90 @@
++/* SPDX-License-Identifier: GPL-3.0-or-later
++ * This file is part of Darling.
++ * Copyright (C) 2026 Darling contributors.
++ */
++#include <CoreGraphics/CGDisplayConfiguration.h>
++#include <CoreGraphics/CGError.h>
++#include <IOKit/IOKitLib.h>
++#include <IOKit/graphics/IOGraphicsLib.h>
++#include <pthread.h>
++#include <stdlib.h>
++
++/* Like the native client, retain the accelerator in a process-local cache.
++ * The output is borrowed; repeated queries do not create extra send rights.
++ * Holding the framebuffer right also keeps its port name from being reused
++ * for a different device while it remains a cache key.
++ */
++struct cgs_accelerator_entry {
++    io_service_t framebuffer;
++    io_service_t accelerator;
++    uint32_t framebuffer_index;
++    struct cgs_accelerator_entry *next;
++};
++static pthread_mutex_t accelerator_lock = PTHREAD_MUTEX_INITIALIZER;
++static struct cgs_accelerator_entry *accelerators;
++
++CGError CGSAcceleratorForDisplayNumber(CGDirectDisplayID display,
++        io_service_t *accelerator, uint32_t *framebuffer_index)
++{
++    if (accelerator != NULL)
++        *accelerator = MACH_PORT_NULL;
++    if (framebuffer_index != NULL)
++        *framebuffer_index = 0;
++    if (accelerator == NULL || framebuffer_index == NULL)
++        return kCGErrorIllegalArgument;
++
++    io_service_t framebuffer = CGDisplayIOServicePort(display);
++    if (!MACH_PORT_VALID(framebuffer))
++        return kCGErrorFailure;
++
++    pthread_mutex_lock(&accelerator_lock);
++    for (struct cgs_accelerator_entry *entry = accelerators; entry;
++            entry = entry->next) {
++        if (entry->framebuffer == framebuffer) {
++            *accelerator = entry->accelerator;
++            *framebuffer_index = entry->framebuffer_index;
++            IOObjectRelease(framebuffer);
++            pthread_mutex_unlock(&accelerator_lock);
++            return kCGErrorSuccess;
++        }
++    }
++
++    io_service_t found = MACH_PORT_NULL;
++    uint32_t index = 0;
++    IOReturn result = IOAccelFindAccelerator(framebuffer, &found, &index);
++    struct cgs_accelerator_entry *entry = NULL;
++    if (result == kIOReturnSuccess && MACH_PORT_VALID(found))
++        entry = malloc(sizeof(*entry));
++    if (entry == NULL) {
++        if (MACH_PORT_VALID(found))
++            IOObjectRelease(found);
++        IOObjectRelease(framebuffer);
++        pthread_mutex_unlock(&accelerator_lock);
++        return kCGErrorFailure;
++    }
++    *entry = (struct cgs_accelerator_entry) {
++        .framebuffer = framebuffer,
++        .accelerator = found,
++        .framebuffer_index = index,
++        .next = accelerators,
++    };
++    accelerators = entry;
++    *accelerator = found;
++    *framebuffer_index = index;
++    pthread_mutex_unlock(&accelerator_lock);
++    return kCGErrorSuccess;
++}
++
++__attribute__((destructor))
++static void cgs_release_accelerators(void)
++{
++    pthread_mutex_lock(&accelerator_lock);
++    while (accelerators != NULL) {
++        struct cgs_accelerator_entry *entry = accelerators;
++        accelerators = entry->next;
++        IOObjectRelease(entry->accelerator);
++        IOObjectRelease(entry->framebuffer);
++        free(entry);
++    }
++    pthread_mutex_unlock(&accelerator_lock);
++}
+diff --git a/CoreGraphics/CMakeLists.txt b/CoreGraphics/CMakeLists.txt
+index e702dfb..ca6356f 100644
+--- a/CoreGraphics/CMakeLists.txt
++++ b/CoreGraphics/CMakeLists.txt
+@@ -67,6 +67,10 @@ include_directories(
+ )
+ 
+ set(CoreGraphics_sources
++	CGFloat.c
++	CGImageIOConstants.c
++	CGContextNativeLayer.m
++	CGSAccelerator.c
+ 	CGAffineTransform.m
+ 	CGBitmapContext.m
+ 	CGColor.m
+@@ -111,6 +115,9 @@ set(CoreGraphics_sources
+ )
+ 
+ set_source_files_properties(${CoreGraphics_sources} LANGUAGE C)
++# Keep Objective-C syntax explicit for the context-state category even when
++# CMake's LANGUAGE C policy adds an explicit language flag.
++set_property(SOURCE CGContextNativeLayer.m APPEND PROPERTY COMPILE_FLAGS "-x objective-c")
+ 
+ set(DYLIB_COMPAT_VERSION "64.0.0")
+ set(DYLIB_CURRENT_VERSION "1070.22.0")
+diff --git a/CoreGraphics/include/CoreGraphics/CoreGraphicsPrivate.h b/CoreGraphics/include/CoreGraphics/CoreGraphicsPrivate.h
+index 8e23218..9532209 100644
+--- a/CoreGraphics/include/CoreGraphics/CoreGraphicsPrivate.h
++++ b/CoreGraphics/include/CoreGraphics/CoreGraphicsPrivate.h
+@@ -43,6 +43,9 @@ extern CGError CGSNewConnection(_Nullable CGSDictionaryObj attribs, CGSConnectio
+ extern CGError CGSReleaseConnection(CGSConnectionID connId);
+ extern CGSConnectionID _CGSDefaultConnection(void);
+ extern CGSConnectionID CGSMainConnectionID(void);
++// The accelerator port is borrowed from the client cache; do not release it.
++extern CGError CGSAcceleratorForDisplayNumber(CGDirectDisplayID display,
++        io_service_t *accelerator, uint32_t *framebufferIndex);
+ extern CGError CGSSetDenyWindowServerConnections(Boolean deny);
+ extern void CGSShutdownServerConnections(void);
+ 
+diff --git a/QuartzCore/CALayerContextNative.m b/QuartzCore/CALayerContextNative.m
+new file mode 100644
+index 0000000..c7970b1
+--- /dev/null
++++ b/QuartzCore/CALayerContextNative.m
+@@ -0,0 +1,88 @@
++/* Darling's CALayerContext extension for a native QuartzCore layer tree.
++ * A real bitmap context is rendered by native CALayer's renderInContext:.
++ * There is no window, CGL context, Metal device, texture allocation or fake
++ * display. Those operations fail explicitly if a caller requires them. */
++#define DARLING_NATIVE_LAYER_CONTEXT 1
++#import <QuartzCore/CALayerContext.h>
++#import <QuartzCore/CALayer.h>
++#import <Foundation/Foundation.h>
++#import <CoreGraphics/CoreGraphics.h>
++#include <math.h>
++#include <stdint.h>
++#include <limits.h>
++#include <errno.h>
++extern bool CGFloatIsValid(CGFloat);
++@interface CALayer (DarlingNativeBitmapRender)
++- (void)renderInContext:(CGContextRef)context;
++@end
++@implementation CALayerContext
++- (id)initWithFrame:(CGRect)frame {
++    self=[super init];
++    if(self) {
++        @try {[self setFrame:frame];}
++        @catch(id error){[self release];@throw;}
++    }
++    return self;
++}
++- (void)dealloc {
++    [self invalidate];[_layer release];[super dealloc];
++}
++- (void)_requireValid {
++    if(_invalidated)[NSException raise:NSInternalInconsistencyException format:@"CALayerContext has been invalidated"];
++}
++- (void)setFrame:(CGRect)frame {
++    [self _requireValid];
++    if(!CGFloatIsValid(frame.origin.x)||!CGFloatIsValid(frame.origin.y)||!CGFloatIsValid(frame.size.width)||!CGFloatIsValid(frame.size.height)||frame.size.width<0||frame.size.height<0||frame.size.width>INT_MAX||frame.size.height>INT_MAX)
++        [NSException raise:NSInvalidArgumentException format:@"CALayerContext requires finite, nonnegative bitmap dimensions"];
++    size_t width=(size_t)ceil(frame.size.width),height=(size_t)ceil(frame.size.height);
++    if(width && height && (width>SIZE_MAX/4 || height>SIZE_MAX/(width*4)))
++        [NSException raise:NSInvalidArgumentException format:@"CALayerContext bitmap size overflows size_t"];
++    if(_bitmapContext&&CGBitmapContextGetWidth(_bitmapContext)==width&&CGBitmapContextGetHeight(_bitmapContext)==height){_frame=frame;return;}
++    CGContextRef replacement=NULL;
++    if(width&&height){
++        CGColorSpaceRef rgb=CGColorSpaceCreateDeviceRGB();
++        if(rgb){replacement=CGBitmapContextCreate(NULL,width,height,8,width*4,rgb,kCGImageAlphaPremultipliedLast|kCGBitmapByteOrder32Big);CGColorSpaceRelease(rgb);}
++        if(!replacement)[NSException raise:NSMallocException format:@"Unable to create CALayerContext bitmap"];
++    }
++    if(_bitmapContext)CGContextRelease(_bitmapContext);
++    _bitmapContext=replacement;_frame=frame;
++}
++- (void)setLayer:(CALayer *)layer {
++    [self _requireValid];layer=[layer retain];[_layer release];_layer=layer;
++}
++- (void)render {
++    [self _requireValid];
++    /* An empty frame has no destination pixels. A nil layer clears an actual
++     * nonempty destination to transparent, rather than leaving stale content. */
++    if(!_bitmapContext)return;
++    CGContextClearRect(_bitmapContext,CGRectMake(0,0,CGBitmapContextGetWidth(_bitmapContext),CGBitmapContextGetHeight(_bitmapContext)));
++    [_layer renderInContext:_bitmapContext];
++}
++- (void)flush {[self _requireValid];if(_bitmapContext)CGContextFlush(_bitmapContext);}
++- (CGImageRef)copyRenderedImage {
++    [self _requireValid];if(!_bitmapContext){errno=ENOENT;return NULL;}
++    return CGBitmapContextCreateImage(_bitmapContext);
++}
++- (void)timer:(NSTimer *)timer {if(!_invalidated)[self render];}
++- (void)startTimerIfNeeded {
++    [self _requireValid];
++    if(!_timer)_timer=[[NSTimer scheduledTimerWithTimeInterval:1.0/60.0 target:self selector:@selector(timer:) userInfo:nil repeats:YES] retain];
++}
++- (void)invalidate {
++    if(_invalidated)return;
++    _invalidated=YES;[_timer invalidate];[_timer release];_timer=nil;
++    if(_bitmapContext){CGContextRelease(_bitmapContext);_bitmapContext=NULL;}
++}
++- (CGLContextObj)glContext {
++    [NSException raise:NSInternalInconsistencyException format:@"Bitmap CALayerContext has no OpenGL context"];
++    return NULL;
++}
++- (void)setSubwindow:(CGSubWindow *)window {
++    [self _requireValid];
++    if(window)[NSException raise:NSInvalidArgumentException format:@"Bitmap CALayerContext does not attach to native windows"];
++}
++- (void)deleteTextureId:(NSNumber *)texture {
++    [self _requireValid];
++    if(texture)[NSException raise:NSInvalidArgumentException format:@"Bitmap CALayerContext does not own OpenGL textures"];
++}
++@end
+diff --git a/QuartzCore/CARenderServer.m b/QuartzCore/CARenderServer.m
+new file mode 100644
+index 0000000..0b5dac5
+--- /dev/null
++++ b/QuartzCore/CARenderServer.m
+@@ -0,0 +1,240 @@
++/* SPDX-License-Identifier: GPL-3.0-or-later
++ * This file is part of Darling.
++ * Copyright (C) 2026 Darling contributors.
++ *
++ * Client-side Core Animation render-server debug-option query. This does not
++ * create a rendering service. A missing service or failed RPC returns false.
++ */
++#include <QuartzCore/CARenderServer.h>
++#include <CoreFoundation/CoreFoundation.h>
++#include <mach/mig.h>
++#include <mach/mig_errors.h>
++#include <mach/ndr.h>
++#include <servers/bootstrap.h>
++#include <stddef.h>
++#include <stdint.h>
++
++enum {
++    CA_GET_DEBUG_OPTION = 40256,
++    CA_GET_DEBUG_OPTION_REPLY = CA_GET_DEBUG_OPTION + 100,
++    CA_SET_DEBUG_OPTION = 40257,
++    CA_COPY_STATISTICS = 40231,
++};
++
++struct ca_debug_request {
++    mach_msg_header_t head;
++    NDR_record_t ndr;
++    uint32_t option;
++};
++struct ca_debug_reply {
++    mach_msg_header_t head;
++    NDR_record_t ndr;
++    kern_return_t result;
++    uint32_t enabled;
++};
++union ca_debug_message {
++    struct ca_debug_request request;
++    struct ca_debug_reply reply;
++    unsigned char receive_buffer[48];
++};
++_Static_assert(sizeof(struct ca_debug_request) == 36, "CA request wire layout");
++_Static_assert(sizeof(struct ca_debug_reply) == 40, "CA reply wire layout");
++_Static_assert(offsetof(struct ca_debug_reply, result) == 32, "CA result wire layout");
++
++bool CARenderServerGetDebugOption(mach_port_t server, unsigned int option)
++{
++    bool own_server = false;
++    if (server == MACH_PORT_NULL) {
++        kern_return_t lookup = bootstrap_look_up(bootstrap_port,
++                "com.apple.CARenderServer", &server);
++        if (lookup != KERN_SUCCESS || !MACH_PORT_VALID(server))
++            return false;
++        own_server = true;
++    }
++
++    union ca_debug_message message = {0};
++    mach_port_t reply_port = mig_get_reply_port();
++    message.request.head.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND,
++            MACH_MSG_TYPE_MAKE_SEND_ONCE);
++    message.request.head.msgh_size = sizeof(message.request);
++    message.request.head.msgh_remote_port = server;
++    message.request.head.msgh_local_port = reply_port;
++    message.request.head.msgh_id = CA_GET_DEBUG_OPTION;
++    message.request.ndr = NDR_record;
++    message.request.option = option;
++    voucher_mach_msg_set(&message.request.head);
++
++    kern_return_t status = mach_msg(&message.request.head,
++            MACH_SEND_MSG | MACH_RCV_MSG, sizeof(message.request),
++            sizeof(message.receive_buffer), reply_port, MACH_MSG_TIMEOUT_NONE,
++            MACH_PORT_NULL);
++    bool enabled = false;
++    if (status != MACH_MSG_SUCCESS) {
++        // Keep the cached receive port for send errors which never queued a
++        // request. Other failures invalidate the MIG reply-port cache.
++        if (status == MACH_SEND_INVALID_DATA || status == MACH_SEND_INVALID_DEST
++                || status == MACH_SEND_INVALID_HEADER)
++            mig_put_reply_port(reply_port);
++        else
++            mig_dealloc_reply_port(reply_port);
++    } else {
++        struct ca_debug_reply *reply = &message.reply;
++        bool valid = !(reply->head.msgh_bits & MACH_MSGH_BITS_COMPLEX)
++                && reply->head.msgh_id == CA_GET_DEBUG_OPTION_REPLY
++                && reply->head.msgh_remote_port == MACH_PORT_NULL
++                && reply->head.msgh_size == sizeof(*reply)
++                && reply->result == KERN_SUCCESS;
++        if (valid)
++            enabled = reply->enabled != 0;
++        else
++            mach_msg_destroy(&reply->head);
++    }
++
++    if (own_server)
++        mach_port_deallocate(mach_task_self(), server);
++    return enabled;
++}
++
++static mach_port_t ca_acquire_server(mach_port_t server)
++{
++    if (server != MACH_PORT_NULL)
++        return server;
++    if (bootstrap_look_up(bootstrap_port, "com.apple.CARenderServer", &server)
++            != KERN_SUCCESS || !MACH_PORT_VALID(server))
++        return MACH_PORT_NULL;
++    return server;
++}
++
++static kern_return_t ca_exchange(mach_msg_header_t *message,
++        mach_msg_size_t send_size, mach_msg_size_t receive_size)
++{
++    mach_port_t reply_port = mig_get_reply_port();
++    message->msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND,
++            MACH_MSG_TYPE_MAKE_SEND_ONCE);
++    message->msgh_size = send_size;
++    message->msgh_local_port = reply_port;
++    voucher_mach_msg_set(message);
++    kern_return_t result = mach_msg(message, MACH_SEND_MSG | MACH_RCV_MSG,
++            send_size, receive_size, reply_port, MACH_MSG_TIMEOUT_NONE,
++            MACH_PORT_NULL);
++    if (result != MACH_MSG_SUCCESS) {
++        if (result == MACH_SEND_INVALID_DATA || result == MACH_SEND_INVALID_DEST
++                || result == MACH_SEND_INVALID_HEADER)
++            mig_put_reply_port(reply_port);
++        else
++            mig_dealloc_reply_port(reply_port);
++    }
++    return result;
++}
++
++void CARenderServerSetDebugOption(mach_port_t requested_server,
++        unsigned int option, bool enabled)
++{
++    mach_port_t server = ca_acquire_server(requested_server);
++    if (server == MACH_PORT_NULL)
++        return;
++    union {
++        struct {
++            struct ca_debug_request query;
++            uint32_t enabled;
++        } request;
++        mig_reply_error_t reply;
++        unsigned char receive_buffer[44];
++    } message = {0};
++    _Static_assert(sizeof(message.request) == 40, "CA set option request");
++    message.request.query.head.msgh_remote_port = server;
++    message.request.query.head.msgh_id = CA_SET_DEBUG_OPTION;
++    message.request.query.ndr = NDR_record;
++    message.request.query.option = option;
++    message.request.enabled = enabled;
++    if (ca_exchange(&message.request.query.head, sizeof(message.request),
++                sizeof(message.receive_buffer)) == MACH_MSG_SUCCESS) {
++        if ((message.reply.Head.msgh_bits & MACH_MSGH_BITS_COMPLEX)
++                || message.reply.Head.msgh_id != CA_SET_DEBUG_OPTION + 100
++                || message.reply.Head.msgh_remote_port != MACH_PORT_NULL
++                || message.reply.Head.msgh_size != sizeof(message.reply)
++                || message.reply.RetCode != KERN_SUCCESS)
++            mach_msg_destroy(&message.reply.Head);
++    }
++    if (requested_server == MACH_PORT_NULL)
++        mach_port_deallocate(mach_task_self(), server);
++}
++
++static CFPropertyListRef ca_copy_statistics(mach_port_t requested_server)
++{
++    mach_port_t server = ca_acquire_server(requested_server);
++    if (server == MACH_PORT_NULL)
++        return NULL;
++    union {
++        struct ca_debug_request request;
++        struct {
++            mach_msg_header_t head;
++            mach_msg_body_t body;
++            mach_msg_ool_descriptor_t data;
++            NDR_record_t ndr;
++            uint32_t count;
++        } reply;
++        unsigned char receive_buffer[64];
++    } message = {0};
++    _Static_assert(sizeof(message.reply) == 56, "CA statistics reply");
++    _Static_assert(offsetof(typeof(message.reply), data) == 28,
++            "CA statistics OOL offset");
++    _Static_assert(offsetof(typeof(message.reply), count) == 52,
++            "CA statistics count offset");
++    message.request.head.msgh_remote_port = server;
++    message.request.head.msgh_id = CA_COPY_STATISTICS;
++    message.request.ndr = NDR_record;
++    // The native frame-counter path requests the complete statistics array.
++    message.request.option = 0;
++    kern_return_t result = ca_exchange(&message.request.head,
++            sizeof(message.request), sizeof(message.receive_buffer));
++    if (requested_server == MACH_PORT_NULL)
++        mach_port_deallocate(mach_task_self(), server);
++    if (result != MACH_MSG_SUCCESS)
++        return NULL;
++    bool valid = (message.reply.head.msgh_bits & MACH_MSGH_BITS_COMPLEX)
++            && message.reply.head.msgh_id == CA_COPY_STATISTICS + 100
++            && message.reply.head.msgh_remote_port == MACH_PORT_NULL
++            && message.reply.head.msgh_size == sizeof(message.reply)
++            && message.reply.body.msgh_descriptor_count == 1
++            && message.reply.data.type == MACH_MSG_OOL_DESCRIPTOR
++            && message.reply.data.size == message.reply.count;
++    if (!valid) {
++        mach_msg_destroy(&message.reply.head);
++        return NULL;
++    }
++    CFDataRef data = CFDataCreate(kCFAllocatorDefault, message.reply.data.address,
++            message.reply.count);
++    vm_deallocate(mach_task_self(), (vm_address_t)message.reply.data.address,
++            message.reply.data.size);
++    if (data == NULL)
++        return NULL;
++    CFPropertyListRef statistics = CFPropertyListCreateWithData(
++            kCFAllocatorDefault, data, kCFPropertyListImmutable, NULL, NULL);
++    CFRelease(data);
++    return statistics;
++}
++
++uint32_t CARenderServerGetFrameCounter(mach_port_t server)
++{
++    CFPropertyListRef statistics = ca_copy_statistics(server);
++    if (statistics == NULL)
++        return 0;
++    uint32_t count = 0;
++    if (CFGetTypeID(statistics) == CFArrayGetTypeID()
++            && CFArrayGetCount(statistics) > 0) {
++        CFTypeRef display = CFArrayGetValueAtIndex(statistics, 0);
++        if (display != NULL && CFGetTypeID(display) == CFDictionaryGetTypeID()) {
++            CFTypeRef value = CFDictionaryGetValue(display,
++                    CFSTR("kCADisplayFrameCount"));
++            if (value != NULL) {
++                if (CFGetTypeID(value) == CFBooleanGetTypeID())
++                    count = CFBooleanGetValue(value) ? 1 : 0;
++                else if (CFGetTypeID(value) == CFNumberGetTypeID())
++                    CFNumberGetValue(value, kCFNumberSInt32Type, &count);
++            }
++        }
++    }
++    CFRelease(statistics);
++    return count;
++}
+diff --git a/QuartzCore/CMakeLists.txt b/QuartzCore/CMakeLists.txt
+index bc12fb7..d213d94 100644
+--- a/QuartzCore/CMakeLists.txt
++++ b/QuartzCore/CMakeLists.txt
+@@ -36,6 +36,7 @@ set(QuartzCore_sources
+ 	CAMediaTimingFunction.m
+ 	CAPropertyAnimation.m
+ 	CARenderer.m
++	CARenderServer.m
+ 	CATransactionGroup.m
+ 	CATransaction.m
+ 	CATransform3D.m
+@@ -125,3 +126,16 @@ target_include_directories(QuartzCore PUBLIC
+ target_include_directories(QuartzCore PRIVATE
+ 	private-include
+ )
++
++# A headless extension for an externally supplied native QuartzCore. It defines
++# only Cocotron's CALayerContext and sends the public renderInContext: message;
++# it does not import/reexport a second CALayer implementation.
++option(DARLING_NATIVE_LAYER_CONTEXT_EXTENSION "Build the native CALayer bitmap context extension" OFF)
++if(DARLING_NATIVE_LAYER_CONTEXT_EXTENSION)
++    set(DYLIB_INSTALL_NAME "/usr/lib/libDarlingNativeLayerContext.dylib")
++    add_darling_library(DarlingNativeLayerContext SHARED CALayerContextNative.m)
++    target_include_directories(DarlingNativeLayerContext PRIVATE include ../CoreGraphics/include)
++    target_link_libraries(DarlingNativeLayerContext PRIVATE Foundation CoreGraphics objc system)
++    make_fat(DarlingNativeLayerContext)
++    install(TARGETS DarlingNativeLayerContext DESTINATION libexec/darling/usr/lib)
++endif()
+diff --git a/QuartzCore/include/QuartzCore/CALayerContext.h b/QuartzCore/include/QuartzCore/CALayerContext.h
+index e4b0c34..4b817a2 100644
+--- a/QuartzCore/include/QuartzCore/CALayerContext.h
++++ b/QuartzCore/include/QuartzCore/CALayerContext.h
+@@ -1,4 +1,7 @@
+ #import <CoreGraphics/CGGeometry.h>
++#ifdef DARLING_NATIVE_LAYER_CONTEXT
++#import <CoreGraphics/CGContext.h>
++#endif
+ #import <Foundation/NSObject.h>
+ #import <OpenGL/OpenGL.h>
+ #import <CoreGraphics/CGSubWindow.h>
+@@ -17,6 +20,10 @@
+     NSTimer *_timer;
+     CGSubWindow* _subwindow;
+     void* _cglWindow;
++#ifdef DARLING_NATIVE_LAYER_CONTEXT
++    CGContextRef _bitmapContext;
++    BOOL _invalidated;
++#endif
+ }
+ 
+ @property(readonly) CGLContextObj glContext;
+@@ -36,5 +43,9 @@
+ - (void) deleteTextureId: (NSNumber *) textureId;
+ 
+ - (void) flush;
++#ifdef DARLING_NATIVE_LAYER_CONTEXT
++/* Owned snapshot of the actual offscreen pixels, also used for validation. */
++- (CGImageRef) copyRenderedImage CF_RETURNS_RETAINED;
++#endif
+ 
+ @end
+diff --git a/QuartzCore/private-include/QuartzCore/CARenderServer.h b/QuartzCore/private-include/QuartzCore/CARenderServer.h
+new file mode 100644
+index 0000000..d529a04
+--- /dev/null
++++ b/QuartzCore/private-include/QuartzCore/CARenderServer.h
+@@ -0,0 +1,23 @@
++/* SPDX-License-Identifier: GPL-3.0-or-later
++ * This file is part of Darling.
++ * Copyright (C) 2026 Darling contributors.
++ */
++#ifndef DARLING_CA_RENDER_SERVER_H
++#define DARLING_CA_RENDER_SERVER_H
++
++#include <stdbool.h>
++#include <stdint.h>
++#include <mach/mach.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++bool CARenderServerGetDebugOption(mach_port_t server, unsigned int option);
++void CARenderServerSetDebugOption(mach_port_t server, unsigned int option, bool enabled);
++uint32_t CARenderServerGetFrameCounter(mach_port_t server);
++
++#ifdef __cplusplus
++}
++#endif
++#endif

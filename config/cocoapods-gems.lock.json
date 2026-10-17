@@ -1,0 +1,285 @@
+{
+  "ruby": "2.6.3",
+  "rubygems": {
+    "name": "rubygems-update",
+    "version": "3.4.22",
+    "platform": "ruby",
+    "file": "rubygems-update-3.4.22.gem",
+    "sha256": "dedab68acfef164f6d29257bb8d01bd6df1430ce4c0c3cf5b198aa211881d849"
+  },
+  "gems": [
+    {
+      "name": "rexml",
+      "version": "3.3.9",
+      "platform": "ruby",
+      "file": "rexml-3.3.9.gem",
+      "sha256": "d71875b85299f341edf47d44df0212e7658cbdf35aeb69cefdb63f57af3137c9"
+    },
+    {
+      "name": "nanaimo",
+      "version": "0.4.0",
+      "platform": "ruby",
+      "file": "nanaimo-0.4.0.gem",
+      "sha256": "faf069551bab17f15169c1f74a1c73c220657e71b6e900919897a10d991d0723"
+    },
+    {
+      "name": "colored2",
+      "version": "3.1.2",
+      "platform": "ruby",
+      "file": "colored2-3.1.2.gem",
+      "sha256": "b13c2bd7eeae2cf7356a62501d398e72fde78780bd26aec6a979578293c28b4a"
+    },
+    {
+      "name": "claide",
+      "version": "1.1.0",
+      "platform": "ruby",
+      "file": "claide-1.1.0.gem",
+      "sha256": "6d3c5c089dde904d96aa30e73306d0d4bd444b1accb9b3125ce14a3c0183f82e"
+    },
+    {
+      "name": "CFPropertyList",
+      "version": "3.0.6",
+      "platform": "ruby",
+      "file": "CFPropertyList-3.0.6.gem",
+      "sha256": "78097539f2c69424d8a29ca725584469fbe1de4611a8799dc62b7a7f8efd66a8"
+    },
+    {
+      "name": "atomos",
+      "version": "0.1.3",
+      "platform": "ruby",
+      "file": "atomos-0.1.3.gem",
+      "sha256": "7d43b22f2454a36bace5532d30785b06de3711399cb1c6bf932573eda536789f"
+    },
+    {
+      "name": "xcodeproj",
+      "version": "1.27.0",
+      "platform": "ruby",
+      "file": "xcodeproj-1.27.0.gem",
+      "sha256": "8cc7a73b4505c227deab044dce118ede787041c702bc47636856a2e566f854d3"
+    },
+    {
+      "name": "ruby-macho",
+      "version": "2.5.1",
+      "platform": "ruby",
+      "file": "ruby-macho-2.5.1.gem",
+      "sha256": "9075e52e0f9270b552a90b24fcc6219ad149b0d15eae1bc364ecd0ac8984f5c9"
+    },
+    {
+      "name": "nap",
+      "version": "1.1.0",
+      "platform": "ruby",
+      "file": "nap-1.1.0.gem",
+      "sha256": "949691660f9d041d75be611bb2a8d2fd559c467537deac241f4097d9b5eea576"
+    },
+    {
+      "name": "molinillo",
+      "version": "0.8.0",
+      "platform": "ruby",
+      "file": "molinillo-0.8.0.gem",
+      "sha256": "efbff2716324e2a30bccd3eba1ff3a735f4d5d53ffddbc6a2f32c0ca9433045d"
+    },
+    {
+      "name": "gh_inspector",
+      "version": "1.1.3",
+      "platform": "ruby",
+      "file": "gh_inspector-1.1.3.gem",
+      "sha256": "04cca7171b87164e053aa43147971d3b7f500fcb58177698886b48a9fc4a1939"
+    },
+    {
+      "name": "fourflusher",
+      "version": "2.3.1",
+      "platform": "ruby",
+      "file": "fourflusher-2.3.1.gem",
+      "sha256": "1b3de61c7c791b6a4e64f31e3719eb25203d151746bb519a0292bff1065ccaa9"
+    },
+    {
+      "name": "escape",
+      "version": "0.0.4",
+      "platform": "ruby",
+      "file": "escape-0.0.4.gem",
+      "sha256": "e49f44ae2b4f47c6a3abd544ae77fe4157802794e32f19b8e773cbc4dcec4169"
+    },
+    {
+      "name": "cocoapods-try",
+      "version": "1.2.0",
+      "platform": "ruby",
+      "file": "cocoapods-try-1.2.0.gem",
+      "sha256": "145b946c6e7747ed0301d975165157951153d27469e6b2763c83e25c84b9defe"
+    },
+    {
+      "name": "netrc",
+      "version": "0.11.0",
+      "platform": "ruby",
+      "file": "netrc-0.11.0.gem",
+      "sha256": "de1ce33da8c99ab1d97871726cba75151113f117146becbe45aa85cb3dabee3f"
+    },
+    {
+      "name": "cocoapods-trunk",
+      "version": "1.6.0",
+      "platform": "ruby",
+      "file": "cocoapods-trunk-1.6.0.gem",
+      "sha256": "5f5bda8c172afead48fa2d43a718cf534b1313c367ba1194cebdeb9bfee9ed31"
+    },
+    {
+      "name": "cocoapods-search",
+      "version": "1.0.1",
+      "platform": "ruby",
+      "file": "cocoapods-search-1.0.1.gem",
+      "sha256": "1b133b0e6719ed439bd840e84a1828cca46425ab73a11eff5e096c3b2df05589"
+    },
+    {
+      "name": "cocoapods-plugins",
+      "version": "1.0.0",
+      "platform": "ruby",
+      "file": "cocoapods-plugins-1.0.0.gem",
+      "sha256": "725d17ce90b52f862e73476623fd91441b4430b742d8a071000831efb440ca9a"
+    },
+    {
+      "name": "cocoapods-downloader",
+      "version": "2.1",
+      "platform": "ruby",
+      "file": "cocoapods-downloader-2.1.gem",
+      "sha256": "bb6ebe1b3966dc4055de54f7a28b773485ac724fdf575d9bee2212d235e7b6d1"
+    },
+    {
+      "name": "cocoapods-deintegrate",
+      "version": "1.0.5",
+      "platform": "ruby",
+      "file": "cocoapods-deintegrate-1.0.5.gem",
+      "sha256": "517c2a448ef563afe99b6e7668704c27f5de9e02715a88ee9de6974dc1b3f6a2"
+    },
+    {
+      "name": "logger",
+      "version": "1.7.0",
+      "platform": "ruby",
+      "file": "logger-1.7.0.gem",
+      "sha256": "196edec7cc44b66cfb40f9755ce11b392f21f7967696af15d274dde7edff0203"
+    },
+    {
+      "name": "ffi",
+      "version": "1.17.2",
+      "platform": "x86_64-darwin",
+      "file": "ffi-1.17.2-x86_64-darwin.gem",
+      "sha256": "981f2d4e32ea03712beb26e55e972797c2c5a7b0257955d8667ba58f2da6440e"
+    },
+    {
+      "name": "ethon",
+      "version": "0.18.0",
+      "platform": "ruby",
+      "file": "ethon-0.18.0.gem",
+      "sha256": "b598afc9f30448cb068b850714b7d6948e941476095d04f90a4ac65b8d6efcb2"
+    },
+    {
+      "name": "typhoeus",
+      "version": "1.6.0",
+      "platform": "ruby",
+      "file": "typhoeus-1.6.0.gem",
+      "sha256": "bacc41c23e379547e29801dc235cd1699b70b955a1ba3d32b2b877aa844c331d"
+    },
+    {
+      "name": "public_suffix",
+      "version": "4.0.7",
+      "platform": "ruby",
+      "file": "public_suffix-4.0.7.gem",
+      "sha256": "8be161e2421f8d45b0098c042c06486789731ea93dc3a896d30554ee38b573b8"
+    },
+    {
+      "name": "fuzzy_match",
+      "version": "2.0.4",
+      "platform": "ruby",
+      "file": "fuzzy_match-2.0.4.gem",
+      "sha256": "b5de4f95816589c5b5c3ad13770c0af539b75131c158135b3f3bbba75d0cfca5"
+    },
+    {
+      "name": "concurrent-ruby",
+      "version": "1.3.4",
+      "platform": "ruby",
+      "file": "concurrent-ruby-1.3.4.gem",
+      "sha256": "d4aa926339b0a86b5b5054a0a8c580163e6f5dcbdfd0f4bb916b1a2570731c32"
+    },
+    {
+      "name": "json",
+      "version": "2.1.0",
+      "platform": "ruby",
+      "file": "json-2.1.0.gem",
+      "sha256": "b76fd09b881088c6c64a12721a1528f2f747a1c2ee52fab4c1f60db8af946607"
+    },
+    {
+      "name": "mutex_m",
+      "version": "0.3.0",
+      "platform": "ruby",
+      "file": "mutex_m-0.3.0.gem",
+      "sha256": "cfcb04ac16b69c4813777022fdceda24e9f798e48092a2b817eb4c0a782b0751"
+    },
+    {
+      "name": "httpclient",
+      "version": "2.9.0",
+      "platform": "ruby",
+      "file": "httpclient-2.9.0.gem",
+      "sha256": "4b645958e494b2f86c2f8a2f304c959baa273a310e77a2931ddb986d83e498c8"
+    },
+    {
+      "name": "algoliasearch",
+      "version": "1.27.5",
+      "platform": "ruby",
+      "file": "algoliasearch-1.27.5.gem",
+      "sha256": "26c1cddf3c2ec4bd60c148389e42702c98fdac862881dc6b07a4c0b89ffec853"
+    },
+    {
+      "name": "addressable",
+      "version": "2.9.0",
+      "platform": "ruby",
+      "file": "addressable-2.9.0.gem",
+      "sha256": "7fdf6ac3660f7f4e867a0838be3f6cf722ace541dd97767fa42bc6cfa980c7af"
+    },
+    {
+      "name": "zeitwerk",
+      "version": "2.6.18",
+      "platform": "ruby",
+      "file": "zeitwerk-2.6.18.gem",
+      "sha256": "bd2d213996ff7b3b364cd342a585fbee9797dbc1c0c6d868dc4150cc75739781"
+    },
+    {
+      "name": "tzinfo",
+      "version": "2.0.6",
+      "platform": "ruby",
+      "file": "tzinfo-2.0.6.gem",
+      "sha256": "8daf828cc77bcf7d63b0e3bdb6caa47e2272dcfaf4fbfe46f8c3a9df087a829b"
+    },
+    {
+      "name": "minitest",
+      "version": "5.25.4",
+      "platform": "ruby",
+      "file": "minitest-5.25.4.gem",
+      "sha256": "9cf2cae25ac4dfc90c988ebc3b917f53c054978b673273da1bd20bcb0778f947"
+    },
+    {
+      "name": "i18n",
+      "version": "1.14.8",
+      "platform": "ruby",
+      "file": "i18n-1.14.8.gem",
+      "sha256": "285778639134865c5e0f6269e0b818256017e8cde89993fdfcbfb64d088824a5"
+    },
+    {
+      "name": "activesupport",
+      "version": "6.1.7.10",
+      "platform": "ruby",
+      "file": "activesupport-6.1.7.10.gem",
+      "sha256": "3f8e1f787a7bfbf765959ba509ef70af8293b35cb864078919365a12bf33d470"
+    },
+    {
+      "name": "cocoapods-core",
+      "version": "1.16.2",
+      "platform": "ruby",
+      "file": "cocoapods-core-1.16.2.gem",
+      "sha256": "4bb1b5c420691e60cf36fa227dec6bc48c096c34c97bb7aa512ea7f3246fc12b"
+    },
+    {
+      "name": "cocoapods",
+      "version": "1.16.2",
+      "platform": "ruby",
+      "file": "cocoapods-1.16.2.gem",
+      "sha256": "0ff1c860f32df3db8b16df09b58da1a6bb2a12fe55f6d5e8be994a74fadd1e5e"
+    }
+  ]
+}

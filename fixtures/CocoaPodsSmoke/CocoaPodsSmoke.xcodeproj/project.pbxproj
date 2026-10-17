@@ -1,0 +1,213 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000001 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000002 /* main.c */; };
+		4A0C7387EC116D8BAFA5A137 /* libPods-XcodeSmoke.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 44C6DC337D5484A357061AB9 /* libPods-XcodeSmoke.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		100000000000000000000002 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
+		100000000000000000000003 /* XcodeSmoke */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; path = XcodeSmoke; sourceTree = BUILT_PRODUCTS_DIR; };
+		34942A0B58C297B0C28218F4 /* Pods-XcodeSmoke.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-XcodeSmoke.release.xcconfig"; path = "Target Support Files/Pods-XcodeSmoke/Pods-XcodeSmoke.release.xcconfig"; sourceTree = "<group>"; };
+		44C6DC337D5484A357061AB9 /* libPods-XcodeSmoke.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-XcodeSmoke.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4D2BA7EB37FF84198E970589 /* Pods-XcodeSmoke.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-XcodeSmoke.debug.xcconfig"; path = "Target Support Files/Pods-XcodeSmoke/Pods-XcodeSmoke.debug.xcconfig"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		100000000000000000000009 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4A0C7387EC116D8BAFA5A137 /* libPods-XcodeSmoke.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		100000000000000000000004 = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000002 /* main.c */,
+				100000000000000000000005 /* Products */,
+				C8969E8836EDC9F90B4C6A23 /* Pods */,
+				6673B95F53CF610337CC546D /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		100000000000000000000005 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000003 /* XcodeSmoke */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		6673B95F53CF610337CC546D /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				44C6DC337D5484A357061AB9 /* libPods-XcodeSmoke.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		C8969E8836EDC9F90B4C6A23 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				4D2BA7EB37FF84198E970589 /* Pods-XcodeSmoke.debug.xcconfig */,
+				34942A0B58C297B0C28218F4 /* Pods-XcodeSmoke.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		100000000000000000000006 /* XcodeSmoke */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 10000000000000000000000B /* Build configuration list for PBXNativeTarget "XcodeSmoke" */;
+			buildPhases = (
+				248CA685B82C99D6AD189FA9 /* [CP] Check Pods Manifest.lock */,
+				100000000000000000000008 /* Sources */,
+				100000000000000000000009 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = XcodeSmoke;
+			productName = XcodeSmoke;
+			productReference = 100000000000000000000003 /* XcodeSmoke */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		100000000000000000000007 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1600;
+			};
+			buildConfigurationList = 10000000000000000000000A /* Build configuration list for PBXProject "CocoaPodsSmoke" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 100000000000000000000004;
+			productRefGroup = 100000000000000000000005 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				100000000000000000000006 /* XcodeSmoke */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		248CA685B82C99D6AD189FA9 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-XcodeSmoke-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		100000000000000000000008 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000001 /* main.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		10000000000000000000000C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = x86_64;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		10000000000000000000000D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = x86_64;
+				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		10000000000000000000000E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 4D2BA7EB37FF84198E970589 /* Pods-XcodeSmoke.debug.xcconfig */;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		10000000000000000000000F /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 34942A0B58C297B0C28218F4 /* Pods-XcodeSmoke.release.xcconfig */;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		10000000000000000000000A /* Build configuration list for PBXProject "CocoaPodsSmoke" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				10000000000000000000000C /* Debug */,
+				10000000000000000000000D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		10000000000000000000000B /* Build configuration list for PBXNativeTarget "XcodeSmoke" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				10000000000000000000000E /* Debug */,
+				10000000000000000000000F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 100000000000000000000007 /* Project object */;
+}

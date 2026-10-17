@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/VibeDarling/darling-foundation",
+  "commit": "149136717c28afe4a8669301b44bddfba9446383",
+  "files": {
+    "src/NSPersonNameComponents.m": "6c3d1a7f440642eaa6706ca6ffd72ffa12eb93ee5f67620642c4af32228092d0",
+    "include/Foundation/NSPersonNameComponents.h": "e2d9ff4a99c7e96781a138a7167486746fd286a6488084bbd13743a474c27234"
+  },
+  "scope": "NSPersonNameComponents public value properties, copy/equality/hash and secure coding. No native private ivar-layout compatibility claim, no formatter implementation."
+}

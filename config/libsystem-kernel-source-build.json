@@ -1,0 +1,11 @@
+{
+  "source_repositories": {
+    "vendor/darling": "60ba801decee7a00782f74f6be4c8ffb013f79ff",
+    "vendor/darling/src/external/xnu": "fa29287aa2f0115271e091f1031f53c9e024005d",
+    "vendor/darlingserver": "89751e64bc6c2082f7725061824ee0e33395b0de",
+    "vendor/darling/src/external/bootstrap_cmds": "0f300a7a04bb1174a3b7db58b57d738aadc14e13"
+  },
+  "baseline": "runtime/rootfs/usr/libexec/darling/usr/lib/system/libsystem_kernel.dylib",
+  "baseline_sha256": "4f4a39fbab9fc5c78f73d5a48466d78eccaf6c69b93ef6af8dac756389031044",
+  "scope": "Complete x86_64 upstream libsyscall/emulation/libsimple source lists, generated MIG and source-server RPC; private runtime variant; product-version availability override retained explicitly."
+}

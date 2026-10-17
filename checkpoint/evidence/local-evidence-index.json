@@ -1,0 +1,32 @@
+{
+  "native-crypto-progress.json": {
+    "local_path": "artifacts/native-crypto-progress.json",
+    "sha256": "5fb9f68d2fee9c0e244c34f0b8288fdf91dceee87841e5e29302678a99394eb1",
+    "bytes": 19949336,
+    "full_report_included": false
+  },
+  "icu-signal-progress.json": {
+    "local_path": "artifacts/icu-signal-progress.json",
+    "sha256": "01c8a927638c967d45c18200f3f22d6f817124becfd4310e10bd4bd95485a810",
+    "bytes": 4292266,
+    "full_report_included": false
+  },
+  "mobileasset-query-progress.json": {
+    "local_path": "artifacts/mobileasset-query-progress.json",
+    "sha256": "93e8e153740729494b19d22b82228b9ea8b2cbce30e19d7a7aa16e634e887117",
+    "bytes": 930327,
+    "full_report_included": false
+  },
+  "xpc-activation-materialize-progress.json": {
+    "local_path": "artifacts/xpc-activation-materialize-progress.json",
+    "sha256": "09b9cad315a7d2541e8590634911ccb35c3ae9e5cf365fccdcf1484291e8a339",
+    "bytes": 4133159,
+    "full_report_included": false
+  },
+  "native-sandbox-policy-checkpoint-validation.json": {
+    "local_path": "artifacts/native-sandbox-policy-checkpoint-validation.json",
+    "sha256": "6ec8eb5e89912cdf16cbfa96c713230a8c552297488a30ad192aa88b2d8bd1e1",
+    "bytes": 2145,
+    "full_report_included": false
+  }
+}

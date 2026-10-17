@@ -1,0 +1,16 @@
+PODS:
+  - LocalMath (0.1.0)
+
+DEPENDENCIES:
+  - LocalMath (from `LocalMath`)
+
+EXTERNAL SOURCES:
+  LocalMath:
+    :path: LocalMath
+
+SPEC CHECKSUMS:
+  LocalMath: b2f0a113e6e65c19e5b7ac47a773d0db894ec511
+
+PODFILE CHECKSUM: 91fa2f0a75f042e988d13aa4b7fa246a9c0243a0
+
+COCOAPODS: 1.16.2

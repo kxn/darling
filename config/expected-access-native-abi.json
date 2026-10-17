@@ -1,0 +1,20 @@
+{
+  "provider": "/usr/lib/libc++.1.dylib",
+  "provider_sha256": "98a388765e2b9a56940265d09723d2b1fccb9db63953157e5c6006089cab3ac8",
+  "symbols": {
+    "__ZNKSt3__119bad_expected_accessIvE4whatEv": "0x7ff802dd890e",
+    "__ZTINSt3__119bad_expected_accessIvEE": "0x7ff840089ae0",
+    "__ZTSNSt3__119bad_expected_accessIvEE": "0x7ff802e21f60",
+    "__ZTVNSt3__119bad_expected_accessIvEE": "0x7ff840089ab8"
+  },
+  "what_prefix": "554889e5488d05598806005dc390554889e55de94e4f0400554889e553504889",
+  "what_message": "bad access to std::expected",
+  "type_name": "NSt3__119bad_expected_accessIvEE",
+  "typeinfo_base": "std::exception",
+  "base_typeinfo_address": "0x7ff8400914a0",
+  "vtable_offset_to_top": 0,
+  "vtable_typeinfo_slot": 1,
+  "vtable_what_slot": 4,
+  "runtime_class_size_expected": 8,
+  "runtime_class_alignment_expected": 8
+}

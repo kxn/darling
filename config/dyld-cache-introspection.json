@@ -1,0 +1,32 @@
+{
+  "source_commit": "fd8d0c4d52320ebf64db34f3cb280310d905c5ae",
+  "files": {
+    "include/mach-o/dyld_introspection.h": "6db9d09b319d7c0332e9c4f818992e321e31f2874047b7c602acf286722dbdf3",
+    "include/mach-o/dyld_cache_format.h": "dd6f7d9ffc5cb318988c16dbecf958d04b0c65cd9ee1892a838e374f76fd182c",
+    "common/ProcessAtlas.cpp": "65e297a99e73996ebd0098e435e3226954f7db2927eac8d2b73e65232cbf77c9",
+    "common/DyldSharedCache.cpp": "2edb158b41203e595b1d95937acad429888ce1464f25b7b620cb9b19f38e6475",
+    "mach_o/Architecture.cpp": "d1810099a6fd0c4e5118b000ce785053d6db4c5c336070ca14fc6d8d77ba10c2",
+    "mach_o/Architecture.h": "766e83571af5c1598f21e2ae017937d1ce4e2c7f5551e2ef87562a6f736632e3",
+    "mach_o/MachODefines.h": "a9af33abde66906bc3df81fe04da627891e4af41f42af35fc6009574adc4aa3e",
+    "libdyld/utils.cpp": "21212f0343843f3f6c1f5d36b832a1cdbd90e4face7d2d9658465bec4718e30e",
+    "include/mach-o/utils.h": "027443c0520f60e795bc1ba19eac6bf920b049c2a32b310bf4c72dd1b3661b63",
+    "mach_o/Universal.cpp": "e7ffac0672dc176335af6d5a5c418318f75ab9417b526edead3b9fe3db97b9e5",
+    "mach_o/Universal.h": "12152a24147c92eecafbd69e9517dc0ac43c1d3088015dc1bfc233378fc64956",
+    "mach_o/UnsafeHeader.cpp": "eb16814de57adc5fa5c0273996daa16c75f02ec473f8b15a98d91304a1da4be9",
+    "mach_o/UnsafeHeader.h": "6f28626a8db27e09cbed139c66861fe5d5d9f6f609e15465cbef41bcbe948229",
+    "mach_o/Error.cpp": "b8f1aaf1a5349038a46143e833f60a22073e9368303730d7cde7cf34577966da",
+    "mach_o/Error.h": "1d588ca29cf745803345e107b2dc8d8f251dd619c43e39e89b1d6b640488dfee",
+    "mach_o/Misc.h": "95f61a13fff43eb54456ead6e47fd0f62209d004f34403b0c2b5a4e0cd8a4218"
+  },
+  "libsystem_sha256": "9f223b1d97c85bc01dfc52e3a7133c4c126339c9a0171d680349c8dc7d53d988",
+  "scope": "Read-only modern Intel cache/file introspection; process snapshots via existing Darling dyld/Mach APIs; original dyld Architecture name/type metadata helpers. No cache execution, live shared-cache snapshots, new process notifications or contiguous pinned mappings. Slice enumeration reuses original Apple Universal parser, selected header methods and API functions with mapping cleanup, thin-stop initialization and legacy hidden-slice bounds/early-stop fixes. No ARM execution or complete Mach-O load-command validation.",
+  "legacy_backend": {
+    "root": "vendor/darling/src/external/dyld",
+    "commit": "63f667cf06d7ed59553adebb0c8d70a117135ac9",
+    "files": {
+      "include/mach-o/dyld_process_info.h": "9689744998174ff67652f572c36bdf15b519bb2846176a4fb9260e0e731dc55c",
+      "src/dyld_process_info.cpp": "8032002b752475b19109fa348e8b0d0498f321f52497b3d886427d9d3b99023b"
+    },
+    "library_sha256": "0fb6eb43bc8a844b5566ea77b551b6863c7219815dc4f942cc4418ab7172c07d"
+  }
+}

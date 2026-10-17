@@ -1,0 +1,3274 @@
+diff --git a/src/frameworks/CoreServices/include/FSEvents/FSEvents.h b/src/frameworks/CoreServices/include/FSEvents/FSEvents.h
+index cada65c7..e2bc2e58 100644
+--- a/src/frameworks/CoreServices/include/FSEvents/FSEvents.h
++++ b/src/frameworks/CoreServices/include/FSEvents/FSEvents.h
+@@ -126,6 +126,10 @@ extern void FSEventStreamSetDispatchQueue(FSEventStreamRef streamRef, dispatch_q
+ 
+ extern Boolean FSEventStreamStart(FSEventStreamRef streamRef);
+ 
++extern FSEventStreamEventId FSEventStreamFlushAsync(FSEventStreamRef streamRef);
++
++extern void FSEventStreamFlushSync(FSEventStreamRef streamRef);
++
+ extern void FSEventStreamStop(FSEventStreamRef streamRef);
+ 
+ #endif
+diff --git a/src/frameworks/CoreServices/src/FSEvents/CMakeLists.txt b/src/frameworks/CoreServices/src/FSEvents/CMakeLists.txt
+index b4334219..75fbd0b4 100644
+--- a/src/frameworks/CoreServices/src/FSEvents/CMakeLists.txt
++++ b/src/frameworks/CoreServices/src/FSEvents/CMakeLists.txt
+@@ -28,3 +28,6 @@ target_link_libraries(fseventsd system Foundation CarbonCore)
+ 
+ install(TARGETS fseventsd DESTINATION libexec/darling/usr/sbin)
+ install(CODE "execute_process(COMMAND ${SETCAP_EXECUTABLE} \"cap_sys_admin+ep\" \"${CMAKE_INSTALL_PREFIX}/libexec/darling/usr/sbin/fseventsd\")")
++
++# Weak source/run-loop contexts avoid retaining the stream in its own sources.
++set_property(SOURCE FSEventsImpl.m APPEND_STRING PROPERTY COMPILE_FLAGS " -fobjc-weak")
+diff --git a/src/frameworks/CoreServices/src/FSEvents/FSEvents.m b/src/frameworks/CoreServices/src/FSEvents/FSEvents.m
+index 44c8ac7a..6face7a4 100644
+--- a/src/frameworks/CoreServices/src/FSEvents/FSEvents.m
++++ b/src/frameworks/CoreServices/src/FSEvents/FSEvents.m
+@@ -33,6 +33,7 @@ FSEventStreamRef FSEventStreamCreate(
+ {
+ 	return (FSEventStreamRef) [[FSEventsImpl alloc] initWithPaths: (NSArray*)pathsToWatch
+ 									flags: flags
++                                    latency: latency
+ 									context: context
+ 									callback: callback];
+ }
+@@ -90,8 +91,7 @@ void FSEventStreamSetDispatchQueue(FSEventStreamRef streamRef, dispatch_queue_t
+ 
+ Boolean FSEventStreamStart(FSEventStreamRef streamRef)
+ {
+-	[((FSEventsImpl*) streamRef) start];
+-	return TRUE;
++	return [((FSEventsImpl*) streamRef) start];
+ }
+ 
+ void FSEventStreamStop(FSEventStreamRef streamRef)
+@@ -104,3 +104,13 @@ void FSEventStreamUnscheduleFromRunLoop(FSEventStreamRef streamRef, CFRunLoopRef
+ 	[((FSEventsImpl*) streamRef) unscheduleWithRunLoop: runLoop
+ 												mode: runLoopMode];
+ }
++
++FSEventStreamEventId FSEventStreamFlushAsync(FSEventStreamRef streamRef)
++{
++    return [((FSEventsImpl*) streamRef) flushAsync];
++}
++
++void FSEventStreamFlushSync(FSEventStreamRef streamRef)
++{
++    [((FSEventsImpl*) streamRef) flushSync];
++}
+diff --git a/src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.h b/src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.h
+index a5010ed2..17124ad4 100644
+--- a/src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.h
++++ b/src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.h
+@@ -21,9 +21,11 @@
+ #import <Foundation/NSArray.h>
+ #import <Foundation/NSString.h>
+ #import <Foundation/NSDictionary.h>
++#import <Foundation/NSLock.h>
+ #include <CoreFoundation/CFBag.h>
+ #include <FSEvents/FSEvents.h>
+ #include <dispatch/dispatch.h>
++#include <pthread.h>
+ 
+ @interface FSEventsImpl : NSObject
+ {
+@@ -44,10 +46,31 @@
+ 	NSMutableArray* _pathArray;
+ 	FSEventStreamEventFlags* _flagArray;
+ 	FSEventStreamEventId* _idArray;
++
++	// State and FD access are serialized separately from client callbacks.
++	dispatch_queue_t _stateQueue;
++	dispatch_source_t _timer;
++	CFTimeInterval _latency;
++	uint64_t _lastDispatchNS;
++	bool _sourceResumed;
++	bool _invalidated;
++	bool _timerArmed;
++	bool _delivering;
++	size_t _capacity;
++	NSUInteger _deliveryEpoch;
++	NSMutableArray* _deliveryBatches;
++	NSRecursiveLock* _callbackLock;
++	NSCondition* _deliveryCondition;
++	FSEventStreamEventId _lastCompletedID;
++	FSEventStreamEventId _lastInvokedID;
++	bool _deliveryInterrupted;
++	pthread_t _callbackThread;
++	unsigned _callbackDepth;
+ }
+ 
+ -(instancetype)initWithPaths:(NSArray*)pathsToWatch
+ 						flags:(FSEventStreamCreateFlags)flags
++                        latency:(CFTimeInterval)latency
+ 					context:(FSEventStreamContext*)context
+ 					callback:(FSEventStreamCallback)callback;
+ -(NSArray*)copyPathsToWatch;
+@@ -58,10 +81,12 @@
+ -(void)unscheduleWithRunLoop:(CFRunLoopRef)rl
+ 					mode:(CFStringRef)rlMode;
+ -(void)invalidate;
+--(void)start;
++-(BOOL)start;
+ -(void)stop;
+ -(FSEventStreamEventId)lastEventID;
+ -(void)_doCallback;
++-(FSEventStreamEventId)flushAsync;
++-(void)flushSync;
+ 
+ @end
+ 
+diff --git a/src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.m b/src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.m
+index cf9933a8..ad0b6b5c 100644
+--- a/src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.m
++++ b/src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.m
+@@ -18,332 +18,501 @@
+ */
+ 
+ #import "FSEventsImpl.h"
+-#import <Foundation/NSDictionary.h>
++#import <Foundation/NSData.h>
++#import <Foundation/NSPathUtilities.h>
+ #include <unistd.h>
++#include <fcntl.h>
+ #include <stdlib.h>
+ #include <errno.h>
+ #include <string.h>
++#include <math.h>
++#include <stdint.h>
++#include <time.h>
++#include <stdio.h>
+ #include <darling/emulation/linux_premigration/ext/sys/inotify.h>
+ 
+-static dispatch_queue_t g_fsEventsQueue = NULL;
++// These objects own copies, never the worker's mutable event buffers.
++@interface FSEventsBatch : NSObject {
++@public
++    NSArray* paths;
++    NSData* flags;
++    NSData* ids;
++}
++@end
++@implementation FSEventsBatch
++-(void)dealloc { [paths release]; [flags release]; [ids release]; [super dealloc]; }
++@end
+ 
+-static void rlPerform(void* info)
+-{
+-	FSEventsImpl* fse = (FSEventsImpl*) info;
+-	[fse _doCallback];
++@interface FSEventsRunLoopContext : NSObject {
++@public
++    __weak FSEventsImpl* stream;
+ }
++@end
++@implementation FSEventsRunLoopContext
++@end
+ 
+-@implementation FSEventsImpl
++@interface FSEventsImpl ()
++-(void)_state:(void (^)(void))action;
++-(void)_invalidateState;
++-(void)_readEvents;
++-(void)_processSingleEvent:(struct inotify_event*)event;
++-(void)_appendPath:(NSString*)path flags:(FSEventStreamEventFlags)flags;
++-(void)_armTimer;
++-(void)_dispatchEvents;
++-(void)_wakeDelivery;
++-(void)_deliverEpoch:(NSUInteger)epoch;
++-(void)_deliverEpoch:(NSUInteger)epoch until:(FSEventStreamEventId)limit allowReentry:(BOOL)allowReentry;
++@end
++
++static char stateQueueKey;
++static uint64_t monotonicNS(void) {
++    struct timespec now;
++    if (clock_gettime(CLOCK_MONOTONIC, &now) != 0) abort();
++    return (uint64_t)now.tv_sec * NSEC_PER_SEC + now.tv_nsec;
++}
++static const void* retainContext(const void* value) { return [(id)value retain]; }
++static void releaseContext(const void* value) { [(id)value release]; }
++static void rlPerform(void* value) {
++    @autoreleasepool {
++        FSEventsImpl* owner = ((FSEventsRunLoopContext*)value)->stream;
++        [owner _doCallback];
++    }
++}
++static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunLoopRef)value); }
+ 
++@implementation FSEventsImpl
+ -(instancetype)initWithPaths:(NSArray*)pathsToWatch
+-					flags:(FSEventStreamCreateFlags)flags
+-					context:(FSEventStreamContext*)context
+-					callback:(FSEventStreamCallback)callback
++                       flags:(FSEventStreamCreateFlags)flags
++                     latency:(CFTimeInterval)latency
++                     context:(FSEventStreamContext*)context
++                    callback:(FSEventStreamCallback)callback
+ {
+-	_pathsToWatch = [[NSArray alloc] initWithArray:pathsToWatch];
+-	_flags = flags;
+-	_callback = callback;
+-	_fd = inotify_init1(IN_NONBLOCK);
+-
+-	if (_fd == -1)
+-	{
+-		[self release];
+-		return nil;
+-	}
+-
+-	if (context)
+-	{
+-		_context = *context;
+-		if (_context.retain)
+-			_context.info = (void*) _context.retain(_context.info);
+-	}
+-
+-	CFRunLoopSourceContext rlcontext = {0};
+-	rlcontext.info = self;
+-	rlcontext.perform = rlPerform;
+-
+-	_rlSource = CFRunLoopSourceCreate(NULL, 0, &rlcontext);
+-	NSMutableDictionary* wdmap = [[NSMutableDictionary alloc] initWithCapacity: [_pathsToWatch count]];
+-
+-	for (NSString* path in _pathsToWatch)
+-	{
+-		int wd = inotify_add_watch(_fd, [path UTF8String], IN_ATTRIB | IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE);
+-		[wdmap setObject: path
+-				forKey: [NSNumber numberWithInt: wd]];
+-	}
+-	_wdMap = [[NSDictionary alloc] initWithDictionary: wdmap];
+-	[wdmap release];
+-
+-	static dispatch_once_t once;
+-	dispatch_once(&once, ^{
+-		g_fsEventsQueue = dispatch_queue_create("FSEvents queue", DISPATCH_QUEUE_SERIAL);
+-	});
+-
+-	_source = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, _fd, 0, g_fsEventsQueue);
+-	dispatch_source_set_event_handler(_source, ^{
+-		[self _readEvents];
+-	});
+-
+-	_pathArray = [[NSMutableArray alloc] init];
+-	_runloops = CFBagCreateMutable(NULL, 0, &kCFTypeBagCallBacks);
+-
+-	return self;
++    self = [super init];
++    if (!self) return nil;
++    _fd = -1;
++    if (!callback || ![pathsToWatch count] || !isfinite(latency) || latency < 0 ||
++        (context && context->version != 0)) {
++        [self release]; errno = EINVAL; return nil;
++    }
++    _flags = flags; _callback = callback; _latency = latency;
++    _pathsToWatch = [pathsToWatch copy];
++    _callbackLock = [[NSRecursiveLock alloc] init];
++    _deliveryCondition = [[NSCondition alloc] init];
++    _pathArray = [[NSMutableArray alloc] init];
++    _deliveryBatches = [[NSMutableArray alloc] init];
++    _runloops = CFBagCreateMutable(NULL, 0, &kCFTypeBagCallBacks);
++    _stateQueue = dispatch_queue_create("org.darling.FSEvents.state", DISPATCH_QUEUE_SERIAL);
++    dispatch_queue_set_specific(_stateQueue, &stateQueueKey, self, NULL);
++    _fd = inotify_init1(IN_NONBLOCK);
++    if (_fd < 0) { int saved = errno; [self release]; errno = saved; return nil; }
++    if (fcntl(_fd, F_SETFD, FD_CLOEXEC) < 0) {
++        int saved = errno; [self release]; errno = saved; return nil;
++    }
++    NSMutableDictionary* watches = [[NSMutableDictionary alloc] init];
++    for (id path in _pathsToWatch) {
++        if (![path isKindOfClass:[NSString class]]) {
++            [watches release]; [self release]; errno = EINVAL; return nil;
++        }
++        int wd = inotify_add_watch(_fd, [path UTF8String],
++            IN_ATTRIB | IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE | IN_UNMOUNT);
++        if (wd < 0) {
++            int saved = errno; [watches release]; [self release]; errno = saved; return nil;
++        }
++        [watches setObject:path forKey:[NSNumber numberWithInt:wd]];
++    }
++    _wdMap = [watches copy]; [watches release];
++    if (context) {
++        _context = *context;
++        if (_context.retain) _context.info = (void*)_context.retain(_context.info);
++    }
++    FSEventsRunLoopContext* box = [[FSEventsRunLoopContext alloc] init];
++    box->stream = self;
++    CFRunLoopSourceContext rlcontext = {0};
++    rlcontext.info = box; rlcontext.perform = rlPerform;
++    rlcontext.retain = retainContext; rlcontext.release = releaseContext;
++    _rlSource = CFRunLoopSourceCreate(NULL, 0, &rlcontext);
++    [box release];
++    __weak FSEventsImpl* weakSelf = self;
++    _source = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, _fd, 0, _stateQueue);
++    int ownedFD = _fd;
++    dispatch_source_set_cancel_handler(_source, ^{ close(ownedFD); });
++    dispatch_source_set_event_handler(_source, ^{
++        @autoreleasepool { FSEventsImpl* owner = weakSelf; [owner _readEvents]; }
++    });
++    _timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, _stateQueue);
++    dispatch_source_set_timer(_timer, DISPATCH_TIME_FOREVER, DISPATCH_TIME_FOREVER, 0);
++    dispatch_source_set_event_handler(_timer, ^{
++        @autoreleasepool { FSEventsImpl* owner = weakSelf; [owner _dispatchEvents]; }
++    });
++    dispatch_resume(_timer);
++    return self;
+ }
+ 
+--(void) dealloc
++-(void)_state:(void (^)(void))action
+ {
+-	if (_context.release)
+-		_context.release(_context.info);
+-
+-	if (_source)
+-	{
+-		dispatch_suspend(_source);
+-		dispatch_release(_source);
+-	}
+-	if (_rlSource)
+-		CFRelease(_rlSource);
+-	if (_runloops)
+-		CFRelease(_runloops);
+-
+-	[self invalidate];
+-
+-	if (_fd != -1)
+-		close(_fd);
+-
+-	[_pathsToWatch release];
+-	[_pathArray release];
+-	[_wdMap release];
+-	free(_flagArray);
+-	free(_idArray);
+-	[super dealloc];
++    if (!_stateQueue || dispatch_get_specific(&stateQueueKey) == self) action();
++    else dispatch_sync(_stateQueue, action);
+ }
+ 
+--(NSArray*)copyPathsToWatch
++-(void)dealloc
+ {
+-	return [_pathsToWatch retain];
++    [self invalidate];
++    if (_fd >= 0) close(_fd);
++    if (_stateQueue) dispatch_release(_stateQueue);
++    if (_rlSource) CFRelease(_rlSource);
++    if (_runloops) CFRelease(_runloops);
++    if (_context.release) _context.release(_context.info);
++    [_pathsToWatch release]; [_wdMap release]; [_pathArray release];
++    [_deliveryBatches release]; [_callbackLock release]; [_deliveryCondition release];
++    free(_flagArray); free(_idArray);
++    [super dealloc];
+ }
+ 
++-(NSArray*)copyPathsToWatch { return [_pathsToWatch copy]; }
++
+ -(void)setDispatchQueue:(dispatch_queue_t)queue
+ {
+-	if (_queue)
+-	{
+-		dispatch_release(_queue);
+-		_queue = NULL;
+-	}
+-	if (queue)
+-	{
+-		_queue = queue;
+-		dispatch_retain(_queue);
+-	}
++    if (queue) dispatch_retain(queue);
++    dispatch_queue_t old;
++    @synchronized(self) {
++        if (_invalidated) { if (queue) dispatch_release(queue); return; }
++        old = _queue;
++        if (old && old != queue) dispatch_queue_set_specific(old, self, NULL, NULL);
++        _queue = queue;
++        if (queue) dispatch_queue_set_specific(queue, self, self, NULL);
++        ++_deliveryEpoch;
++    }
++    if (old) dispatch_release(old);
++    [self _wakeDelivery];
+ }
+ 
+--(void)scheduleWithRunLoop:(CFRunLoopRef)rl
+-					mode:(CFStringRef)rlMode
++-(void)scheduleWithRunLoop:(CFRunLoopRef)rl mode:(CFStringRef)mode
+ {
+-	@synchronized(self)
+-	{
+-		CFBagAddValue(_runloops, rl);
+-	}
+-	CFRunLoopAddSource(rl, _rlSource, rlMode);
++    @synchronized(self) {
++        if (_invalidated) return;
++        CFBagAddValue(_runloops, rl);
++    }
++    CFRunLoopAddSource(rl, _rlSource, mode);
++    [self _wakeDelivery];
+ }
+ 
+--(void)unscheduleWithRunLoop:(CFRunLoopRef)rl
+-					mode:(CFStringRef)rlMode
++-(void)unscheduleWithRunLoop:(CFRunLoopRef)rl mode:(CFStringRef)mode
+ {
+-	@synchronized(self)
+-	{
+-		CFBagRemoveValue(_runloops, rl);
+-	}
+-	CFRunLoopRemoveSource(rl, _rlSource, rlMode);
++    @synchronized(self) {
++        CFBagRemoveValue(_runloops, rl);
++    }
++    CFRunLoopRemoveSource(rl, _rlSource, mode);
++}
++
++-(void)_invalidateState
++{
++    @synchronized(self) {
++        if (_invalidated) return;
++        _invalidated = true; _running = false; ++_deliveryEpoch;
++        if (_queue) { dispatch_queue_set_specific(_queue, self, NULL, NULL); dispatch_release(_queue); _queue = NULL; }
++        if (_runloops) CFBagRemoveAllValues(_runloops);
++        [_deliveryBatches removeAllObjects];
++    }
++    // CoreFoundation may take run-loop/source locks. Never hold the stream
++    // monitor while calling into its scheduling or invalidation operations.
++    if (_rlSource) CFRunLoopSourceInvalidate(_rlSource);
++    [_deliveryCondition lock]; _deliveryInterrupted = true;
++    [_deliveryCondition broadcast]; [_deliveryCondition unlock];
++    [_pathArray removeAllObjects];
++    if (_timer) { dispatch_source_cancel(_timer); dispatch_release(_timer); _timer = NULL; }
++    if (_source) {
++        dispatch_source_cancel(_source);
++        if (!_sourceResumed) dispatch_resume(_source);
++        dispatch_release(_source); _source = NULL;
++        _fd = -1; // The cancel handler closes it after all source reads finish.
++    }
+ }
+ 
+ -(void)invalidate
+ {
+-	[self setDispatchQueue: NULL];
+-	CFRunLoopSourceInvalidate(_rlSource);
++    __unsafe_unretained FSEventsImpl* owner = self;
++    [self _state:^{ [owner _invalidateState]; }];
++    // A callback may invalidate its own stream. The recursive lock permits it;
++    // other threads wait until any already active callback is finished.
++    [_callbackLock lock]; [_callbackLock unlock];
+ }
+ 
+--(void)start
++-(BOOL)start
+ {
+-	if (!_running)
+-	{
+-		dispatch_resume(_source);
+-		_running = TRUE;
+-	}
++    __block BOOL started = NO;
++    [self _state:^{
++        @synchronized(self) {
++            if (_invalidated || (!_queue && !CFBagGetCount(_runloops))) return;
++            _running = true; started = YES;
++        }
++        [_deliveryCondition lock]; _deliveryInterrupted = false; [_deliveryCondition unlock];
++        if (!_sourceResumed) { dispatch_resume(_source); _sourceResumed = true; }
++        [self _readEvents];
++        [self _wakeDelivery];
++    }];
++    return started;
+ }
+ 
+ -(void)stop
+ {
+-	if (_running)
+-	{
+-		dispatch_suspend(_source);
+-		_running = FALSE;
+-	}
++    [self _state:^{
++        @synchronized(self) { _running = false; }
++        if (_sourceResumed) { dispatch_suspend(_source); _sourceResumed = false; }
++        if (_timer) dispatch_source_set_timer(_timer, DISPATCH_TIME_FOREVER, DISPATCH_TIME_FOREVER, 0);
++        _timerArmed = false;
++        [_deliveryCondition lock]; _deliveryInterrupted = true;
++        [_deliveryCondition broadcast]; [_deliveryCondition unlock];
++    }];
++    [_callbackLock lock]; [_callbackLock unlock];
+ }
+ 
+ -(FSEventStreamEventId)lastEventID
+ {
+-	return _lastEventID;
++    __block FSEventStreamEventId result;
++    [self _state:^{ result = _lastEventID; }];
++    return result;
++}
++
++-(FSEventStreamEventId)flushAsync
++{
++    __block FSEventStreamEventId result;
++    [self _state:^{
++        if (_running && !_invalidated) { [self _readEvents]; [self _dispatchEvents]; }
++        result = _lastEventID;
++    }];
++    return result;
++}
++
++-(void)flushSync
++{
++    __block FSEventStreamEventId target = 0;
++    __block dispatch_queue_t queue = NULL;
++    __block NSUInteger epoch = 0;
++    __block BOOL valid = NO;
++    [self _state:^{
++        if (!_running || _invalidated) return;
++        [self _readEvents]; [self _dispatchEvents];
++        target = _lastEventID; valid = YES;
++        @synchronized(self) {
++            epoch = _deliveryEpoch;
++            if (_queue) { queue = _queue; dispatch_retain(queue); }
++        }
++    }];
++    if (!valid || !target) { if (queue) dispatch_release(queue); return; }
++    if (queue) {
++        if (dispatch_get_specific(self) == self)
++            [self _deliverEpoch:epoch until:target allowReentry:YES];
++        else dispatch_sync(queue, ^{
++            @autoreleasepool { [self _deliverEpoch:epoch until:target allowReentry:YES]; }
++        });
++        dispatch_release(queue);
++    } else {
++        BOOL ownLoop;
++        CFRunLoopRef currentLoop = CFRunLoopGetCurrent();
++        @synchronized(self) { ownLoop = CFBagContainsValue(_runloops, currentLoop); }
++        if (ownLoop) [self _deliverEpoch:epoch until:target allowReentry:YES];
++    }
++    @synchronized(self) {
++        // An already active callback counts as invoked. A recursive sync flush
++        // must not wait for its own outer callback frame to return.
++        if (_callbackDepth && pthread_equal(_callbackThread, pthread_self()) && _lastInvokedID >= target) return;
++    }
++    [_deliveryCondition lock];
++    while (_lastCompletedID < target && !_deliveryInterrupted) {
++        [_deliveryCondition wait];
++    }
++    [_deliveryCondition unlock];
++}
++
++-(void)_appendPath:(NSString*)path flags:(FSEventStreamEventFlags)flags
++{
++    size_t count = [_pathArray count];
++    if (count == _capacity) {
++        size_t capacity = _capacity ? _capacity * 2 : 64;
++        FSEventStreamEventFlags* newFlags = malloc(capacity * sizeof(*newFlags));
++        FSEventStreamEventId* newIDs = malloc(capacity * sizeof(*newIDs));
++        if (!newFlags || !newIDs) { free(newFlags); free(newIDs); abort(); }
++        if (count) { memcpy(newFlags, _flagArray, count * sizeof(*newFlags)); memcpy(newIDs, _idArray, count * sizeof(*newIDs)); }
++        free(_flagArray); free(_idArray); _flagArray = newFlags; _idArray = newIDs; _capacity = capacity;
++    }
++    [_pathArray addObject:path]; _flagArray[count] = flags; _idArray[count] = ++_lastEventID;
++}
++
++-(void)_processSingleEvent:(struct inotify_event*)event
++{
++    if (event->mask & IN_Q_OVERFLOW) {
++        for (NSString* path in _pathsToWatch)
++            [self _appendPath:path flags:kFSEventStreamEventFlagMustScanSubDirs | kFSEventStreamEventFlagKernelDropped];
++        return;
++    }
++    NSString* watchPath = [_wdMap objectForKey:[NSNumber numberWithInt:event->wd]];
++    if (!watchPath || (event->mask & IN_IGNORED)) return;
++    FSEventStreamEventFlags flags = 0;
++    if (event->mask & IN_UNMOUNT) flags |= kFSEventStreamEventFlagUnmount | kFSEventStreamEventFlagMustScanSubDirs;
++    NSString* fullPath = watchPath;
++    if (_flags & kFSEventStreamCreateFlagFileEvents) {
++        flags |= (event->mask & IN_ISDIR) ? kFSEventStreamEventFlagItemIsDir : kFSEventStreamEventFlagItemIsFile;
++        if (event->mask & (IN_DELETE | IN_DELETE_SELF)) flags |= kFSEventStreamEventFlagItemRemoved;
++        if (event->mask & (IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO)) flags |= kFSEventStreamEventFlagItemRenamed;
++        if (event->mask & IN_MODIFY) flags |= kFSEventStreamEventFlagItemModified;
++        if (event->mask & IN_CREATE) flags |= kFSEventStreamEventFlagItemCreated;
++        if (event->mask & IN_ATTRIB) flags |= kFSEventStreamEventFlagItemChangeOwner | kFSEventStreamEventFlagItemXattrMod;
++        if (event->len && event->name[0]) fullPath = [watchPath stringByAppendingPathComponent:[NSString stringWithUTF8String:event->name]];
++    }
++    [self _appendPath:fullPath flags:flags];
+ }
+ 
+ -(void)_readEvents
+ {
+-	const size_t bytes = sizeof(struct inotify_event) + 4096 + 1;
+-	struct inotify_event* evt = (struct inotify_event*) malloc(bytes);
+-
+-	while (1)
+-	{
+-		int rd = read(_fd, evt, bytes);
+-		if (rd < 0)
+-		{
+-			if (errno == EINTR)
+-				continue;
+-			else if (errno == EAGAIN || errno == EWOULDBLOCK)
+-				break;
+-			else
+-			{
+-				[self stop];
+-				break;
+-			}
+-		}
+-		else
+-		{
+-			[self _processSingleEvent: evt];
+-		}
+-	}
+-
+-	free(evt);
+-	[self _dispatchEvents];
++    if (!_running || _invalidated || _fd < 0) return;
++    // Dispatch workers may have small stacks with an internal guard page.
++    // A 64 KiB automatic buffer can skip that guard and fault on the next
++    // Objective-C call. malloc supplies sufficient inotify_event alignment.
++    const size_t capacity = 65536;
++    char* buffer = malloc(capacity);
++    if (!buffer) abort();
++    @try {
++    for (;;) {
++        ssize_t count = read(_fd, buffer, capacity);
++        if (count < 0) {
++            if (errno == EINTR) continue;
++            if (errno != EAGAIN && errno != EWOULDBLOCK) {
++                @synchronized(self) { _running = false; }
++                if (_sourceResumed) { dispatch_suspend(_source); _sourceResumed = false; }
++                [_deliveryCondition lock]; _deliveryInterrupted = true;
++                [_deliveryCondition broadcast]; [_deliveryCondition unlock];
++            }
++            break;
++        }
++        if (!count) break;
++        size_t offset = 0;
++        while (offset < (size_t)count) {
++            if ((size_t)count - offset < sizeof(struct inotify_event)) break;
++            struct inotify_event* event = (void*)(buffer + offset);
++            if (event->len > (size_t)count - offset - sizeof(*event)) break;
++            if (event->len && !memchr(event->name, 0, event->len)) break;
++            [self _processSingleEvent:event]; offset += sizeof(*event) + event->len;
++        }
++    }
++    } @finally { free(buffer); }
++    if ([_pathArray count]) [self _armTimer];
+ }
+ 
+--(void)_processSingleEvent:(struct inotify_event*)evt
++-(void)_armTimer
+ {
+-	FSEventStreamEventFlags flags = 0;
+-	NSString* fullPath;
+-
+-	NSString* watchPath = [_wdMap objectForKey: [NSNumber numberWithInt: evt->wd]];
+-	if (!watchPath)
+-		return;
+-
+-	if (!(_flags & kFSEventStreamCreateFlagFileEvents))
+-	{
+-		fullPath = watchPath;
+-	}
+-	else
+-	{
+-		if (evt->mask & IN_ISDIR)
+-			flags |= kFSEventStreamEventFlagItemIsDir;
+-		else
+-			flags |= kFSEventStreamEventFlagItemIsFile; // TODO: symlinks
+-		
+-		if (evt->mask & (IN_DELETE|IN_DELETE_SELF))
+-			flags |= kFSEventStreamEventFlagItemRemoved;
+-		if (evt->mask & (IN_MOVE_SELF|IN_MOVED_FROM|IN_MOVED_TO))
+-			flags |= kFSEventStreamEventFlagItemRenamed;
+-		if (evt->mask & (IN_MODIFY))
+-			flags |= kFSEventStreamEventFlagItemModified;
+-		if (evt->mask & (IN_CREATE))
+-			flags |= kFSEventStreamEventFlagItemCreated;
+-		if (evt->mask & IN_ATTRIB)
+-			flags |= kFSEventStreamEventFlagItemChangeOwner | kFSEventStreamEventFlagItemXattrMod;
+-
+-		if (evt->len == 0)
+-			fullPath = watchPath;
+-		else
+-			fullPath = [NSString stringWithFormat: @"%s/%s", [watchPath UTF8String], evt->name];
+-	}
+-
+-	[_pathArray addObject: fullPath];
+-	const int newCount = [_pathArray count];
+-
+-	_flagArray = (FSEventStreamEventFlags*) realloc(_flagArray, sizeof(*_flagArray) * newCount);
+-	_flagArray[newCount-1] = flags;
+-
+-	_idArray = (FSEventStreamEventId*) realloc(_idArray, sizeof(*_idArray) * newCount);
+-	_idArray[newCount-1] = ++_lastEventID;
++    if (_timerArmed || !_running || _invalidated) return;
++    if (_latency == 0) { [self _dispatchEvents]; return; }
++    uint64_t interval = _latency >= (double)(INT64_MAX / NSEC_PER_SEC)
++        ? INT64_MAX : (uint64_t)(_latency * NSEC_PER_SEC);
++    uint64_t delay = interval;
++    if (_flags & kFSEventStreamCreateFlagNoDefer) {
++        uint64_t now = monotonicNS();
++        if (!_lastDispatchNS || now - _lastDispatchNS >= interval) {
++            [self _dispatchEvents]; return;
++        }
++        delay = interval - (now - _lastDispatchNS);
++    }
++    _timerArmed = true;
++    dispatch_source_set_timer(_timer, dispatch_time(DISPATCH_TIME_NOW, (int64_t)delay), DISPATCH_TIME_FOREVER, 0);
+ }
+ 
+ -(void)_dispatchEvents
+ {
+-	if (_queue)
+-	{
+-		[self retain];
+-		dispatch_async(_queue, ^{
+-			[self _doCallback];
+-		});
+-	}
+-	else
+-	{
+-		[self retain];
+-		CFRunLoopSourceSignal(_rlSource);
+-
+-		@synchronized(self)
+-		{
+-			CFBagApplyFunction(_runloops, (CFBagApplierFunction) CFRunLoopWakeUp, NULL);
+-		}
+-	}
++    if (!_running || _invalidated || ![_pathArray count]) return;
++    _timerArmed = false; _lastDispatchNS = monotonicNS();
++    dispatch_source_set_timer(_timer, DISPATCH_TIME_FOREVER, DISPATCH_TIME_FOREVER, 0);
++    FSEventsBatch* batch = [[FSEventsBatch alloc] init];
++    batch->paths = [_pathArray copy];
++    batch->flags = [[NSData alloc] initWithBytes:_flagArray length:[_pathArray count]*sizeof(*_flagArray)];
++    batch->ids = [[NSData alloc] initWithBytes:_idArray length:[_pathArray count]*sizeof(*_idArray)];
++    [_pathArray removeAllObjects];
++    @synchronized(self) { [_deliveryBatches addObject:batch]; }
++    [batch release];
++    [self _wakeDelivery];
++}
++
++-(void)_wakeDelivery
++{
++    dispatch_queue_t queue = NULL; NSUInteger epoch;
++    CFRunLoopSourceRef source = NULL; const void** loops = NULL; CFIndex count = 0;
++    @synchronized(self) {
++        if (_invalidated || !_running || ![_deliveryBatches count]) return;
++        epoch = _deliveryEpoch;
++        if (_queue) { queue = _queue; dispatch_retain(queue); }
++        else if (_rlSource) {
++            source = (CFRunLoopSourceRef)CFRetain(_rlSource);
++            count = CFBagGetCount(_runloops);
++            if (count) {
++                loops = malloc(count * sizeof(*loops)); if (!loops) abort();
++                CFBagGetValues(_runloops, loops);
++                for (CFIndex i=0; i<count; ++i) CFRetain(loops[i]);
++            }
++        }
++    }
++    if (source) {
++        CFRunLoopSourceSignal(source);
++        for (CFIndex i=0; i<count; ++i) { wakeLoop(loops[i], NULL); CFRelease(loops[i]); }
++        free(loops); CFRelease(source);
++    }
++    if (queue) {
++        __weak FSEventsImpl* weakSelf = self;
++        dispatch_async(queue, ^{ @autoreleasepool { FSEventsImpl* owner = weakSelf; [owner _deliverEpoch:epoch]; } });
++        dispatch_release(queue);
++    }
+ }
+ 
+ -(void)_doCallback
+ {
+-	void* ptrToPass = _pathArray;
+-	char** cpathArray = NULL;
+-	NSArray<NSDictionary*>* dicts = NULL;
+-
+-	dispatch_suspend(_source);
+-	dispatch_sync(g_fsEventsQueue, ^{});
+-	
+-	if (!(_flags & kFSEventStreamCreateFlagUseCFTypes))
+-	{
+-		@autoreleasepool
+-		{
+-			cpathArray = (char**) malloc(sizeof(char*) * [_pathArray count]);
+-			for (int i = 0; i < [_pathArray count]; i++)
+-				cpathArray[i] = strdup([[_pathArray objectAtIndex: i] UTF8String]);
+-		}
+-		ptrToPass = cpathArray;
+-	}
+-	else if (_flags & kFSEventStreamCreateFlagUseExtendedData)
+-	{
+-		NSDictionary** dd = (NSDictionary**) malloc(sizeof(NSDictionary*) * [_pathArray count]);
+-
+-		for (int i = 0; i < [_pathArray count]; i++)
+-		{
+-			dd[i] = @{
+-				((NSString*) kFSEventStreamEventExtendedDataPathKey) : [_pathArray objectAtIndex: i]
+-			};
+-		}
+-
+-		dicts = [[NSArray alloc] initWithObjects:dd
+-										count: [_pathArray count]];
+-		free(dd);
+-		ptrToPass = dicts;
+-	}
+-
+-	_callback((ConstFSEventStreamRef) self, _context.info,
+-		[_pathArray count],
+-		ptrToPass,
+-		_flagArray, _idArray);
+-
+-	if (cpathArray != NULL)
+-	{
+-		for (int i = 0; i < [_pathArray count]; i++)
+-			free(cpathArray[i]);
+-		free(cpathArray);
+-	}
+-
+-	if (dicts)
+-		[dicts release];
+-
+-	free(_flagArray);
+-	_flagArray = NULL;
+-
+-	free(_idArray);
+-	_idArray = NULL;
+-
+-	[_pathArray removeAllObjects];
+-	dispatch_resume(_source);
+-	[self release];
++    NSUInteger epoch;
++    @synchronized(self) { if (_queue) return; epoch = _deliveryEpoch; }
++    [self _deliverEpoch:epoch];
+ }
+ 
++-(void)_deliverEpoch:(NSUInteger)epoch
++{
++    [self _deliverEpoch:epoch until:UINT64_MAX allowReentry:NO];
++}
++
++-(void)_deliverEpoch:(NSUInteger)epoch until:(FSEventStreamEventId)limit allowReentry:(BOOL)allowReentry
++{
++    [_callbackLock lock];
++    if (_delivering && !allowReentry) { [_callbackLock unlock]; return; }
++    BOOL wasDelivering = _delivering;
++    _delivering = true;
++    @try {
++        for (;;) {
++            FSEventsBatch* batch = nil;
++            @synchronized(self) {
++                if (_invalidated || !_running || epoch != _deliveryEpoch || _lastInvokedID >= limit || ![_deliveryBatches count]) break;
++                batch = [[_deliveryBatches objectAtIndex:0] retain];
++                [_deliveryBatches removeObjectAtIndex:0];
++            }
++            @try {
++                NSUInteger count = [batch->paths count];
++                void* payload = batch->paths; char** cpaths = NULL; NSArray* extended = nil;
++                if (!(_flags & kFSEventStreamCreateFlagUseCFTypes)) {
++                    cpaths = calloc(count, sizeof(*cpaths)); if (!cpaths) abort();
++                    for (NSUInteger i=0; i<count; ++i) { cpaths[i] = strdup([[batch->paths objectAtIndex:i] UTF8String]); if (!cpaths[i]) abort(); }
++                    payload = cpaths;
++                } else if (_flags & kFSEventStreamCreateFlagUseExtendedData) {
++                    NSMutableArray* values = [[NSMutableArray alloc] initWithCapacity:count];
++                    for (NSString* path in batch->paths) [values addObject:@{(NSString*)kFSEventStreamEventExtendedDataPathKey:path}];
++                    extended = values; payload = extended;
++                }
++                FSEventStreamEventId last = ((const FSEventStreamEventId*)[batch->ids bytes])[count-1];
++                @synchronized(self) { _callbackThread = pthread_self(); ++_callbackDepth; if (last > _lastInvokedID) _lastInvokedID = last; }
++                @try {
++                    _callback((ConstFSEventStreamRef)self, _context.info, count, payload, [batch->flags bytes], [batch->ids bytes]);
++                } @finally {
++                    @synchronized(self) { --_callbackDepth; }
++                    [_deliveryCondition lock];
++                    if (last > _lastCompletedID) _lastCompletedID = last;
++                    [_deliveryCondition broadcast]; [_deliveryCondition unlock];
++                    if (cpaths) { for (NSUInteger i=0; i<count; ++i) free(cpaths[i]); free(cpaths); }
++                    [extended release];
++                }
++            } @finally { [batch release]; }
++        }
++    } @finally { _delivering = wasDelivering; [_callbackLock unlock]; }
++}
+ @end
+diff --git a/src/frameworks/CryptoTokenKit/CMakeLists.txt b/src/frameworks/CryptoTokenKit/CMakeLists.txt
+index 6260e9b3..30a4bd08 100644
+--- a/src/frameworks/CryptoTokenKit/CMakeLists.txt
++++ b/src/frameworks/CryptoTokenKit/CMakeLists.txt
+@@ -27,6 +27,8 @@ add_framework(CryptoTokenKit
+ 	VERSION ${FRAMEWORK_VERSION}
+ 
+ 	SOURCES
++		src/TKError.m
++		src/TKClientTokenParameters.m
+ 		src/ctkclient.c
+ 		src/ctkclient_test.c
+ 		src/ctkloginhelper.c
+@@ -34,4 +36,5 @@ add_framework(CryptoTokenKit
+ 	DEPENDENCIES
+ 		system
+ 		CoreFoundation
++		Foundation
+ )
+diff --git a/src/frameworks/CryptoTokenKit/include/CryptoTokenKit/CryptoTokenKit.h b/src/frameworks/CryptoTokenKit/include/CryptoTokenKit/CryptoTokenKit.h
+index ba859dfb..08b27f96 100644
+--- a/src/frameworks/CryptoTokenKit/include/CryptoTokenKit/CryptoTokenKit.h
++++ b/src/frameworks/CryptoTokenKit/include/CryptoTokenKit/CryptoTokenKit.h
+@@ -1,4 +1,5 @@
+ #import <CryptoTokenKit/TKError.h>
++#import <CryptoTokenKit/TKClientTokenParameters.h>
+ #import <CryptoTokenKit/TKSmartCard.h>
+ #import <CryptoTokenKit/TKSmartCardATR.h>
+ #import <CryptoTokenKit/TKSmartCardToken.h>
+diff --git a/src/frameworks/CryptoTokenKit/include/CryptoTokenKit/TKClientTokenParameters.h b/src/frameworks/CryptoTokenKit/include/CryptoTokenKit/TKClientTokenParameters.h
+new file mode 100644
+index 00000000..d4afe172
+--- /dev/null
++++ b/src/frameworks/CryptoTokenKit/include/CryptoTokenKit/TKClientTokenParameters.h
+@@ -0,0 +1,4 @@
++#ifdef __OBJC__
++#import <Foundation/Foundation.h>
++extern NSString *const TKClientTokenParameterForceSystemSession;
++#endif
+diff --git a/src/frameworks/CryptoTokenKit/src/TKClientTokenParameters.m b/src/frameworks/CryptoTokenKit/src/TKClientTokenParameters.m
+new file mode 100644
+index 00000000..402fba8e
+--- /dev/null
++++ b/src/frameworks/CryptoTokenKit/src/TKClientTokenParameters.m
+@@ -0,0 +1,2 @@
++#import <CryptoTokenKit/TKClientTokenParameters.h>
++NSString *const TKClientTokenParameterForceSystemSession = @"forceSystemSession";
+diff --git a/src/frameworks/CryptoTokenKit/src/TKError.m b/src/frameworks/CryptoTokenKit/src/TKError.m
+new file mode 100644
+index 00000000..3b1e5f4f
+--- /dev/null
++++ b/src/frameworks/CryptoTokenKit/src/TKError.m
+@@ -0,0 +1,3 @@
++#import <Foundation/Foundation.h>
++
++NSString *const TKErrorDomain = @"CryptoTokenKit";
+diff --git a/src/frameworks/ImageIO/CMakeLists.txt b/src/frameworks/ImageIO/CMakeLists.txt
+index 2e39cf10..32a7bfb0 100644
+--- a/src/frameworks/ImageIO/CMakeLists.txt
++++ b/src/frameworks/ImageIO/CMakeLists.txt
+@@ -20,6 +20,7 @@ add_framework(ImageIO
+     SOURCES
+ 	    src/CGImageDestination.m
+ 	    src/CGImageProperties.m
++	    src/CGImageLegacyConstants.c
+ 	    src/CGImageSource.m
+ 
+     DEPENDENCIES
+diff --git a/src/frameworks/ImageIO/src/CGImageDestination.m b/src/frameworks/ImageIO/src/CGImageDestination.m
+index eefd1962..69219e2f 100644
+--- a/src/frameworks/ImageIO/src/CGImageDestination.m
++++ b/src/frameworks/ImageIO/src/CGImageDestination.m
+@@ -6,7 +6,6 @@
+ 
+ const CFStringRef kCGImageDestinationLossyCompressionQuality=(CFStringRef)@"kCGImageDestinationLossyCompressionQuality";
+ const CFStringRef kCGImageDestinationBackgroundColor=(CFStringRef)@"kCGImageDestinationBackgroundColor";
+-const CFStringRef kCGImageDestinationDPI=(CFStringRef)@"kCGImageDestinationDPI";
+ 
+ CFTypeID CGImageDestinationGetTypeID(void) {
+    return O2ImageDestinationGetTypeID();
+diff --git a/src/frameworks/ImageIO/src/CGImageLegacyConstants.c b/src/frameworks/ImageIO/src/CGImageLegacyConstants.c
+new file mode 100644
+index 00000000..b462da5e
+--- /dev/null
++++ b/src/frameworks/ImageIO/src/CGImageLegacyConstants.c
+@@ -0,0 +1,4 @@
++#include <CoreFoundation/CoreFoundation.h>
++// Existing Darling AppKit uses this legacy ImageIO key. Preserve its value;
++// modern native ImageIO does not implement the old Darling DPI option.
++const CFStringRef kCGImageDestinationDPI = CFSTR("kCGImageDestinationDPI");
+diff --git a/src/frameworks/LocalAuthentication/CMakeLists.txt b/src/frameworks/LocalAuthentication/CMakeLists.txt
+index d72bde1f..727e1d9e 100644
+--- a/src/frameworks/LocalAuthentication/CMakeLists.txt
++++ b/src/frameworks/LocalAuthentication/CMakeLists.txt
+@@ -28,6 +28,7 @@ add_framework(LocalAuthentication
+ 	SOURCES
+ 		src/LACFSupport.c
+ 		src/LAContext.m
++		src/LAError.m
+ 		src/stubs.c
+ 
+ 	DEPENDENCIES
+diff --git a/src/frameworks/LocalAuthentication/include/LocalAuthentication/LAError.h b/src/frameworks/LocalAuthentication/include/LocalAuthentication/LAError.h
+index 41cfff59..cfde3991 100644
+--- a/src/frameworks/LocalAuthentication/include/LocalAuthentication/LAError.h
++++ b/src/frameworks/LocalAuthentication/include/LocalAuthentication/LAError.h
+@@ -1,6 +1,8 @@
+ #import <Foundation/Foundation.h>
+ #import <LocalAuthentication/LAPublicDefines.h>
+ 
++extern NSString *const LAErrorDomain;
++
+ typedef NS_ENUM(NSInteger, LAError)
+ {
+     LAErrorAuthenticationFailed = kLAErrorAuthenticationFailed,
+diff --git a/src/frameworks/LocalAuthentication/src/LAError.m b/src/frameworks/LocalAuthentication/src/LAError.m
+new file mode 100644
+index 00000000..49cd79d1
+--- /dev/null
++++ b/src/frameworks/LocalAuthentication/src/LAError.m
+@@ -0,0 +1,2 @@
++#import <LocalAuthentication/LAError.h>
++NSString *const LAErrorDomain = @"com.apple.LocalAuthentication";
+diff --git a/src/launchd/src/CMakeLists.txt b/src/launchd/src/CMakeLists.txt
+index 21d73548..82f4956f 100644
+--- a/src/launchd/src/CMakeLists.txt
++++ b/src/launchd/src/CMakeLists.txt
+@@ -40,6 +40,7 @@ set(launchd_sources
+ 	launchd.c
+ 	log.c
+ 	runtime.c
++	service_stats.c
+ 	${CMAKE_CURRENT_BINARY_DIR}/jobServer.c
+ 	${CMAKE_CURRENT_BINARY_DIR}/helperUser.c
+ 	${CMAKE_CURRENT_BINARY_DIR}/internalServer.c
+diff --git a/src/launchd/src/config.h b/src/launchd/src/config.h
+index 28873447..2ddbfe80 100644
+--- a/src/launchd/src/config.h
++++ b/src/launchd/src/config.h
+@@ -15,7 +15,7 @@
+ #define HAVE_RESPONSIBILITY 0
+ #endif
+ 
+-#if __has_include(<sandbox.h>) && !defined(DARLING)
++#if __has_include(<sandbox.h>)
+ #define HAVE_SANDBOX 1
+ #else
+ #define HAVE_SANDBOX 0
+diff --git a/src/launchd/src/core.c b/src/launchd/src/core.c
+index a68739ff..8305ba57 100644
+--- a/src/launchd/src/core.c
++++ b/src/launchd/src/core.c
+@@ -20,6 +20,7 @@
+ #include "core.h"
+ #include "internal.h"
+ #include "helper.h"
++#include "service_stats.h"
+ 
+ #include <TargetConditionals.h>
+ #include <mach/mach.h>
+@@ -84,6 +85,7 @@
+ #include <libinfo.h>
+ #include <os/assumes.h>
+ #include <xpc/launchd.h>
++#include <xpc/private/service.h>
+ #include <asl.h>
+ #include <_simple.h>
+ 
+@@ -540,6 +542,9 @@ struct job_s {
+ 	size_t quarantine_data_sz;
+ #endif
+ 	pid_t p;
++	// A kill-and-kickstart reply is completed only after wait4 reaps the old
++	// process and job_start forks the replacement. Never block the event loop.
++	xpc_object_t service_kickstart_reply;
+ 	uint64_t uniqueid;
+ 	int last_exit_status;
+ 	int stdin_fd;
+@@ -791,6 +796,7 @@ static job_t job_new_via_mach_init(job_t j, const char *cmd, uid_t uid, bool ond
+ static job_t job_new_subjob(job_t j, uuid_t identifier);
+ static void job_kill(job_t j);
+ static void job_uncork_fork(job_t j);
++static void service_kickstart_complete(job_t j, int error);
+ static void job_logv(job_t j, int pri, int err, const char *msg, va_list ap) __attribute__((format(printf, 4, 0)));
+ static void job_log_error(job_t j, int pri, const char *msg, ...) __attribute__((format(printf, 3, 4)));
+ static bool job_log_bug(_SIMPLE_STRING asl_message, void *ctx, const char *message);
+@@ -1368,6 +1374,7 @@ job_remove(job_t j)
+ 	struct machservice *ms;
+ 	struct limititem *li;
+ 	struct envitem *ei;
++	service_kickstart_complete(j, ECANCELED);
+ 
+ 	if (j->alias) {
+ 		/* HACK: Egregious code duplication. But as with machservice_delete(),
+@@ -3661,6 +3668,10 @@ job_reap(job_t j)
+ 					job_log(j, LOG_ERR, "Reap failed. Assuming job exited: %d: %s", errno, strerror(errno));
+ 					j->last_exit_status = W_EXITCODE(-1, SIGSEGV);
+ 				}
++				if (r > 0) {
++					launchd_service_stats_record_exit(j->label, j->start_time,
++						j->uniqueid, j->p, j->last_exit_status);
++				}
+ 
+ 				if (j->idle_exit && j->jettisoned) {
+ 					// Treat idle-exit jettisons as successful exit.
+@@ -4428,6 +4439,7 @@ job_start(job_t j)
+ 	switch (c = runtime_fork(j->weird_bootstrap ? j->j_port : j->mgr->jm_port)) {
+ 	case -1:
+ 		job_log_error(j, LOG_ERR, "fork() failed, will try again in one second");
++		service_kickstart_complete(j, errno ? errno : EAGAIN);
+ 		(void)job_assumes_zero_p(j, kevent_mod((uintptr_t)j, EVFILT_TIMER, EV_ADD|EV_ONESHOT, NOTE_SECONDS, 1, j));
+ 		job_ignore(j);
+ 
+@@ -4544,6 +4556,7 @@ job_start(job_t j)
+ 		if (likely(!j->stall_before_exec)) {
+ 			job_uncork_fork(j);
+ 		}
++		service_kickstart_complete(j, j->p ? 0 : ECHILD);
+ 		break;
+ 	}
+ }
+@@ -7986,7 +7999,7 @@ job_mig_create_server(job_t j, cmd_t server_cmd, uid_t server_uid, boolean_t on_
+ 	if (unlikely(argv == NULL)) {
+ 		return BOOTSTRAP_NO_MEMORY;
+ 	}
+-	if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_PATH, argv[0]) > 0)) {
++	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_PATH, argv[0]) != 0)) {
+ 		free(argv);
+ 		return BOOTSTRAP_NOT_PRIVILEGED;
+ 	}
+@@ -8039,7 +8052,7 @@ job_mig_send_signal(job_t j, mach_port_t srp, name_t targetlabel, int sig)
+ 	}
+ 
+ #if HAVE_SANDBOX
+-	if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_NONE) > 0)) {
++	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_NONE) != 0)) {
+ 		return BOOTSTRAP_NOT_PRIVILEGED;
+ 	}
+ #endif
+@@ -8387,7 +8400,7 @@ job_mig_swap_integer(job_t j, vproc_gsk_t inkey, vproc_gsk_t outkey, int64_t inv
+ 			kr = 1;
+ 		} else {
+ #if HAVE_SANDBOX
+-			if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_NONE) > 0)) {
++			if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_NONE) != 0)) {
+ 				kr = 1;
+ 			} else {
+ 				umask((mode_t) inval);
+@@ -8681,7 +8694,7 @@ job_mig_getsocket(job_t j, name_t spr)
+ 
+ #if HAVE_SANDBOX
+ 	struct ldcred *ldc = runtime_get_caller_creds(); 
+-	if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_NONE) > 0)) {
++	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_NONE) != 0)) {
+ 		return BOOTSTRAP_NOT_PRIVILEGED;
+ 	}
+ #endif
+@@ -8861,7 +8874,7 @@ job_mig_lookup_per_user_context(job_t j, uid_t which_user, mach_port_t *up_cont)
+ #endif
+ 
+ #if HAVE_SANDBOX
+-	if (unlikely(sandbox_check(ldc->pid, "mach-per-user-lookup", SANDBOX_FILTER_NONE) > 0)) {
++	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "mach-per-user-lookup", SANDBOX_FILTER_NONE) != 0)) {
+ 		return BOOTSTRAP_NOT_PRIVILEGED;
+ 	}
+ #endif
+@@ -8925,7 +8938,7 @@ job_mig_check_in2(job_t j, name_t servicename, mach_port_t *serviceportp, uuid_t
+ 			*serviceportp = MACH_PORT_NULL;
+ 
+ #if HAVE_SANDBOX
+-			if (unlikely(sandbox_check(ldc->pid, "mach-register", per_pid_service ? SANDBOX_FILTER_LOCAL_NAME : SANDBOX_FILTER_GLOBAL_NAME, servicename) > 0)) {
++			if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "mach-register", per_pid_service ? SANDBOX_FILTER_LOCAL_NAME : SANDBOX_FILTER_GLOBAL_NAME, servicename) != 0)) {
+ 				return BOOTSTRAP_NOT_PRIVILEGED;
+ 			}
+ #endif
+@@ -8989,7 +9002,7 @@ job_mig_register2(job_t j, name_t servicename, mach_port_t serviceport, uint64_t
+ 	job_log(j, LOG_DEBUG, "%sMach service registration attempt: %s", flags & BOOTSTRAP_PER_PID_SERVICE ? "Per PID " : "", servicename);
+ 
+ #if HAVE_SANDBOX
+-	if (unlikely(sandbox_check(ldc->pid, "mach-register", per_pid_service ? SANDBOX_FILTER_LOCAL_NAME : SANDBOX_FILTER_GLOBAL_NAME, servicename) > 0)) {
++	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "mach-register", per_pid_service ? SANDBOX_FILTER_LOCAL_NAME : SANDBOX_FILTER_GLOBAL_NAME, servicename) != 0)) {
+ 		return BOOTSTRAP_NOT_PRIVILEGED;
+ 	}
+ #endif
+@@ -9068,7 +9081,7 @@ job_mig_look_up2(job_t j, mach_port_t srp, name_t servicename, mach_port_t *serv
+ 	/* We don't do sandbox checking for XPC domains because, by definition, all
+ 	 * the services within your domain should be accessible to you.
+ 	 */
+-	if (!xpc_req && unlikely(sandbox_check(ldc->pid, "mach-lookup", per_pid_lookup ? SANDBOX_FILTER_LOCAL_NAME : SANDBOX_FILTER_GLOBAL_NAME, servicename) > 0)) {
++	if (!xpc_req && unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "mach-lookup", per_pid_lookup ? SANDBOX_FILTER_LOCAL_NAME : SANDBOX_FILTER_GLOBAL_NAME, servicename) != 0)) {
+ 		return BOOTSTRAP_NOT_PRIVILEGED;
+ 	}
+ #endif
+@@ -9488,7 +9501,7 @@ job_mig_port_for_label(job_t j __attribute__((unused)), name_t label, mach_port_
+ 	kern_return_t kr = BOOTSTRAP_NOT_PRIVILEGED;
+ 
+ #if HAVE_SANDBOX
+-	if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_NONE) > 0)) {
++	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_NONE) != 0)) {
+ 		return BOOTSTRAP_NOT_PRIVILEGED;
+ 	}
+ #endif
+@@ -11425,6 +11438,102 @@ xpc_process_demux(mach_port_t p, xpc_object_t request, xpc_object_t *reply)
+ 	return true;
+ }
+ 
++static void
++service_kickstart_complete(job_t j, int error)
++{
++	xpc_object_t reply = j->service_kickstart_reply;
++	if (!reply) return;
++	j->service_kickstart_reply = NULL;
++	xpc_dictionary_set_int64(reply, "error", error);
++	if (!error) xpc_dictionary_set_int64(reply, "pid", j->p);
++	(void)xpc_pipe_routine_reply(reply);
++	xpc_release(reply);
++}
++
++static jobmgr_t
++service_pid_domain(jobmgr_t root, pid_t pid)
++{
++	if (root->req_pid && root->req_pid == pid) return root;
++	jobmgr_t child;
++	SLIST_FOREACH(child, &root->submgrs, sle) {
++		jobmgr_t result = service_pid_domain(child, pid);
++		if (result) return result;
++	}
++	return NULL;
++}
++
++bool
++xpc_service_demux(mach_port_t port, xpc_object_t request, xpc_object_t *reply)
++{
++	(void)port;
++	// Modern service-control uses a different envelope from legacy process
++	// attach. Do not interpret its domain numbers as the old magic constants.
++	if (xpc_dictionary_get_uint64(request, "subsystem") != XPC_SERVICE_SUBSYSTEM) return false;
++	*reply = xpc_dictionary_create_reply(request);
++	if (!*reply) return true;
++	audit_token_t token;
++	xpc_dictionary_get_audit_token(request, &token);
++	runtime_record_caller_creds(&token);
++	struct ldcred *credentials = runtime_get_caller_creds();
++	int error = 0;
++	const char *name = xpc_dictionary_get_string(request, "name");
++	uint64_t type = xpc_dictionary_get_uint64(request, "type");
++	uint64_t handle = xpc_dictionary_get_uint64(request, "handle");
++	jobmgr_t manager = NULL;
++	job_t target = NULL;
++	if (!token.val[5] || token.val[5] == UINT32_MAX || credentials->euid != 0) error = EPERM;
++	else if (xpc_dictionary_get_uint64(request, "routine") != XPC_SERVICE_KICKSTART) error = ENOTSUP;
++	else if (!name || !*name || strlen(name) >= sizeof(name_t)
++		|| xpc_get_type(xpc_dictionary_get_value(request, "type")) != XPC_TYPE_UINT64
++		|| xpc_get_type(xpc_dictionary_get_value(request, "handle")) != XPC_TYPE_UINT64
++		|| xpc_get_type(xpc_dictionary_get_value(request, "unidomain")) != XPC_TYPE_BOOL
++		|| !xpc_dictionary_get_bool(request, "unidomain")
++		|| xpc_get_type(xpc_dictionary_get_value(request, "suspended")) != XPC_TYPE_BOOL
++		|| xpc_get_type(xpc_dictionary_get_value(request, "kill")) != XPC_TYPE_BOOL) error = EINVAL;
++	else if (type == 1 && handle == 0) manager = root_jobmgr;
++	else if (type == 5 && handle <= INT32_MAX) {
++		manager = service_pid_domain(root_jobmgr, handle ? (pid_t)handle : credentials->pid);
++		if (!manager) error = ESRCH;
++	} else error = ENOTSUP;
++	if (!error) {
++		target = job_find(manager, name);
++		if (!target) error = ESRCH;
++		else if (target->anonymous || target->alias) error = ENOTSUP;
++		else if (target->service_kickstart_reply) error = EBUSY;
++	}
++	if (!error) {
++		bool suspended = xpc_dictionary_get_bool(request, "suspended");
++		bool terminate = xpc_dictionary_get_bool(request, "kill");
++		if (target->p && terminate) {
++			// Real SIGKILL, followed by the existing NOTE_EXIT / wait4 path.
++			// Keeping the reply on the job also lets removal cancel the request.
++			if (kill2(target->p, SIGKILL)) error = errno;
++			else {
++				target->wait4debugger_oneshot = suspended;
++				target->start_pending = true;
++				target->unthrottle = true;
++				target->service_kickstart_reply = *reply;
++				*reply = NULL;
++				return true;
++			}
++		} else if (target->p) {
++			// Native kickstart returns an existing PID without changing its
++			// suspension state when kill is false, including flags == 1.
++			xpc_dictionary_set_int64(*reply, "pid", target->p);
++		} else {
++			target->wait4debugger_oneshot = suspended;
++			target->unthrottle = true;
++			job_t started = job_dispatch(target, true);
++			if (!started || !started->p) {
++				if (started) started->wait4debugger_oneshot = false;
++				error = EAGAIN;
++			} else xpc_dictionary_set_int64(*reply, "pid", started->p);
++		}
++	}
++	xpc_dictionary_set_int64(*reply, "error", error);
++	return true;
++}
++
+ kern_return_t
+ job_mig_kickstart(job_t j, name_t targetlabel, pid_t *out_pid, unsigned int flags)
+ {
+@@ -11450,7 +11559,7 @@ job_mig_kickstart(job_t j, name_t targetlabel, pid_t *out_pid, unsigned int flag
+ 	}
+ 
+ #if HAVE_SANDBOX
+-	if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_NONE) > 0)) {
++	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_NONE) != 0)) {
+ 		return BOOTSTRAP_NOT_PRIVILEGED;
+ 	}
+ #endif
+@@ -11490,7 +11599,7 @@ job_mig_spawn_internal(job_t j, vm_offset_t indata, mach_msg_type_number_t indat
+ 	}
+ 
+ #if HAVE_SANDBOX
+-	if (unlikely(sandbox_check(ldc->pid, "job-creation", SANDBOX_FILTER_NONE) > 0)) {
++	if (unlikely(sandbox_check_by_audit_token(*runtime_get_caller_token(), "job-creation", SANDBOX_FILTER_NONE) != 0)) {
+ 		return BOOTSTRAP_NOT_PRIVILEGED;
+ 	}
+ #endif
+diff --git a/src/launchd/src/core.h b/src/launchd/src/core.h
+index b8267c5a..bcee48b6 100644
+--- a/src/launchd/src/core.h
++++ b/src/launchd/src/core.h
+@@ -63,5 +63,6 @@ void job_set_pid_crashed(pid_t p);
+ 
+ bool xpc_event_demux(mach_port_t p, xpc_object_t request, xpc_object_t *reply);
+ bool xpc_process_demux(mach_port_t p, xpc_object_t request, xpc_object_t *reply);
++bool xpc_service_demux(mach_port_t p, xpc_object_t request, xpc_object_t *reply);
+ 
+ #endif /* __LAUNCHD_CORE_LOGIC__ */
+diff --git a/src/launchd/src/runtime.c b/src/launchd/src/runtime.c
+index 245489ab..71b41ddc 100644
+--- a/src/launchd/src/runtime.c
++++ b/src/launchd/src/runtime.c
+@@ -71,6 +71,7 @@
+ #include "launch.h"
+ #include "launchd.h"
+ #include "core.h"
++#include "service_stats.h"
+ #include "vproc.h"
+ #include "vproc_priv.h"
+ #include "vproc_internal.h"
+@@ -1035,7 +1036,11 @@ launchd_runtime2(mach_msg_size_t msg_size)
+ 			launchd_syslog(LOG_DEBUG, "XPC request.");
+ 
+ 			xpc_object_t reply = NULL;
+-			if (xpc_event_demux(recvp, request, &reply)) {
++			if (launchd_service_stats_demux(request, &reply)) {
++				handled = true;
++			} else if (xpc_service_demux(recvp, request, &reply)) {
++				handled = true;
++			} else if (xpc_event_demux(recvp, request, &reply)) {
+ 				handled = true;
+ 			} else if (xpc_process_demux(recvp, request, &reply)) {
+ 				handled = true;
+@@ -1043,8 +1048,8 @@ launchd_runtime2(mach_msg_size_t msg_size)
+ 
+ 			if (!handled) {
+ 				launchd_syslog(LOG_DEBUG, "XPC routine could not be handled.");
+-				xpc_release(request);
+-				continue;
++				reply = xpc_dictionary_create_reply(request);
++				if (reply) xpc_dictionary_set_int64(reply, "error", ENOTSUP);
+ 			}
+ 
+ 			launchd_syslog(LOG_DEBUG, "XPC routine was handled.");
+diff --git a/src/launchd/src/service_stats.c b/src/launchd/src/service_stats.c
+new file mode 100644
+index 00000000..5c9a77e6
+--- /dev/null
++++ b/src/launchd/src/service_stats.c
+@@ -0,0 +1,168 @@
++// Launchd exit records collected from actual wait4 results, using the native
++// launch-control envelope and packed shared-memory record ABI.
++#include "service_stats.h"
++#include <xpc/private.h>
++#include <xpc/private/launch_service_stats.h>
++#include <mach/mach_vm.h>
++#include <errno.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/wait.h>
++#include <sys/mman.h>
++#include <unistd.h>
++
++_Static_assert(sizeof(struct launch_service_stats_record) == 59, "native record ABI");
++
++struct stored_record {
++	struct launch_service_stats_record record;
++	char* label;
++};
++struct monitor {
++	struct monitor* next;
++	char* name;
++	uint32_t capacity, head, count, dropped;
++	struct stored_record* records;
++};
++static struct monitor* monitors;
++
++static struct monitor** find_monitor(const char* name) {
++	struct monitor** at = &monitors;
++	while (*at && strcmp((*at)->name, name)) at = &(*at)->next;
++	return at;
++}
++static void clear_monitor(struct monitor* monitor) {
++	for (uint32_t i = 0; i < monitor->capacity; ++i) {
++		free(monitor->records[i].label); monitor->records[i].label = NULL;
++	}
++	monitor->head = monitor->count = monitor->dropped = 0;
++}
++static int enable_monitor(const char* name, uint64_t capacity) {
++	if (*find_monitor(name)) return EEXIST;
++	if (!capacity || capacity > (1U << 20)) return EINVAL;
++	unsigned active = 0;
++	for (struct monitor* p = monitors; p; p = p->next) ++active;
++	if (active >= 32) return ENOSPC;
++	struct monitor* monitor = calloc(1, sizeof(*monitor));
++	if (!monitor) return ENOMEM;
++	monitor->name = strdup(name);
++	monitor->records = calloc(capacity, sizeof(*monitor->records));
++	if (!monitor->name || !monitor->records) {
++		free(monitor->name); free(monitor->records); free(monitor); return ENOMEM;
++	}
++	monitor->capacity = capacity; monitor->next = monitors; monitors = monitor;
++	return 0;
++}
++static int disable_monitor(const char* name) {
++	struct monitor** at = find_monitor(name);
++	if (!*at) return ENOENT;
++	struct monitor* monitor = *at; *at = monitor->next;
++	clear_monitor(monitor);
++	free(monitor->records); free(monitor->name); free(monitor);
++	return 0;
++}
++
++void launchd_service_stats_record_exit(const char* label, uint64_t start_time,
++		uint64_t unique_id, pid_t pid, int wait_status) {
++	if (!label || pid <= 0 || !start_time) return;
++	for (struct monitor* monitor = monitors; monitor; monitor = monitor->next) {
++		char* name = strdup(label);
++		if (!name) { ++monitor->dropped; continue; }
++		if (monitor->count == monitor->capacity) {
++			free(monitor->records[monitor->head].label);
++			monitor->records[monitor->head].label = NULL;
++			monitor->head = (monitor->head + 1) % monitor->capacity;
++			--monitor->count; ++monitor->dropped;
++		}
++		uint32_t index = (monitor->head + monitor->count++) % monitor->capacity;
++		struct stored_record* stored = &monitor->records[index];
++		memset(&stored->record, 0, sizeof(stored->record));
++		stored->label = name;
++		stored->record.start_time = start_time;
++		stored->record.unique_id = unique_id;
++		stored->record.pid = pid;
++		stored->record.wait_status = (uint32_t)wait_status;
++		// Darwin OS_REASON_SIGNAL namespace is 2. Wait status is the real
++		// source here; do not invent jetsam or code-signing exit reasons.
++		if (WIFSIGNALED(wait_status)) {
++			stored->record.reason_namespace = 2;
++			stored->record.reason_code = WTERMSIG(wait_status);
++		}
++		// Later per-platform fields have no provider in this backend yet.
++		// They remain zero; neither resource metrics nor jetsam are claimed.
++	}
++}
++
++static int copy_monitor(struct monitor* monitor, xpc_object_t request, xpc_object_t reply) {
++	xpc_object_t shmem = xpc_dictionary_get_value(request, "shmem");
++	if (xpc_get_type(shmem) != XPC_TYPE_SHMEM) return EINVAL;
++	void* buffer = NULL;
++	size_t length = xpc_shmem_map(shmem, &buffer);
++	if (!length || length < (size_t)getpagesize()) return EINVAL;
++	int error = 0;
++	if (mach_vm_protect(mach_task_self(), (mach_vm_address_t)buffer, length, FALSE,
++			VM_PROT_READ | VM_PROT_WRITE) != KERN_SUCCESS) { error = EACCES; goto out; }
++	xpc_object_t labels = xpc_array_create(NULL, 0);
++	xpc_object_t indices = xpc_dictionary_create(NULL, NULL, 0);
++	if (!labels || !indices) {
++		if (labels) xpc_release(labels);
++		if (indices) xpc_release(indices);
++		error = ENOMEM; goto out;
++	}
++	uint32_t count = length / 59 < monitor->count ? length / 59 : monitor->count;
++	// Native launchd returns the newest records that fit, then clears the
++	// entire ring. This differs from draining the oldest subset in batches.
++	uint32_t first = monitor->count - count;
++	for (uint32_t i = 0; i < count; ++i) {
++		struct stored_record* stored = &monitor->records[(monitor->head + first + i) % monitor->capacity];
++		xpc_object_t existing = xpc_dictionary_get_value(indices, stored->label);
++		uint32_t label_index;
++		if (existing) label_index = (uint32_t)xpc_uint64_get_value(existing);
++		else {
++			label_index = (uint32_t)xpc_array_get_count(labels);
++			xpc_object_t name = xpc_string_create(stored->label);
++			xpc_array_append_value(labels, name); xpc_release(name);
++			xpc_dictionary_set_uint64(indices, stored->label, label_index);
++		}
++		struct launch_service_stats_record record = stored->record;
++		record.label_index = label_index;
++		memcpy((char*)buffer + i * 59, &record, 59);
++	}
++	xpc_dictionary_set_uint64(reply, "count", count);
++	xpc_dictionary_set_uint64(reply, "dropped-count", monitor->dropped);
++	xpc_dictionary_set_value(reply, "labels", labels);
++	xpc_release(labels); xpc_release(indices);
++	clear_monitor(monitor);
++out:
++	munmap(buffer, length);
++	return error;
++}
++
++bool launchd_service_stats_demux(xpc_object_t request, xpc_object_t* reply) {
++	if (xpc_dictionary_get_uint64(request, "subsystem") != XPC_LAUNCH_STATS_SUBSYSTEM) return false;
++	*reply = xpc_dictionary_create_reply(request);
++	if (!*reply) return true;
++	int error = 0;
++	audit_token_t token;
++	xpc_dictionary_get_audit_token(request, &token);
++	// Native service statistics require a privileged entitlement. This
++	// backend permits root and explicitly denies unprivileged callers.
++	if (token.val[1] != 0 || !token.val[5] || token.val[5] == UINT32_MAX) error = EPERM;
++	const char* name = xpc_dictionary_get_string(request, "monitor_id");
++	if (!error && (!name || !*name || strlen(name) > 255)) error = EINVAL;
++	if (!error) {
++		struct monitor* monitor = *find_monitor(name);
++		switch (xpc_dictionary_get_uint64(request, "routine")) {
++		case XPC_LAUNCH_STATS_ENABLE:
++			error = enable_monitor(name, xpc_dictionary_get_uint64(request, "capacity")); break;
++		case XPC_LAUNCH_STATS_DISABLE:
++			error = disable_monitor(name); break;
++		case XPC_LAUNCH_STATS_QUERY:
++			xpc_dictionary_set_bool(*reply, "enabled", monitor != NULL); break;
++		case XPC_LAUNCH_STATS_COPY:
++			error = monitor ? copy_monitor(monitor, request, *reply) : ENOENT; break;
++		default: error = ENOTSUP;
++		}
++	}
++	if (error) xpc_dictionary_set_int64(*reply, "error", error);
++	return true;
++}
+diff --git a/src/launchd/src/service_stats.h b/src/launchd/src/service_stats.h
+new file mode 100644
+index 00000000..283e6e6a
+--- /dev/null
++++ b/src/launchd/src/service_stats.h
+@@ -0,0 +1,11 @@
++#ifndef DARLING_LAUNCHD_SERVICE_STATS_H
++#define DARLING_LAUNCHD_SERVICE_STATS_H
++#include <stdbool.h>
++#include <stdint.h>
++#include <sys/types.h>
++#include <xpc/xpc.h>
++
++bool launchd_service_stats_demux(xpc_object_t request, xpc_object_t* reply);
++void launchd_service_stats_record_exit(const char* label, uint64_t start_time,
++	uint64_t unique_id, pid_t pid, int wait_status);
++#endif
+diff --git a/src/libMobileGestalt/CMakeLists.txt b/src/libMobileGestalt/CMakeLists.txt
+index 46282547..1b0a5dae 100644
+--- a/src/libMobileGestalt/CMakeLists.txt
++++ b/src/libMobileGestalt/CMakeLists.txt
+@@ -8,5 +8,5 @@ add_darling_library(MobileGestalt SHARED
+     src/MobileGestalt.m
+ )
+ make_fat(MobileGestalt)
+-target_link_libraries(MobileGestalt system objc Foundation)
++target_link_libraries(MobileGestalt system objc Foundation CoreFoundation)
+ install(TARGETS MobileGestalt DESTINATION libexec/darling/usr/lib)
+diff --git a/src/libMobileGestalt/include/MobileGestalt/MobileGestalt.h b/src/libMobileGestalt/include/MobileGestalt/MobileGestalt.h
+index fcd582c9..11954c4e 100644
+--- a/src/libMobileGestalt/include/MobileGestalt/MobileGestalt.h
++++ b/src/libMobileGestalt/include/MobileGestalt/MobileGestalt.h
+@@ -24,10 +24,15 @@
+ #include <CoreFoundation/CoreFoundation.h>
+ 
+ // I don't know what the actual keys values are...
+-CFStringRef kMGQReleaseType = CFSTR("kMGQReleaseType");
++extern CFStringRef kMGQReleaseType;
+ 
+ void* MGCancelNotifications(void);
+-CFStringRef MGCopyAnswer(CFStringRef key, void* unknown);
++CFStringRef MGCopyAnswer(CFStringRef key, void* unknown) CF_RETURNS_RETAINED;
++#ifdef __OBJC__
++id MobileGestalt_copy_humanReadableProductVersionString_obj(void);
++#else
++CFTypeRef MobileGestalt_copy_humanReadableProductVersionString_obj(void) CF_RETURNS_NOT_RETAINED;
++#endif
+ void* MGCopyAnswerWithError(void);
+ void* MGCopyMultipleAnswers(void);
+ void* MGGetBoolAnswer(void);
+diff --git a/src/libMobileGestalt/src/MobileGestalt.m b/src/libMobileGestalt/src/MobileGestalt.m
+index 7e2ab604..3b427ecb 100644
+--- a/src/libMobileGestalt/src/MobileGestalt.m
++++ b/src/libMobileGestalt/src/MobileGestalt.m
+@@ -21,6 +21,53 @@
+ #include <MobileGestalt/MobileGestalt.h>
+ #include <stdlib.h>
+ #include <stdio.h>
++#include <errno.h>
++#import <Foundation/NSObject.h>
++
++CFStringRef kMGQReleaseType = CFSTR("kMGQReleaseType");
++
++extern CFDictionaryRef _CFCopySystemVersionDictionary(void);
++extern CFDictionaryRef _CFCopySupplementalVersionDictionary(void) __attribute__((weak_import));
++extern bool _CFMZEnabled(void) __attribute__((weak_import));
++
++static CFStringRef copy_product_version(void)
++{
++    CFDictionaryRef dictionary = _CFCopySystemVersionDictionary();
++    if (!dictionary) return NULL;
++    CFStringRef key = _CFMZEnabled && _CFMZEnabled()
++        ? CFSTR("iOSSupportVersion") : CFSTR("ProductVersion");
++    CFTypeRef value = CFDictionaryGetValue(dictionary, key);
++    CFStringRef answer = value && CFGetTypeID(value) == CFStringGetTypeID()
++        ? (CFStringRef)CFRetain(value) : NULL;
++    CFRelease(dictionary);
++    return answer;
++}
++
++/* Follow the original Intel property's callback: ProductVersion from the
++ * normal system dictionary, optional ProductVersionExtra from CoreFoundation's
++ * supplemental dictionary, and exactly "%@ %@" when the extra value exists. */
++static CFStringRef copy_human_readable_product_version(void)
++{
++    CFStringRef version = copy_product_version();
++    if (!version) return NULL;
++    CFDictionaryRef dictionary = _CFCopySupplementalVersionDictionary
++        ? _CFCopySupplementalVersionDictionary() : _CFCopySystemVersionDictionary();
++    CFTypeRef extra = dictionary
++        ? CFDictionaryGetValue(dictionary, CFSTR("ProductVersionExtra")) : NULL;
++    CFStringRef answer = extra
++        ? CFStringCreateWithFormat(kCFAllocatorDefault, NULL, CFSTR("%@ %@"), version, extra)
++        : (CFStringRef)CFRetain(version);
++    if (dictionary) CFRelease(dictionary);
++    CFRelease(version);
++    return answer;
++}
++
++id MobileGestalt_copy_humanReadableProductVersionString_obj(void)
++{
++    /* The native wrapper tail-calls objc_autoreleaseReturnValue, despite the
++     * generated C symbol containing "copy". Do not return an extra retain. */
++    return [(id)copy_human_readable_product_version() autorelease];
++}
+ 
+ static int verbose = 0;
+ 
+@@ -37,8 +84,14 @@ void* MGCancelNotifications(void)
+ 
+ CFStringRef MGCopyAnswer(CFStringRef key, void* unknown)
+ {
+-    if (verbose) puts("STUB: MGCopyAnswer called");
+-    return nil;
++    if (!key || CFGetTypeID(key) != CFStringGetTypeID()) { errno = EINVAL; return NULL; }
++    if (CFEqual(key, CFSTR("ProductVersion")) || CFEqual(key, CFSTR("qNNddlUK+B/YlooNoymwgA")))
++        return copy_product_version();
++    if (CFEqual(key, CFSTR("HumanReadableProductVersionString")) || CFEqual(key, CFSTR("ToLFRidm+eJGWnpw6W4Wwg")))
++        return copy_human_readable_product_version();
++    if (verbose) puts("UNSUPPORTED: MGCopyAnswer key");
++    errno = ENOTSUP;
++    return NULL;
+ }
+ 
+ void* MGCopyAnswerWithError(void)
+diff --git a/src/libm/CMakeLists.txt b/src/libm/CMakeLists.txt
+index 5be9356b..3d6689ea 100644
+--- a/src/libm/CMakeLists.txt
++++ b/src/libm/CMakeLists.txt
+@@ -19,6 +19,7 @@ endif ()
+ 
+ set(libm_sources
+ 	Source/abs.c
++	Source/simd_constants.c
+ 	Source/sincos.c
+ 	Source/exp10.c
+ 	#Source/nan.c
+diff --git a/src/libm/Source/simd_constants.c b/src/libm/Source/simd_constants.c
+new file mode 100644
+index 00000000..cd937cc2
+--- /dev/null
++++ b/src/libm/Source/simd_constants.c
+@@ -0,0 +1,8 @@
++// Public SIMD constant ABI: three 16-byte columns, including vector padding.
++typedef float darling_simd_float3 __attribute__((ext_vector_type(3)));
++typedef struct { darling_simd_float3 columns[3]; } darling_simd_float3x3;
++_Static_assert(sizeof(darling_simd_float3x3) == 48, "SIMD matrix ABI");
++_Static_assert(_Alignof(darling_simd_float3x3) == 16, "SIMD matrix alignment");
++const darling_simd_float3x3 matrix_identity_float3x3 = {
++    .columns = {{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}
++};
+diff --git a/src/libsystem_coreservices/CMakeLists.txt b/src/libsystem_coreservices/CMakeLists.txt
+index 4c1f14f2..99056377 100644
+--- a/src/libsystem_coreservices/CMakeLists.txt
++++ b/src/libsystem_coreservices/CMakeLists.txt
+@@ -6,7 +6,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -nostdinc -D__DARWIN_UNIX03 -fPIC -w")
+ 
+ set(DYLIB_INSTALL_NAME "/usr/lib/system/libsystem_coreservices.dylib")
+ add_darling_library(system_coreservices SHARED dirhelper.c NSSystemDirectories.c sysdir.c)
+-target_link_libraries(system_coreservices PRIVATE system_c system_dyld platform system_pthread system_kernel)
++target_link_libraries(system_coreservices PRIVATE system_c system_malloc system_dyld platform system_pthread system_kernel)
+ make_fat(system_coreservices)
+ 
+ install(TARGETS system_coreservices DESTINATION libexec/darling/usr/lib/system)
+diff --git a/src/libsystem_coreservices/dirhelper.c b/src/libsystem_coreservices/dirhelper.c
+index f22f8213..70bd787d 100644
+--- a/src/libsystem_coreservices/dirhelper.c
++++ b/src/libsystem_coreservices/dirhelper.c
+@@ -3,9 +3,12 @@
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <pthread.h>
++#include <string.h>
++#include <sys/stat.h>
++#include <limits.h>
+ #include "dirhelper_priv.h"
+ 
+-static const char* dir_suffix = NULL;
++static char* dir_suffix = NULL;
+ static pthread_mutex_t dir_suffix_lock = PTHREAD_MUTEX_INITIALIZER;
+ 
+ void _dirhelper_fork_child(void)
+@@ -36,52 +39,58 @@ void _libcoreservices_fork_child(void)
+ 	//dir_suffix = NULL;
+ }
+ 
++/* A successful directory query must name an existing directory. */
++static int ensure_directory(const char *path)
++{
++	struct stat st;
++	if (mkdir(path, 0700) != 0 && errno != EEXIST) return -1;
++	if (stat(path, &st) != 0) return -1;
++	if (!S_ISDIR(st.st_mode)) {errno = ENOTDIR; return -1;}
++	return 0;
++}
++
+ char* _dirhelper(int which, char* p, size_t limit)
+ {
++	if (!p || !limit || which < 0 || which > DIRHELPER_USER_LOCAL_LAST) {
++		errno = EINVAL; return NULL;
++	}
+ 	pthread_mutex_lock(&dir_suffix_lock);
+-	switch (which)
+-	{
+-		case DIRHELPER_USER_LOCAL:
+-		{
+-			const char* home;
+-
+-			home = getenv("HOME");
+-			if (home == NULL)
+-				home = "";
+-
+-			snprintf(p, limit, "%s/%s%s", home, dir_suffix ? dir_suffix : "", dir_suffix ? "/" : "");
+-		} break;
+-		case DIRHELPER_USER_LOCAL_TEMP:
+-		{
+-			const char* tmp;
+-
+-			tmp = getenv("TMPDIR");
+-			if (tmp == NULL)
+-				tmp = "/tmp";
+-
+-			snprintf(p, limit, "%s/%s%s", tmp, dir_suffix ? dir_suffix : "", dir_suffix ? "/" : "");
+-		} break;
+-		case DIRHELPER_USER_LOCAL_CACHE:
+-		{
+-			const char* home;
+-
+-			home = getenv("HOME");
+-			if (home != NULL)
+-				snprintf(p, limit, "%s/.cache/%s%s", home, dir_suffix ? dir_suffix : "", dir_suffix ? "/" : "");
+-			else
+-				snprintf(p, limit, "/tmp/%s%s", dir_suffix ? dir_suffix : "", dir_suffix ? "/" : "");
+-		} break;
+-		default:
+-			p = NULL;
++	const char *base = NULL, *home = getenv("HOME");
++	char cache[PATH_MAX];
++	int cache_length = 0, error = 0;
++	if (which == DIRHELPER_USER_LOCAL_TEMP) {
++		base = getenv("TMPDIR");
++		if (!base || !*base) base = "/tmp";
++	} else if (which == DIRHELPER_USER_LOCAL_CACHE) {
++		if (home && *home) {
++			cache_length = snprintf(cache, sizeof(cache), "%s/.cache", home);
++			base = cache;
++		} else base = "/tmp";
++	} else base = home && *home ? home : "";
++	if (cache_length < 0 || (size_t)cache_length >= sizeof(cache)) error = ENAMETOOLONG;
++	else {
++		int length = snprintf(p, limit, "%s/%s%s", base,
++			dir_suffix ? dir_suffix : "", dir_suffix ? "/" : "");
++		if (length < 0 || (size_t)length >= limit) error = ENAMETOOLONG;
++		/* Service clients use a single mkdir for the suffix. Prepare its cache
++			* base as well, including when the guest home has never had a cache. */
++		else if ((home && *home && which != DIRHELPER_USER_LOCAL_TEMP &&
++				ensure_directory(home) != 0) ||
++			(cache_length && ensure_directory(cache) != 0) ||
++			ensure_directory(p) != 0) error = errno;
+ 	}
+ 	pthread_mutex_unlock(&dir_suffix_lock);
++	if (error) {errno = error; return NULL;}
+ 	return p;
+ }
+ 
+-int _set_user_dir_suffix(const char* suffix) {
++int _set_user_dir_suffix(const char* suffix)
++{
++	char *copy = suffix ? strdup(suffix) : NULL;
++	if (suffix && !copy) return 0;
+ 	pthread_mutex_lock(&dir_suffix_lock);
+-	dir_suffix = suffix;
++	free(dir_suffix);
++	dir_suffix = copy;
+ 	pthread_mutex_unlock(&dir_suffix_lock);
+-	return 1; // weird, it's supposed to return non-zero on success (maybe it's actually a bool?)
+-};
+-
++	return 1;
++}
+diff --git a/src/private-frameworks/CoreUtils/CMakeLists.txt b/src/private-frameworks/CoreUtils/CMakeLists.txt
+index 5fb15d5e..0264926a 100644
+--- a/src/private-frameworks/CoreUtils/CMakeLists.txt
++++ b/src/private-frameworks/CoreUtils/CMakeLists.txt
+@@ -23,6 +23,7 @@ add_framework(CoreUtils
+ 
+ 	SOURCES
+ 		src/CoreUtils.m
++		src/CryptoUtils.c
+ 		src/CAAnimationDelegateBlockHelper.m
+ 		src/CUAppleIDClient.m
+ 		src/CUAudioRequest.m
+@@ -158,4 +159,5 @@ add_framework(CoreUtils
+ 		system
+ 		objc
+ 		Foundation
++		commonCrypto
+ )
+diff --git a/src/private-frameworks/CoreUtils/include/CoreUtils/CoreUtils.h b/src/private-frameworks/CoreUtils/include/CoreUtils/CoreUtils.h
+index f02d4d0d..f0ce0512 100644
+--- a/src/private-frameworks/CoreUtils/include/CoreUtils/CoreUtils.h
++++ b/src/private-frameworks/CoreUtils/include/CoreUtils/CoreUtils.h
+@@ -21,6 +21,8 @@
+ #ifndef _CoreUtils_H_
+ #define _CoreUtils_H_
+ 
++#include "CryptoUtils.h"
++
+ // according to mdns.c in mDNSResponder, it seems that this header is included by CoreUtils
+ #include <nw/nw.h>
+ 
+@@ -573,15 +575,15 @@ void* CryptoAEADDecryptMessage(void);
+ void* CryptoAEADDecryptMessageOneShot(void);
+ void* CryptoAEADEncryptMessage(void);
+ void* CryptoAEADEncryptMessageOneShot(void);
+-void* CryptoHKDF(void);
+-void* CryptoHMACFinal(void);
+-void* CryptoHMACInit(void);
+-void* CryptoHMACOneShot(void);
+-void* CryptoHMACUpdate(void);
+-void* CryptoHashFinal(void);
+-void* CryptoHashInit(void);
+-void* CryptoHashOneShot(void);
+-void* CryptoHashUpdate(void);
++
++
++
++
++
++
++
++
++
+ void* CryptoRandomKey(void);
+ void* Curve25519MakeKeyPair(void);
+ void* DACPServer_AddRemote(void);
+diff --git a/src/private-frameworks/CoreUtils/include/CoreUtils/CryptoUtils.h b/src/private-frameworks/CoreUtils/include/CoreUtils/CryptoUtils.h
+new file mode 100644
+index 00000000..dd67bfb9
+--- /dev/null
++++ b/src/private-frameworks/CoreUtils/include/CoreUtils/CryptoUtils.h
+@@ -0,0 +1,42 @@
++/* CoreUtils' x86_64 digest descriptor/context ABI, backed by CommonCrypto. */
++#ifndef DARLING_COREUTILS_CRYPTOUTILS_H
++#define DARLING_COREUTILS_CRYPTOUTILS_H
++#include <stddef.h>
++#include <stdint.h>
++#include <CommonCrypto/CommonDigest.h>
++#ifdef __cplusplus
++extern "C" {
++#endif
++typedef struct CryptoHashContext CryptoHashContext;
++typedef struct CryptoHashDescriptor {
++    void (*init)(CryptoHashContext *);
++    void (*update)(CryptoHashContext *,const void *,size_t);
++    void (*final)(CryptoHashContext *,void *);
++    size_t digestSize;
++    size_t blockSize;
++} CryptoHashDescriptor;
++struct CryptoHashContext {
++    const CryptoHashDescriptor *descriptor;
++    union { CC_SHA1_CTX sha1; CC_SHA256_CTX sha256; CC_SHA512_CTX sha512; } state;
++};
++typedef struct CryptoHMACContext {
++    CryptoHashContext hash;
++    uint8_t outerPad[128];
++} CryptoHMACContext;
++extern const CryptoHashDescriptor * const kCryptoHashDescriptor_SHA1;
++extern const CryptoHashDescriptor * const kCryptoHashDescriptor_SHA256;
++extern const CryptoHashDescriptor * const kCryptoHashDescriptor_SHA512;
++size_t CryptoHashDescriptorGetDigestSize(const CryptoHashDescriptor *descriptor);
++void CryptoHashInit(CryptoHashContext *ctx,const CryptoHashDescriptor *descriptor);
++void CryptoHashUpdate(CryptoHashContext *ctx,const void *data,size_t length);
++void CryptoHashFinal(CryptoHashContext *ctx,void *digest);
++void CryptoHashOneShot(const CryptoHashDescriptor *descriptor,const void *data,size_t length,void *digest);
++void CryptoHMACInit(CryptoHMACContext *ctx,const CryptoHashDescriptor *descriptor,const void *key,size_t length);
++void CryptoHMACUpdate(CryptoHMACContext *ctx,const void *data,size_t length);
++void CryptoHMACFinal(CryptoHMACContext *ctx,void *digest);
++void CryptoHMACOneShot(const CryptoHashDescriptor *descriptor,const void *key,size_t keyLength,const void *data,size_t dataLength,void *digest);
++void CryptoHKDF(const CryptoHashDescriptor *descriptor,const void *key,size_t keyLength,const void *salt,size_t saltLength,const void *info,size_t infoLength,size_t outputLength,void *output);
++#ifdef __cplusplus
++}
++#endif
++#endif
+diff --git a/src/private-frameworks/CoreUtils/src/CoreUtils.m b/src/private-frameworks/CoreUtils/src/CoreUtils.m
+index 2576b098..56f6346b 100644
+--- a/src/private-frameworks/CoreUtils/src/CoreUtils.m
++++ b/src/private-frameworks/CoreUtils/src/CoreUtils.m
+@@ -18,7 +18,6 @@
+ */
+ 
+ 
+-#include <CoreUtils/CoreUtils.h>
+ #include <stdlib.h>
+ #include <stdio.h>
+ 
+@@ -2225,60 +2224,6 @@ void* CryptoAEADEncryptMessageOneShot(void)
+     return NULL;
+ }
+ 
+-void* CryptoHKDF(void)
+-{
+-    if (verbose) puts("STUB: CryptoHKDF called");
+-    return NULL;
+-}
+-
+-void* CryptoHMACFinal(void)
+-{
+-    if (verbose) puts("STUB: CryptoHMACFinal called");
+-    return NULL;
+-}
+-
+-void* CryptoHMACInit(void)
+-{
+-    if (verbose) puts("STUB: CryptoHMACInit called");
+-    return NULL;
+-}
+-
+-void* CryptoHMACOneShot(void)
+-{
+-    if (verbose) puts("STUB: CryptoHMACOneShot called");
+-    return NULL;
+-}
+-
+-void* CryptoHMACUpdate(void)
+-{
+-    if (verbose) puts("STUB: CryptoHMACUpdate called");
+-    return NULL;
+-}
+-
+-void* CryptoHashFinal(void)
+-{
+-    if (verbose) puts("STUB: CryptoHashFinal called");
+-    return NULL;
+-}
+-
+-void* CryptoHashInit(void)
+-{
+-    if (verbose) puts("STUB: CryptoHashInit called");
+-    return NULL;
+-}
+-
+-void* CryptoHashOneShot(void)
+-{
+-    if (verbose) puts("STUB: CryptoHashOneShot called");
+-    return NULL;
+-}
+-
+-void* CryptoHashUpdate(void)
+-{
+-    if (verbose) puts("STUB: CryptoHashUpdate called");
+-    return NULL;
+-}
+-
+ void* CryptoRandomKey(void)
+ {
+     if (verbose) puts("STUB: CryptoRandomKey called");
+diff --git a/src/private-frameworks/CoreUtils/src/CryptoUtils.c b/src/private-frameworks/CoreUtils/src/CryptoUtils.c
+new file mode 100644
+index 00000000..9f253cbe
+--- /dev/null
++++ b/src/private-frameworks/CoreUtils/src/CryptoUtils.c
+@@ -0,0 +1,67 @@
++#include <CoreUtils/CryptoUtils.h>
++#include <string.h>
++#include <errno.h>
++
++static void wipe(void *data,size_t length){volatile uint8_t *p=data;while(length--)*p++=0;}
++
++#if defined(__x86_64__)
++_Static_assert(sizeof(CryptoHashDescriptor)==40,"native digest descriptor ABI");
++_Static_assert(offsetof(CryptoHashContext,state)==8,"native digest state offset");
++_Static_assert(sizeof(CryptoHashContext)==216,"native digest context ABI");
++_Static_assert(offsetof(CryptoHMACContext,outerPad)==216,"native HMAC pad offset");
++_Static_assert(sizeof(CryptoHMACContext)==344,"native HMAC context ABI");
++#endif
++
++#define DIGEST_IMPL(name,member) \
++static void name##Init(CryptoHashContext *c){CC_##name##_Init(&c->state.member);} \
++static void name##Update(CryptoHashContext *c,const void *p,size_t n){CC_##name##_Update(&c->state.member,p,(CC_LONG)n);} \
++static void name##Final(CryptoHashContext *c,void *p){CC_##name##_Final(p,&c->state.member);}
++DIGEST_IMPL(SHA1,sha1)
++DIGEST_IMPL(SHA256,sha256)
++DIGEST_IMPL(SHA512,sha512)
++static const CryptoHashDescriptor sha1={SHA1Init,SHA1Update,SHA1Final,20,64};
++static const CryptoHashDescriptor sha256={SHA256Init,SHA256Update,SHA256Final,32,64};
++static const CryptoHashDescriptor sha512={SHA512Init,SHA512Update,SHA512Final,64,128};
++const CryptoHashDescriptor * const kCryptoHashDescriptor_SHA1=&sha1;
++const CryptoHashDescriptor * const kCryptoHashDescriptor_SHA256=&sha256;
++const CryptoHashDescriptor * const kCryptoHashDescriptor_SHA512=&sha512;
++
++size_t CryptoHashDescriptorGetDigestSize(const CryptoHashDescriptor *d){return d->digestSize;}
++void CryptoHashInit(CryptoHashContext *c,const CryptoHashDescriptor *d){c->descriptor=d;d->init(c);}
++void CryptoHashUpdate(CryptoHashContext *c,const void *p,size_t n){c->descriptor->update(c,p,n);}
++void CryptoHashFinal(CryptoHashContext *c,void *p){c->descriptor->final(c,p);}
++void CryptoHashOneShot(const CryptoHashDescriptor *d,const void *p,size_t n,void *out){
++    CryptoHashContext c;CryptoHashInit(&c,d);CryptoHashUpdate(&c,p,n);CryptoHashFinal(&c,out);
++}
++void CryptoHMACInit(CryptoHMACContext *c,const CryptoHashDescriptor *d,const void *key,size_t n){
++    uint8_t shortened[64],inner[128];const uint8_t *bytes=key;
++    if(n>d->blockSize){CryptoHashOneShot(d,key,n,shortened);bytes=shortened;n=d->digestSize;}
++    for(size_t i=0;i<d->blockSize;i++){
++        uint8_t byte=i<n?bytes[i]:0;inner[i]=byte^0x36;c->outerPad[i]=byte^0x5c;
++    }
++    CryptoHashInit(&c->hash,d);CryptoHashUpdate(&c->hash,inner,d->blockSize);
++    wipe(shortened,sizeof(shortened));wipe(inner,sizeof(inner));
++}
++void CryptoHMACUpdate(CryptoHMACContext *c,const void *p,size_t n){CryptoHashUpdate(&c->hash,p,n);}
++void CryptoHMACFinal(CryptoHMACContext *c,void *out){
++    const CryptoHashDescriptor *d=c->hash.descriptor;
++    CryptoHashFinal(&c->hash,out);CryptoHashInit(&c->hash,d);
++    CryptoHashUpdate(&c->hash,c->outerPad,d->blockSize);CryptoHashUpdate(&c->hash,out,d->digestSize);CryptoHashFinal(&c->hash,out);
++}
++void CryptoHMACOneShot(const CryptoHashDescriptor *d,const void *key,size_t kn,const void *p,size_t n,void *out){
++    CryptoHMACContext c;CryptoHMACInit(&c,d,key,kn);CryptoHMACUpdate(&c,p,n);CryptoHMACFinal(&c,out);wipe(&c,sizeof(c));
++}
++void CryptoHKDF(const CryptoHashDescriptor *d,const void *key,size_t kn,const void *salt,size_t sn,const void *info,size_t in,size_t n,void *out){
++    if(n>d->digestSize*255){errno=EINVAL;return;}
++    uint8_t zero[64]={0},prk[64],previous[64];size_t previousSize=0;uint8_t *destination=out;
++    if(sn==0){salt=zero;sn=d->digestSize;}
++    CryptoHMACOneShot(d,salt,sn,key,kn,prk);
++    for(unsigned counter=1;n;counter++){
++        CryptoHMACContext c;uint8_t byte=counter;
++        CryptoHMACInit(&c,d,prk,d->digestSize);CryptoHMACUpdate(&c,previous,previousSize);
++        CryptoHMACUpdate(&c,info,in);CryptoHMACUpdate(&c,&byte,1);CryptoHMACFinal(&c,previous);
++        size_t take=n<d->digestSize?n:d->digestSize;memcpy(destination,previous,take);destination+=take;n-=take;previousSize=d->digestSize;
++        wipe(&c,sizeof(c));
++    }
++    wipe(prk,sizeof(prk));wipe(previous,sizeof(previous));
++}
+diff --git a/src/private-frameworks/DiskManagement/include/DiskManagement/DiskManagement.h b/src/private-frameworks/DiskManagement/include/DiskManagement/DiskManagement.h
+index d4016c9e..1c00a371 100644
+--- a/src/private-frameworks/DiskManagement/include/DiskManagement/DiskManagement.h
++++ b/src/private-frameworks/DiskManagement/include/DiskManagement/DiskManagement.h
+@@ -21,6 +21,10 @@ void* DMLocalizedUserErrorString(void);
+ void* DMUnlocalizedTechnicalErrorString(void);
+ 
+ #import <Foundation/Foundation.h>
++
++// The pinned Intel implementation ignores arguments and returns nil.
++// This entry does not implement disk error translation or disk operations.
++FOUNDATION_EXPORT NSError *DMNSError(void);
+ #import <DiskManagement/_DMListDA.h>
+ #import <DiskManagement/_DMClaimDA.h>
+ #import <DiskManagement/_DMWaitIdleDA.h>
+diff --git a/src/private-frameworks/DiskManagement/src/DMNSError.m b/src/private-frameworks/DiskManagement/src/DMNSError.m
+new file mode 100644
+index 00000000..be6be34c
+--- /dev/null
++++ b/src/private-frameworks/DiskManagement/src/DMNSError.m
+@@ -0,0 +1,10 @@
++#import <DiskManagement/DiskManagement.h>
++
++// Verified against the original Intel DiskManagement cache function:
++// push rbp; mov rsp,rbp; xor eax,eax; pop rbp; ret.
++// See artifacts/diskmanagement-nserror-native-reference.json in the host
++// experiment. No NSError or disk-operation success is manufactured here.
++NSError *DMNSError(void)
++{
++    return nil;
++}
+diff --git a/src/private-frameworks/MobileAsset/CMakeLists.txt b/src/private-frameworks/MobileAsset/CMakeLists.txt
+index 44bb26bf..541aa651 100644
+--- a/src/private-frameworks/MobileAsset/CMakeLists.txt
++++ b/src/private-frameworks/MobileAsset/CMakeLists.txt
+@@ -22,7 +22,9 @@ add_framework(MobileAsset
+     VERSION ${FRAMEWORK_VERSION}
+ 
+     SOURCES
++        src/ASAttributeConstants.m
+         src/MobileAsset.m
++        src/Pallas.m
+         src/MAProgressHandler.m
+         src/MAAsset.m
+         src/MAAssetQuery.m
+diff --git a/src/private-frameworks/MobileAsset/include/MobileAsset/MAAsset.h b/src/private-frameworks/MobileAsset/include/MobileAsset/MAAsset.h
+index 6c8a820c..ba50fa35 100644
+--- a/src/private-frameworks/MobileAsset/include/MobileAsset/MAAsset.h
++++ b/src/private-frameworks/MobileAsset/include/MobileAsset/MAAsset.h
+@@ -42,19 +42,20 @@ typedef NS_ENUM(NSInteger, MADownLoadResult) {
+ 	MADownloadDaemonNotReady = -1, // errors are usually negative
+ };
+ 
+-// i'm not even sure if this is supposed to exist
++/* Values from the original Intel MobileAsset state table. */
+ typedef NS_ENUM(NSInteger, MAAssetState) {
+-	MAInstalled,
+-	MAUnknown,
+-	MADownloading,
+-	MANotPresent,
+-
+-	MAInstalledOnly, // not sure if this one is like the others
++    MAUnknown = 0, MANotPresent = 1, MAInstalled = 2,
++    MAInstalledNotInCatalog = 3, MADownloading = 4,
++    MARequiredByOs = 5, MAInstalledWithOs = 6,
+ };
+ 
+ @interface MAAsset : NSObject
+ 
+-@property () NSDictionary* attributes;
++- (instancetype)initWithAttributes:(NSDictionary*)attributes;
++@property (copy) NSDictionary* attributes;
++@property (readonly) NSString* assetType;
++@property (readonly) NSString* assetId;
++@property (readonly) NSString* purpose;
+ @property () MAAssetState state;
+ 
+ @end
+diff --git a/src/private-frameworks/MobileAsset/include/MobileAsset/MAAssetQuery.h b/src/private-frameworks/MobileAsset/include/MobileAsset/MAAssetQuery.h
+index 2efcce66..971ce004 100644
+--- a/src/private-frameworks/MobileAsset/include/MobileAsset/MAAssetQuery.h
++++ b/src/private-frameworks/MobileAsset/include/MobileAsset/MAAssetQuery.h
+@@ -24,17 +24,41 @@
+ // seems to be implicitly depended on by `OTATrustUtilities.m` in Security
+ #import <MobileAsset/ASAssetQuery.h>
+ 
+-// really not sure if this is an enum
++/* Values and method ABI verified against the original Intel framework. */
+ typedef NS_ENUM(NSInteger, MAQueryResult) {
+-	MAQuerySuccessful = 0,
++    MAQuerySuccessful = 0, MAQueryXpcError = 1, MAQueryCatalogNotDownloaded = 2,
++    MAQueryFailed = 3, MAQueryDaemonExit = 4, MAQueryNotEntitled = 5,
++    MAQueryCannotCreateMessage = 6, MAQueryNilAssetType = 7,
++    MAQueryParamsEncodeFailure = 8, MAQueryBeforeFirstUnlock = 9,
++    MAQueryCouldNotEncodeResults = 10, MAQueryXpcLengthError = 11,
++    MAQueryUnknownResult = 12, MAQueryTooManyResults = 13, MAQueryHasAllowedDifferences = 14,
++};
++typedef NS_ENUM(NSInteger, MAQueryReturnTypes) {
++    MACatalogOnly = 0, MAInstalledOnly = 1, MAUnionOfCatalogInstalled = 2,
++    MAPreinstalledOnly = 3, MACatalogButNotInstalledOnly = 4,
++    MAStrictlyCatalogOnly = 5, MAStrictlyObsoleteOnly = 6,
+ };
+-
+ @interface MAAssetQuery : NSObject
+-
+-- (MAQueryResult) queryMetaDataSync;
+-
+-// guessing it's readonly, since it wouldn't really make sense for clients to be able to
+-// write results to a query
++- (instancetype)initWithType:(NSString*)assetType;
++- (instancetype)initWithType:(NSString*)assetType andPurpose:(NSString*)purpose;
++- (NSInteger)addKeyValuePair:(NSString*)key with:(NSString*)value;
++- (NSInteger)addKeyValueArray:(NSString*)key with:(NSArray*)values;
++- (NSInteger)addKeyValueNull:(NSString*)key;
++- (void)returnTypes:(MAQueryReturnTypes)types;
++- (MAQueryReturnTypes)returnTypes;
++- (MAQueryResult)queryMetaDataSync;
++- (void)queryMetaData:(void (^)(MAQueryResult result))completion;
++- (void)queryMetaDataWithError:(void (^)(MAQueryResult result, NSError* error))completion;
++@property (readonly) NSString* assetType;
++@property (copy) NSString* purpose;
++@property (readonly) NSArray* queryParams;
+ @property (readonly) NSArray<MAAsset*>* results;
+-
++@property (readonly) NSSet<NSString*>* assetIds;
++@property (readonly) MAQueryResult resultCode;
++@property (readonly) BOOL isDone;
++@property BOOL doNotBlockBeforeFirstUnlock;
++@property BOOL doNotBlockOnNetworkStatus;
++@property (readonly) NSDate* postedDate;
++@property (readonly) NSDate* lastFetchDate;
++- (char)isCatalogFetchedFromLiveServer;
+ @end
+diff --git a/src/private-frameworks/MobileAsset/include/MobileAsset/MobileAsset.h b/src/private-frameworks/MobileAsset/include/MobileAsset/MobileAsset.h
+index f97114b4..1eb21a88 100644
+--- a/src/private-frameworks/MobileAsset/include/MobileAsset/MobileAsset.h
++++ b/src/private-frameworks/MobileAsset/include/MobileAsset/MobileAsset.h
+@@ -23,6 +23,11 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++extern NSString *const ASAttributeDownloadSize;
++extern NSString *const ASAttributeUnarchivedSize;
++#include <stdbool.h>
++#include <stdint.h>
++
+ #import <MobileAsset/MAProgressHandler.h>
+ #import <MobileAsset/MAAsset.h>
+ #import <MobileAsset/MAAssetQuery.h>
+@@ -44,12 +49,19 @@ void* ASSetAssetServerURLForAssetType(void);
+ void* ASSetDefaultAssetServerURLForAssetType(void);
+ void* ASSetLogLevel(void);
+ void* MACleanV1Repository(void);
+-void* MAGetPallasAudience(void);
++NSString* MAGetPallasAudience(NSString* assetType);
++int64_t MAGetPallasEnabled(NSString* assetType, bool* enabled);
++int64_t _MAsendGetPallasEnabled(NSString* assetType, bool* enabled);
++int64_t MASetPallasEnabled(NSString* assetType, BOOL enabled);
++int64_t _MAsendSetPallasEnabled(NSString* assetType, bool enabled);
++int64_t MASetPallasAudienceForType(NSString* audience, NSString* assetType);
++int64_t MASetPallasUrlForType(NSURL* url, NSString* assetType);
++int64_t _MAsendSetPallasUrlForType(NSURL* url, NSString* assetType);
+ void* MAMigrateAssets(void);
+ void* MAPurgeAll(void);
+ void* MASendRepairState(void);
+-void* MASetPallasAudience(void);
+-void* MASetPallasUrl(void);
++int64_t MASetPallasAudience(NSString* audience);
++int64_t MASetPallasUrl(NSURL* url);
+ void* MASetServerUrlOverride(void);
+ void* MobileAssetQueryCreate(void);
+ void* MobileAssetQueryCreateArrayOfKnownAssets(void);
+@@ -72,11 +84,11 @@ void* _MAsendDownloadAsset(void);
+ void* _MAsendDownloadMetaData(void);
+ void* _MAsendDumpClientAccess(void);
+ void* _MAsendGarbageCollect(void);
+-void* _MAsendGetPallasAudience(void);
++NSString* _MAsendGetPallasAudience(NSString* assetType);
+ void* _MAsendPurgeAsset(void);
+ void* _MAsendQueryMetaData(void);
+-void* _MAsendSetPallasAudience(void);
+-void* _MAsendSetPallasUrl(void);
++int64_t _MAsendSetPallasAudience(NSString* audience, NSString* assetType);
++int64_t _MAsendSetPallasUrl(NSURL* url);
+ void* _MAsendUpdateClientAccess(void);
+ void* _MobileAssetGarbageCollectionBehaviorForAttributes(void);
+ void* _MobileAssetLog(void);
+diff --git a/src/private-frameworks/MobileAsset/src/ASAttributeConstants.m b/src/private-frameworks/MobileAsset/src/ASAttributeConstants.m
+new file mode 100644
+index 00000000..3719338c
+--- /dev/null
++++ b/src/private-frameworks/MobileAsset/src/ASAttributeConstants.m
+@@ -0,0 +1,4 @@
++#import <Foundation/Foundation.h>
++
++NSString *const ASAttributeDownloadSize = @"_DownloadSize";
++NSString *const ASAttributeUnarchivedSize = @"_UnarchivedSize";
+diff --git a/src/private-frameworks/MobileAsset/src/MAAsset.m b/src/private-frameworks/MobileAsset/src/MAAsset.m
+index 492dc1a5..f7c5bd2c 100644
+--- a/src/private-frameworks/MobileAsset/src/MAAsset.m
++++ b/src/private-frameworks/MobileAsset/src/MAAsset.m
+@@ -19,16 +19,31 @@
+ 
+ #import <MobileAsset/MAAsset.h>
+ 
+-@implementation MAAsset
+-
+-- (NSMethodSignature *)methodSignatureForSelector:(SEL)aSelector
++@implementation MAAsset {
++    NSString* _assetType;
++    NSString* _assetId;
++    NSString* _purpose;
++}
++@synthesize attributes = _attributes, state = _state;
++@synthesize assetType = _assetType, assetId = _assetId, purpose = _purpose;
++- (instancetype)initWithAttributes:(NSDictionary*)record
+ {
+-    return [NSMethodSignature signatureWithObjCTypes: "v@:"];
++    if (!(self = [super init])) return nil;
++    if (![record isKindOfClass:[NSDictionary class]]) { [self release]; return nil; }
++    id properties = [record objectForKey:@"AssetProperties"];
++    id added = [record objectForKey:@"AssetAddedProperties"];
++    if (![properties isKindOfClass:[NSDictionary class]] ||
++        (added && ![added isKindOfClass:[NSDictionary class]])) { [self release]; return nil; }
++    _attributes = [properties copy];
++    _purpose = [[properties objectForKey:@"AssetPurpose"] copy];
++    _state = [[added objectForKey:@"AssetState"] integerValue];
++    _assetType = [[added objectForKey:@"AssetType"] copy];
++    _assetId = [[added objectForKey:@"AssetId"] copy];
++    return self;
+ }
+-
+-- (void)forwardInvocation:(NSInvocation *)anInvocation
++- (void)dealloc
+ {
+-    NSLog(@"Stub called: %@ in %@", NSStringFromSelector([anInvocation selector]), [self class]);
++    [_attributes release]; [_assetType release]; [_assetId release]; [_purpose release];
++    [super dealloc];
+ }
+-
+ @end
+diff --git a/src/private-frameworks/MobileAsset/src/MAAssetQuery.m b/src/private-frameworks/MobileAsset/src/MAAssetQuery.m
+index 3ad7c3b0..33aa82d3 100644
+--- a/src/private-frameworks/MobileAsset/src/MAAssetQuery.m
++++ b/src/private-frameworks/MobileAsset/src/MAAssetQuery.m
+@@ -18,22 +18,194 @@
+ */
+ 
+ #import <MobileAsset/MAAssetQuery.h>
++#include <dispatch/dispatch.h>
++#include <uuid/uuid.h>
++#include <xpc/xpc.h>
+ 
+-@implementation MAAssetQuery
++static dispatch_queue_t queryCallbackQueue(void)
++{
++    static dispatch_queue_t queue;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{ queue = dispatch_queue_create("com.apple.MobileAsset.query.callbacks", DISPATCH_QUEUE_SERIAL); });
++    return queue;
++}
++static BOOL queryResultFailed(MAQueryResult code)
++{
++    return code != MAQuerySuccessful && code != MAQueryCatalogNotDownloaded && code != MAQueryHasAllowedDifferences;
++}
++static NSError* queryError(MAQueryResult code)
++{
++    if (!queryResultFailed(code)) return nil;
++    return [NSError errorWithDomain:@"com.apple.MobileAssetError.Query" code:code
++        userInfo:@{NSLocalizedDescriptionKey:[NSString stringWithFormat:@"MobileAsset query failed (%ld)", (long)code]}];
++}
+ 
+-- (MAQueryResult)queryMetaDataSync {
+-    NSLog(@"Stub called: queryMetaDataSync in %@", [self class]);
+-    return MAQuerySuccessful;
++@implementation MAAssetQuery {
++    NSString* _assetType;
++    NSString* _purpose;
++    NSMutableArray* _queryParams;
++    NSArray* _results;
++    NSSet* _assetIds;
++    MAQueryReturnTypes _returnTypes;
++    MAQueryResult _resultCode;
++    BOOL _isDone, _doNotBlockBeforeFirstUnlock, _doNotBlockOnNetworkStatus, _isPallasResult;
++    NSDate* _postedDate;
++    NSDate* _lastFetchDate;
++}
++@synthesize assetType = _assetType, purpose = _purpose, results = _results, assetIds = _assetIds;
++@synthesize resultCode = _resultCode, isDone = _isDone, postedDate = _postedDate, lastFetchDate = _lastFetchDate;
++@synthesize doNotBlockBeforeFirstUnlock = _doNotBlockBeforeFirstUnlock, doNotBlockOnNetworkStatus = _doNotBlockOnNetworkStatus;
++- (instancetype)init { return [self initWithType:nil]; }
++- (instancetype)initWithType:(NSString*)type { return [self initWithType:type andPurpose:nil]; }
++- (instancetype)initWithType:(NSString*)type andPurpose:(NSString*)purpose
++{
++    if ((self = [super init])) {
++        _assetType = [type copy]; _purpose = [purpose copy];
++        _queryParams = [[NSMutableArray alloc] init];
++        _resultCode = MAQueryUnknownResult;
++    }
++    return self;
++}
++- (void)dealloc
++{
++    [_assetType release]; [_purpose release]; [_queryParams release]; [_results release];
++    [_assetIds release]; [_postedDate release]; [_lastFetchDate release]; [super dealloc];
++}
++- (NSArray*)queryParams { @synchronized(self) { return [[_queryParams copy] autorelease]; } }
++- (void)returnTypes:(MAQueryReturnTypes)types { @synchronized(self) { _returnTypes = types; } }
++- (MAQueryReturnTypes)returnTypes { @synchronized(self) { return _returnTypes; } }
++- (char)isCatalogFetchedFromLiveServer { return _isPallasResult; }
++- (NSInteger)addKeyValueArray:(NSString*)key with:(NSArray*)values
++{
++    if (![key isKindOfClass:[NSString class]] || ![values isKindOfClass:[NSArray class]]) return 1;
++    for (id value in values)
++        if (![value isKindOfClass:[NSString class]] && value != [NSNull null]) return 1;
++    NSDictionary* param = @{ @"queryKey":key, @"queryValue":[[values copy] autorelease] };
++    @synchronized(self) { [_queryParams addObject:param]; }
++    return 0;
++}
++- (NSInteger)addKeyValuePair:(NSString*)key with:(NSString*)value
++{
++    if (![value isKindOfClass:[NSString class]]) return 1;
++    return [self addKeyValueArray:key with:@[value]];
+ }
++- (NSInteger)addKeyValueNull:(NSString*)key { return [self addKeyValueArray:key with:@[[NSNull null]]]; }
+ 
+-- (NSMethodSignature *)methodSignatureForSelector:(SEL)aSelector
++/* Decode only Foundation property-list classes. Never instantiate arbitrary
++ * classes supplied by the peer. No catalog or download success is synthesized. */
++- (MAQueryResult)decodeQueryReply:(xpc_object_t)reply
+ {
+-    return [NSMethodSignature signatureWithObjCTypes: "v@:"];
++    if (!reply || xpc_get_type(reply) != XPC_TYPE_DICTIONARY) return MAQueryXpcError;
++    xpc_object_t status = xpc_dictionary_get_value(reply, "Result");
++    if (!status || xpc_get_type(status) != XPC_TYPE_INT64) return MAQueryUnknownResult;
++    MAQueryResult code = xpc_int64_get_value(status);
++    if (queryResultFailed(code)) return code;
++    xpc_object_t value = xpc_dictionary_get_value(reply, "xmlData");
++    if (!value && code == MAQueryCatalogNotDownloaded) return code;
++    if (!value || xpc_get_type(value) != XPC_TYPE_DATA) return MAQueryCouldNotEncodeResults;
++    size_t length = 0; const void* bytes = xpc_dictionary_get_data(reply, "xmlData", &length);
++    if (!bytes || !length) return MAQueryXpcLengthError;
++    @try {
++        NSData* data = [NSData dataWithBytes:bytes length:length];
++        NSError* error = nil;
++        NSSet* allowed = [NSSet setWithObjects:[NSDictionary class], [NSArray class], [NSString class],
++            [NSNumber class], [NSDate class], [NSData class], [NSNull class], nil];
++        id payload = [NSKeyedUnarchiver unarchivedObjectOfClasses:allowed fromData:data error:&error];
++        if (error || ![payload isKindOfClass:[NSDictionary class]]) return MAQueryCouldNotEncodeResults;
++        id records = [payload objectForKey:@"assetsToFrameWork"];
++        id metadata = [payload objectForKey:@"metaToFrameWork"];
++        id catalog = [payload objectForKey:@"catalogInfoToFrameWork"];
++        if (![records isKindOfClass:[NSArray class]] ||
++            (metadata && ![metadata isKindOfClass:[NSDictionary class]]) ||
++            (catalog && ![catalog isKindOfClass:[NSDictionary class]])) return MAQueryCouldNotEncodeResults;
++        NSMutableArray* assets = [NSMutableArray array]; NSMutableSet* ids = [NSMutableSet set];
++        for (id record in records) {
++            if (![record isKindOfClass:[NSDictionary class]]) return MAQueryCouldNotEncodeResults;
++            id properties = [record objectForKey:@"AssetProperties"];
++            id added = [record objectForKey:@"AssetAddedProperties"];
++            if (![properties isKindOfClass:[NSDictionary class]] || ![added isKindOfClass:[NSDictionary class]] ||
++                ![[added objectForKey:@"AssetId"] isKindOfClass:[NSString class]] ||
++                ![[added objectForKey:@"AssetType"] isKindOfClass:[NSString class]] ||
++                ![[added objectForKey:@"AssetState"] isKindOfClass:[NSNumber class]]) return MAQueryCouldNotEncodeResults;
++            MAAsset* asset = [[[MAAsset alloc] initWithAttributes:record] autorelease];
++            if (!asset) return MAQueryCouldNotEncodeResults;
++            [assets addObject:asset]; [ids addObject:asset.assetId];
++        }
++        id posted = [metadata objectForKey:@"postedDate"], fetched = [metadata objectForKey:@"lastTimeChecked"];
++        id live = [catalog objectForKey:@"isLiveServer"];
++        if ((posted && ![posted isKindOfClass:[NSDate class]]) || (fetched && ![fetched isKindOfClass:[NSDate class]]) ||
++            (live && ![live isKindOfClass:[NSNumber class]])) return MAQueryCouldNotEncodeResults;
++        _results = [assets copy]; _assetIds = [ids copy];
++        _postedDate = [posted retain]; _lastFetchDate = [fetched retain]; _isPallasResult = [live boolValue];
++        return code;
++    } @catch (NSException* exception) { return MAQueryCouldNotEncodeResults; }
+ }
+ 
+-- (void)forwardInvocation:(NSInvocation *)anInvocation
++- (MAQueryResult)queryMetaDataSync
+ {
+-    NSLog(@"Stub called: %@ in %@", NSStringFromSelector([anInvocation selector]), [self class]);
++    @synchronized(self) {
++        _isDone = NO; _isPallasResult = NO;
++        [_results release]; _results = nil; [_assetIds release]; _assetIds = nil;
++        [_postedDate release]; _postedDate = nil; [_lastFetchDate release]; _lastFetchDate = nil;
++        MAQueryResult result = MAQueryNilAssetType;
++        if ([_assetType isKindOfClass:[NSString class]]) {
++            NSError* error = nil;
++            NSData* params = [NSKeyedArchiver archivedDataWithRootObject:_queryParams requiringSecureCoding:YES error:&error];
++            result = MAQueryParamsEncodeFailure;
++            if (params && !error) {
++                xpc_object_t request = xpc_dictionary_create(NULL,NULL,0);
++                result = MAQueryCannotCreateMessage;
++                if (request) {
++                    xpc_dictionary_set_string(request,"AssetType",[_assetType UTF8String]);
++                    xpc_dictionary_set_int64(request,"messageAction",1);
++                    xpc_dictionary_set_int64(request,"returnAssetTypes",_returnTypes);
++                    xpc_dictionary_set_bool(request,"doNotBlockBeforeFirstUnlock",_doNotBlockBeforeFirstUnlock);
++                    xpc_dictionary_set_bool(request,"doNotBlockOnNetworkStatus",_doNotBlockOnNetworkStatus);
++                    xpc_dictionary_set_data(request,"QueryParams",[params bytes],[params length]);
++                    if (_purpose) xpc_dictionary_set_string(request,"Purpose",[_purpose UTF8String]);
++                    NSString* client = [[NSBundle mainBundle] bundleIdentifier];
++                    if (!client) client = [NSString stringWithFormat:@"%s", getprogname()];
++                    xpc_dictionary_set_string(request,"clientName",[client UTF8String]);
++                    xpc_dictionary_set_string(request,"requestType","requestTypeSync");
++                    result = MAQueryXpcError;
++                    for (unsigned attempt = 0; attempt < 2; ++attempt) {
++                        xpc_connection_t connection = xpc_connection_create("com.apple.mobileassetd.v2",NULL);
++                        if (!connection) break;
++                        uuid_t identifier; char text[37]; uuid_generate(identifier); uuid_unparse_upper(identifier,text);
++                        xpc_dictionary_set_string(request,"connectionIdentifier",text);
++                        xpc_connection_set_event_handler(connection, ^(xpc_object_t event) { (void)event; });
++                        xpc_connection_resume(connection);
++                        xpc_object_t reply = xpc_connection_send_message_with_reply_sync(connection,request);
++                        BOOL retry = reply == XPC_ERROR_CONNECTION_INTERRUPTED && attempt == 0;
++                        result = [self decodeQueryReply:reply];
++                        if (reply) xpc_release(reply);
++                        xpc_connection_cancel(connection); xpc_release(connection);
++                        if (!retry) break;
++                    }
++                    xpc_release(request);
++                }
++            }
++        }
++        _resultCode = result; _isDone = YES; return result;
++    }
+ }
+ 
++/* The public asynchronous ABI uses a worker for the real synchronous wire
++ * transaction, then the shared serial callback queue. It does not depend on a
++ * run loop or on the caller retaining either the query or its stack block. */
++- (void)queryMetaDataWithError:(void (^)(MAQueryResult,NSError*))completion
++{
++    @synchronized(self) { _isDone = NO; }
++    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT,0), ^{
++        @autoreleasepool {
++            MAQueryResult result = [self queryMetaDataSync];
++            NSError* error = queryError(result);
++            dispatch_async(queryCallbackQueue(), ^{ @autoreleasepool { if (completion) completion(result,error); } });
++        }
++    });
++}
++- (void)queryMetaData:(void (^)(MAQueryResult))completion
++{
++    [self queryMetaDataWithError:^(MAQueryResult result,NSError* error) { if (completion) completion(result); }];
++}
+ @end
+diff --git a/src/private-frameworks/MobileAsset/src/MobileAsset.m b/src/private-frameworks/MobileAsset/src/MobileAsset.m
+index 19f5b15d..a3cc0f66 100644
+--- a/src/private-frameworks/MobileAsset/src/MobileAsset.m
++++ b/src/private-frameworks/MobileAsset/src/MobileAsset.m
+@@ -77,12 +77,6 @@ void* MACleanV1Repository(void)
+     return NULL;
+ }
+ 
+-void* MAGetPallasAudience(void)
+-{
+-    if (verbose) puts("STUB: MAGetPallasAudience called");
+-    return NULL;
+-}
+-
+ void* MAMigrateAssets(void)
+ {
+     if (verbose) puts("STUB: MAMigrateAssets called");
+@@ -101,18 +95,6 @@ void* MASendRepairState(void)
+     return NULL;
+ }
+ 
+-void* MASetPallasAudience(void)
+-{
+-    if (verbose) puts("STUB: MASetPallasAudience called");
+-    return NULL;
+-}
+-
+-void* MASetPallasUrl(void)
+-{
+-    if (verbose) puts("STUB: MASetPallasUrl called");
+-    return NULL;
+-}
+-
+ void* MASetServerUrlOverride(void)
+ {
+     if (verbose) puts("STUB: MASetServerUrlOverride called");
+@@ -245,12 +227,6 @@ void* _MAsendGarbageCollect(void)
+     return NULL;
+ }
+ 
+-void* _MAsendGetPallasAudience(void)
+-{
+-    if (verbose) puts("STUB: _MAsendGetPallasAudience called");
+-    return NULL;
+-}
+-
+ void* _MAsendPurgeAsset(void)
+ {
+     if (verbose) puts("STUB: _MAsendPurgeAsset called");
+@@ -263,18 +239,6 @@ void* _MAsendQueryMetaData(void)
+     return NULL;
+ }
+ 
+-void* _MAsendSetPallasAudience(void)
+-{
+-    if (verbose) puts("STUB: _MAsendSetPallasAudience called");
+-    return NULL;
+-}
+-
+-void* _MAsendSetPallasUrl(void)
+-{
+-    if (verbose) puts("STUB: _MAsendSetPallasUrl called");
+-    return NULL;
+-}
+-
+ void* _MAsendUpdateClientAccess(void)
+ {
+     if (verbose) puts("STUB: _MAsendUpdateClientAccess called");
+diff --git a/src/private-frameworks/MobileAsset/src/Pallas.m b/src/private-frameworks/MobileAsset/src/Pallas.m
+new file mode 100644
+index 00000000..9e3bcfea
+--- /dev/null
++++ b/src/private-frameworks/MobileAsset/src/Pallas.m
+@@ -0,0 +1,193 @@
++/*
++ * This file is part of Darling, licensed under GPL-3.0-or-later.
++ *
++ * MobileAsset's Pallas query is a synchronous service operation. Its return
++ * value is a response code; the boolean state is a separate output argument.
++ * This implements the client protocol, not the MobileAsset download daemon.
++ */
++#import <MobileAsset/MobileAsset.h>
++#include <mach/mach.h>
++#include <servers/bootstrap.h>
++#include <stdlib.h>
++#include <uuid/uuid.h>
++#include <xpc/xpc.h>
++
++static const char* const pallasService = "com.apple.mobileassetd.v2";
++
++static xpc_object_t createPallasRequest(NSString* assetType, int64_t action)
++{
++    xpc_object_t request = xpc_dictionary_create(NULL, NULL, 0);
++    if (!request) return NULL;
++    if ([assetType isKindOfClass:[NSString class]])
++        xpc_dictionary_set_string(request, "AssetType", [assetType UTF8String]);
++    xpc_dictionary_set_int64(request, "messageAction", action);
++    return request;
++}
++
++/* Returns an owned reply or NULL. The status is independent of any payload. */
++static xpc_object_t sendPallasRequest(xpc_object_t request, int64_t* result)
++{
++    *result = 1;
++    if (!request) return NULL;
++    @autoreleasepool {
++        NSString* clientName = [[NSBundle mainBundle] bundleIdentifier];
++        if (!clientName) clientName = [NSString stringWithFormat:@"%s", getprogname()];
++        if (!clientName) clientName = @"UnknownClient";
++        xpc_dictionary_set_string(request, "clientName", [clientName UTF8String]);
++        xpc_dictionary_set_string(request, "requestType", "requestTypeSync");
++
++        for (unsigned attempt = 0; attempt < 2; ++attempt) {
++            /* A real bootstrap lookup also avoids waiting on an unconnected
++             * channel in Darling's old XPC backend when the service is absent.
++             * A missing service is an operation failure, never 'disabled/OK'. */
++            mach_port_t port = MACH_PORT_NULL;
++            if (bootstrap_look_up(bootstrap_port, (char*)pallasService, &port) != KERN_SUCCESS)
++                break;
++            mach_port_deallocate(mach_task_self(), port);
++            xpc_connection_t connection = xpc_connection_create(pallasService, NULL);
++            if (!connection) break;
++            uuid_t identifier; char text[37];
++            uuid_generate(identifier); uuid_unparse_upper(identifier, text);
++            xpc_dictionary_set_string(request, "connectionIdentifier", text);
++            xpc_connection_set_event_handler(connection, ^(xpc_object_t event) { (void)event; });
++            xpc_connection_resume(connection);
++            xpc_object_t reply = xpc_connection_send_message_with_reply_sync(connection, request);
++            bool retry = reply == XPC_ERROR_CONNECTION_INTERRUPTED && attempt == 0;
++            if (reply && xpc_get_type(reply) == XPC_TYPE_DICTIONARY) {
++                *result = xpc_dictionary_get_int64(reply, "Result");
++                xpc_connection_cancel(connection);
++                xpc_release(connection);
++                return reply;
++            }
++            if (reply) xpc_release(reply);
++            xpc_connection_cancel(connection);
++            xpc_release(connection);
++            if (!retry) break;
++        }
++        return NULL;
++    }
++}
++
++static int64_t sendPallasStatus(xpc_object_t request)
++{
++    int64_t result;
++    xpc_object_t reply = sendPallasRequest(request, &result);
++    if (reply) xpc_release(reply);
++    if (request) xpc_release(request);
++    return result;
++}
++
++int64_t _MAsendGetPallasEnabled(NSString* assetType, bool* enabled)
++{
++    if (enabled) *enabled = false;
++    @autoreleasepool {
++        xpc_object_t request = createPallasRequest(assetType, 32);
++        int64_t result;
++        xpc_object_t reply = sendPallasRequest(request, &result);
++        if (result == 0 && enabled) *enabled = xpc_dictionary_get_bool(reply, "pallasEnabled");
++        if (reply) xpc_release(reply);
++        if (request) xpc_release(request);
++        return result;
++    }
++}
++
++int64_t MAGetPallasEnabled(NSString* assetType, bool* enabled)
++{
++    bool value = true;
++    int64_t result = _MAsendGetPallasEnabled(assetType, &value);
++    if (enabled) *enabled = value;
++    return result;
++}
++
++int64_t _MAsendSetPallasEnabled(NSString* assetType, bool enabled)
++{
++    @autoreleasepool {
++        xpc_object_t request = createPallasRequest(assetType, 33);
++        if (request) xpc_dictionary_set_bool(request, "pallasEnabled", enabled);
++        return sendPallasStatus(request);
++    }
++}
++
++int64_t MASetPallasEnabled(NSString* assetType, BOOL enabled)
++{
++    return _MAsendSetPallasEnabled(assetType, enabled != NO);
++}
++
++NSString* _MAsendGetPallasAudience(NSString* assetType)
++{
++    NSString* audience = nil;
++    @autoreleasepool {
++        xpc_object_t request = createPallasRequest(assetType, 20);
++        /* The native getter returns an empty constant on allocation failure,
++         * but nil on a service error or absent/wrongly typed audience field. */
++        if (!request) return @"";
++        int64_t result;
++        xpc_object_t reply = sendPallasRequest(request, &result);
++        if (result == 0) {
++            const char* text = xpc_dictionary_get_string(reply, "pallasAudience");
++            if (text) audience = [[NSString alloc] initWithUTF8String:text];
++        }
++        if (reply) xpc_release(reply);
++        xpc_release(request);
++    }
++    return [audience autorelease];
++}
++
++NSString* MAGetPallasAudience(NSString* assetType)
++{
++    return _MAsendGetPallasAudience(assetType);
++}
++
++int64_t _MAsendSetPallasAudience(NSString* audience, NSString* assetType)
++{
++    @autoreleasepool {
++        if (audience && ![audience isKindOfClass:[NSString class]]) return 1;
++        xpc_object_t request = createPallasRequest(assetType, 10);
++        if (request && audience)
++            xpc_dictionary_set_string(request, "pallasAudience", [audience UTF8String]);
++        return sendPallasStatus(request);
++    }
++}
++
++int64_t MASetPallasAudienceForType(NSString* audience, NSString* assetType)
++{
++    return _MAsendSetPallasAudience(audience, assetType);
++}
++
++int64_t MASetPallasAudience(NSString* audience)
++{
++    return _MAsendSetPallasAudience(audience, nil);
++}
++
++int64_t _MAsendSetPallasUrlForType(NSURL* url, NSString* assetType)
++{
++    @autoreleasepool {
++        xpc_object_t request = createPallasRequest(assetType, 9);
++        if (!request) return 1;
++        if (url) {
++            if (![url isKindOfClass:[NSURL class]]) {
++                xpc_release(request);
++                return 5;
++            }
++            xpc_dictionary_set_string(request, "pallasUrl", [[url absoluteString] UTF8String]);
++        } else {
++            xpc_dictionary_set_bool(request, "serverOverrideClear", true);
++        }
++        return sendPallasStatus(request);
++    }
++}
++
++int64_t _MAsendSetPallasUrl(NSURL* url)
++{
++    return _MAsendSetPallasUrlForType(url, nil);
++}
++
++int64_t MASetPallasUrlForType(NSURL* url, NSString* assetType)
++{
++    return _MAsendSetPallasUrlForType(url, assetType);
++}
++
++int64_t MASetPallasUrl(NSURL* url)
++{
++    return _MAsendSetPallasUrlForType(url, nil);
++}
+diff --git a/src/quarantine/CMakeLists.txt b/src/quarantine/CMakeLists.txt
+index f6582bed..dba4ec00 100644
+--- a/src/quarantine/CMakeLists.txt
++++ b/src/quarantine/CMakeLists.txt
+@@ -6,11 +6,15 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -nostdinc -D__DARWIN_UNIX03 -fPIC -w -ggdb")
+ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -nostdlib")
+ 
+ set(DYLIB_INSTALL_NAME "/usr/lib/system/libquarantine.dylib")
+-add_darling_library(system_quarantine SHARED
++set(quarantine_sources
+ 	quarantine.c
++	responsibility.c
++)
++add_darling_library(system_quarantine SHARED
++	${quarantine_sources}
+ )
+ set_target_properties(system_quarantine PROPERTIES OUTPUT_NAME "quarantine")
+-target_link_libraries(system_quarantine PRIVATE system_c system_dyld system_malloc)
++target_link_libraries(system_quarantine PRIVATE system_c system_dyld system_malloc system_kernel system_pthread)
+ make_fat(system_quarantine)
+ 
+ install(TARGETS system_quarantine DESTINATION libexec/darling/usr/lib/system)
+diff --git a/src/quarantine/include/responsibility.h b/src/quarantine/include/responsibility.h
+new file mode 100644
+index 00000000..8c691fdf
+--- /dev/null
++++ b/src/quarantine/include/responsibility.h
+@@ -0,0 +1,16 @@
++#ifndef DARLING_RESPONSIBILITY_H
++#define DARLING_RESPONSIBILITY_H
++#include <stdbool.h>
++#include <stdint.h>
++#include <spawn.h>
++#ifdef __cplusplus
++extern "C" {
++#endif
++int responsibility_spawnattrs_setdisclaim(posix_spawnattr_t* attrs, bool disclaim);
++int responsibility_spawnattrs_getdisclaim(const posix_spawnattr_t* attrs, bool* disclaim);
++pid_t responsibility_get_pid_responsible_for_pid(pid_t pid);
++uint64_t responsibility_get_uniqueid_responsible_for_pid(pid_t pid);
++#ifdef __cplusplus
++}
++#endif
++#endif
+diff --git a/src/quarantine/responsibility.c b/src/quarantine/responsibility.c
+new file mode 100644
+index 00000000..697a6177
+--- /dev/null
++++ b/src/quarantine/responsibility.c
+@@ -0,0 +1,89 @@
++/*
++ * Darling - libquarantine
++ *
++ * This library is free software; you can redistribute it and/or modify it
++ * under the terms of the GNU Lesser General Public License, version 3 or later.
++ * This library is distributed without any warranty. See LICENSE.
++ */
++#include "include/responsibility.h"
++#include <errno.h>
++#include <pthread.h>
++#include <stdlib.h>
++#include <string.h>
++
++extern int posix_spawnattr_getmacpolicyinfo_np(const posix_spawnattr_t*, const char*, void**, size_t*);
++extern int posix_spawnattr_setmacpolicyinfo_np(posix_spawnattr_t*, const char*, void*, size_t);
++extern int __mac_syscall(const char*, int, void*);
++
++struct quarantine_spawn_data {
++    uint32_t version;
++    uint32_t size;
++    uint32_t flags;
++    uint32_t reserved;
++    uint64_t extra;
++};
++_Static_assert(sizeof(struct quarantine_spawn_data) == 24, "Quarantine spawn ABI");
++static pthread_once_t spawn_once = PTHREAD_ONCE_INIT;
++static pthread_key_t spawn_key;
++static int spawn_key_error;
++
++static void make_spawn_key(void)
++{
++    spawn_key_error = pthread_key_create(&spawn_key, free);
++}
++
++int responsibility_spawnattrs_setdisclaim(posix_spawnattr_t* attrs, bool disclaim)
++{
++    struct quarantine_spawn_data* data = NULL;
++    size_t length = sizeof(*data);
++    int error = posix_spawnattr_getmacpolicyinfo_np(attrs, "Quarantine", (void**)&data, &length);
++    if (error == ESRCH) {
++        error = pthread_once(&spawn_once, make_spawn_key);
++        if (error) return error;
++        if (spawn_key_error) return spawn_key_error;
++        data = pthread_getspecific(spawn_key);
++        if (!data) {
++            data = calloc(1, sizeof(*data));
++            if (!data) return ENOMEM;
++            error = pthread_setspecific(spawn_key, data);
++            if (error) { free(data); return error; }
++        }
++        // Native libquarantine borrows one buffer per thread. The MAC policy
++        // descriptor does not own it, and destroying attrs must not free it.
++        memset(data, 0, sizeof(*data));
++        data->version = 1;
++        data->size = sizeof(*data);
++    } else if (error) return error;
++    if (length != sizeof(*data) || !data) return EINVAL;
++    data->flags = (data->flags & ~1u) | (disclaim ? 1u : 0u);
++    return posix_spawnattr_setmacpolicyinfo_np(attrs, "Quarantine", data, sizeof(*data));
++}
++
++int responsibility_spawnattrs_getdisclaim(const posix_spawnattr_t* attrs, bool* disclaim)
++{
++    struct quarantine_spawn_data* data = NULL;
++    size_t length = 0;
++    int error = posix_spawnattr_getmacpolicyinfo_np(attrs, "Quarantine", (void**)&data, &length);
++    if (error) return error;
++    if (length != sizeof(*data) || !data) return EINVAL;
++    if (disclaim) *disclaim = (data->flags & 1) != 0;
++    return 0;
++}
++
++static int get_responsibility(pid_t pid, pid_t* responsible, uint64_t* unique)
++{
++    uint64_t args[5] = {(uint64_t)(int64_t)pid, (uintptr_t)responsible, (uintptr_t)unique, 0, 0};
++    return __mac_syscall("Quarantine", 180, args);
++}
++
++pid_t responsibility_get_pid_responsible_for_pid(pid_t pid)
++{
++    pid_t result = 0;
++    return get_responsibility(pid, &result, NULL) ? -1 : result;
++}
++
++uint64_t responsibility_get_uniqueid_responsible_for_pid(pid_t pid)
++{
++    uint64_t result = 0;
++    return get_responsibility(pid, NULL, &result) ? UINT64_MAX : result;
++}
+diff --git a/src/sandbox/CMakeLists.txt b/src/sandbox/CMakeLists.txt
+index 367cf999..76afcd83 100644
+--- a/src/sandbox/CMakeLists.txt
++++ b/src/sandbox/CMakeLists.txt
+@@ -1,9 +1,14 @@
+ project(libsandbox)
+ 
+ set(DYLIB_INSTALL_NAME "/usr/lib/system/libsystem_sandbox.dylib")
++set(sandbox_sources
++	sandbox.c
++	check.c
++	extension.c
++)
+ add_circular(system_sandbox FAT
+ 	SOURCES
+-	sandbox.c
++	${sandbox_sources}
+ 
+ 	SIBLINGS
+ 		system_dyld
+diff --git a/src/sandbox/check.c b/src/sandbox/check.c
+new file mode 100644
+index 00000000..912d67d8
+--- /dev/null
++++ b/src/sandbox/check.c
+@@ -0,0 +1,77 @@
++/* Intel Sandbox query ABI, checked against the original native implementation.
++ * The policy supplies the decision. An absent policy remains a real error.
++ */
++#include "sandbox.h"
++#include <stdarg.h>
++#include <errno.h>
++#include <stdio.h>
++#include <string.h>
++#include <stdlib.h>
++
++extern int __mac_syscall(const char *, int, void *);
++
++const enum sandbox_filter_type SANDBOX_CHECK_NO_REPORT = 0x40000000;
++const enum sandbox_filter_type SANDBOX_CHECK_CANONICAL = 0x20000000;
++const enum sandbox_filter_type SANDBOX_CHECK_NOFOLLOW = 0x10000000;
++const enum sandbox_filter_type SANDBOX_CHECK_NO_APPROVAL = 0;
++const enum sandbox_filter_type SANDBOX_CHECK_ALLOW_APPROVAL = 0x08000000;
++const enum sandbox_filter_type SANDBOX_CHECK_POSIX_READABLE = 0x04000000;
++const enum sandbox_filter_type SANDBOX_CHECK_POSIX_WRITEABLE = 0x02000000;
++
++static int check_common(uint64_t pid, uint64_t version, uint64_t identity_flags,
++                        const char *operation, uint32_t filter, va_list values)
++{
++    static const uint16_t selectors[20] = {0,1,6,7,25,27,28,33,34,35,240,241,50,19,65,45,75,5,52,69};
++    uint64_t result=0, args[20]={0}, pair[2]={0};
++    if (operation && !strcmp(operation,"iokit-open")) {
++        fprintf(stderr,"sandbox operation \"%s\" is obsolete; replace with \"%s\"\n",operation,"iokit-open-user-client");
++        operation="iokit-open-user-client";
++    }
++    args[0]=(uintptr_t)&result;args[1]=pid;args[2]=(uintptr_t)operation;
++    args[5]=identity_flags;args[6]=version;
++    static const uint8_t policy_bits[6]={1,2,8,16,32,64};
++    for (unsigned i=0;i<6;i++) if (filter & (1u<<(30-i))) args[5]|=policy_bits[i];
++    unsigned kind=filter & 0x81ffffffu;
++    if (kind>=20) {errno=EINVAL;return -1;}
++    args[3]=selectors[kind];
++    switch (kind) {
++        case 0:break;
++        case 10:case 14:case 16:case 18:
++            args[4]=(uint32_t)va_arg(values,int);break;
++        case 9:
++            pair[0]=(uintptr_t)va_arg(values,const void *);
++            pair[1]=(uint64_t)(int64_t)va_arg(values,int);
++            args[4]=(uintptr_t)pair;break;
++        case 11: {
++            const uint32_t *first=va_arg(values,const uint32_t *);
++            const uint64_t *second=va_arg(values,const uint64_t *);
++            pair[0]=*second;pair[1]=*first;args[4]=(uintptr_t)pair;break;
++        }
++        default:args[4]=(uintptr_t)va_arg(values,const void *);break;
++    }
++    int status=__mac_syscall("Sandbox",2,args);
++    int saved_errno=errno;
++    if (getenv("DARLING_SANDBOX_TRACE")) {
++        static unsigned count;
++        if (__atomic_fetch_add(&count,1,__ATOMIC_RELAXED)<128)
++            fprintf(stderr,"DARLING_SANDBOX_QUERY pid=%llu version=%llu operation=%s filter=%#x policy_flags=%#llx status=%d decision=%llu errno=%d\n",
++                (unsigned long long)pid,(unsigned long long)version,operation?operation:"<null>",filter,
++                (unsigned long long)args[5],status,(unsigned long long)result,saved_errno);
++    }
++    errno=saved_errno;
++    return status ? -1 : result!=0;
++}
++
++int sandbox_check(pid_t pid, const char *operation, enum sandbox_filter_type filter, ...)
++{
++    va_list values;va_start(values,filter);
++    int result=check_common((uint64_t)(int64_t)pid,0,0,operation,(uint32_t)filter,values);
++    va_end(values);return result;
++}
++
++int sandbox_check_by_audit_token(audit_token_t token, const char *operation, enum sandbox_filter_type filter, ...)
++{
++    va_list values;va_start(values,filter);
++    int result=check_common(token.val[5],token.val[7],0x40000000,operation,(uint32_t)filter,values);
++    va_end(values);return result;
++}
+diff --git a/src/sandbox/container.c b/src/sandbox/container.c
+new file mode 100644
+index 00000000..bbac2914
+--- /dev/null
++++ b/src/sandbox/container.c
+@@ -0,0 +1,14 @@
++/* Darling Intel Sandbox container-path query ABI.
++ * The policy owns process identity validation and path authority. If no
++ * Sandbox policy is registered, preserve the real __mac_syscall error.
++ */
++#include <mach/message.h>
++#include <stddef.h>
++#include <stdint.h>
++extern int __mac_syscall(const char *, int, void *);
++
++int sandbox_container_path_for_audit_token(audit_token_t token, char *buffer, size_t size)
++{
++    uint64_t arguments[5] = {token.val[5], token.val[7], (uintptr_t)buffer, size, 1};
++    return __mac_syscall("Sandbox", 4, arguments);
++}
+diff --git a/src/sandbox/extension.c b/src/sandbox/extension.c
+new file mode 100644
+index 00000000..ea6886d9
+--- /dev/null
++++ b/src/sandbox/extension.c
+@@ -0,0 +1,68 @@
++/* Darling sandbox extension user-space ABI.
++ * Distributed under the same APSL 2.0 terms as sandbox.h; see that file.
++ */
++#include "extension.h"
++#include <errno.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
++
++extern int __mac_syscall(const char* policy, int operation, void* arguments);
++
++enum { EXTENSION_TOKEN_SIZE = 0x3ff0, TARGET_PID = 0x10000, TARGET_VERSION = 0x20000 };
++
++static char* issue_file(const char* extension_class, const char* path, uint32_t flags, pid_t pid, uint32_t version)
++{
++    char* token = malloc(EXTENSION_TOKEN_SIZE);
++    if (!token) return NULL;
++    if (flags & 1) {
++        // This is the original user-space unresolved-token path. It does not
++        // issue a capability or call the policy, and consume("invalid") is 0.
++        strlcpy(token, "invalid", EXTENSION_TOKEN_SIZE);
++        return token;
++    }
++    uint64_t args[7] = {(uintptr_t)extension_class, 0, (uintptr_t)path, flags,
++                        (uintptr_t)token, (uint64_t)(int64_t)pid, version};
++    if (__mac_syscall("Sandbox", 5, args)) {
++        int saved = errno;
++        free(token);
++        errno = saved;
++        return NULL;
++    }
++    return token;
++}
++
++char* sandbox_extension_issue_file(const char* extension_class, const char* path, uint32_t flags)
++{
++    return issue_file(extension_class, path, flags & ~(TARGET_PID | TARGET_VERSION), 0, 0);
++}
++
++char* sandbox_extension_issue_file_to_process(const char* extension_class, const char* path, uint32_t flags, audit_token_t token)
++{
++    return issue_file(extension_class, path, flags | TARGET_PID | TARGET_VERSION, token.val[5], token.val[7]);
++}
++
++char* sandbox_extension_issue_file_to_process_by_pid(const char* extension_class, const char* path, uint32_t flags, pid_t pid)
++{
++    return issue_file(extension_class, path, (flags & ~(TARGET_PID | TARGET_VERSION)) | TARGET_PID, pid, 0);
++}
++
++char* sandbox_extension_issue_file_to_self(const char* extension_class, const char* path, uint32_t flags)
++{
++    return sandbox_extension_issue_file_to_process_by_pid(extension_class, path, flags, getpid());
++}
++
++int64_t sandbox_extension_consume(const char* token)
++{
++    if (!token) { errno = EINVAL; return -1; }
++    if (!strcmp(token, "invalid")) return 0;
++    int64_t handle = 0;
++    uint64_t args[3] = {(uintptr_t)token, strlen(token) + 1, (uintptr_t)&handle};
++    return __mac_syscall("Sandbox", 6, args) ? -1 : handle;
++}
++
++int sandbox_extension_release(int64_t handle)
++{
++    uint64_t args[3] = {(uint64_t)handle, 0, 0};
++    return __mac_syscall("Sandbox", 7, args);
++}
+diff --git a/src/sandbox/extension.h b/src/sandbox/extension.h
+new file mode 100644
+index 00000000..7a04af90
+--- /dev/null
++++ b/src/sandbox/extension.h
+@@ -0,0 +1,26 @@
++#ifndef DARLING_SANDBOX_EXTENSION_H
++#define DARLING_SANDBOX_EXTENSION_H
++#include <stdint.h>
++#include <sys/types.h>
++#include <mach/message.h>
++#ifdef __cplusplus
++extern "C" {
++#endif
++extern const char* const APP_SANDBOX_IOKIT_CLIENT;
++extern const char* const APP_SANDBOX_MACH;
++extern const char* const APP_SANDBOX_READ;
++extern const char* const APP_SANDBOX_READ_WRITE;
++extern const uint32_t SANDBOX_EXTENSION_CANONICAL;
++extern const uint32_t SANDBOX_EXTENSION_DEFAULT;
++extern const uint32_t SANDBOX_EXTENSION_NO_REPORT;
++extern const uint32_t SANDBOX_EXTENSION_PREFIXMATCH;
++char* sandbox_extension_issue_file(const char* extension_class, const char* path, uint32_t flags);
++char* sandbox_extension_issue_file_to_process(const char* extension_class, const char* path, uint32_t flags, audit_token_t token);
++char* sandbox_extension_issue_file_to_process_by_pid(const char* extension_class, const char* path, uint32_t flags, pid_t pid);
++char* sandbox_extension_issue_file_to_self(const char* extension_class, const char* path, uint32_t flags);
++int64_t sandbox_extension_consume(const char* token);
++int sandbox_extension_release(int64_t handle);
++#ifdef __cplusplus
++}
++#endif
++#endif
+diff --git a/src/sandbox/sandbox.c b/src/sandbox/sandbox.c
+index f48cceb9..281dea64 100644
+--- a/src/sandbox/sandbox.c
++++ b/src/sandbox/sandbox.c
+@@ -4,14 +4,15 @@
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <sys/types.h>
++#include <errno.h>
+ 
+ // DUMMY implementation
+-const enum sandbox_filter_type SANDBOX_CHECK_NO_REPORT = SANDBOX_FILTER_NONE;
+ 
+ int sandbox_init(const char *profile, uint64_t flags, char **errorbuf)
+ {
+-	*errorbuf = strdup("Not implemented");
+-	return 0;
++	if (errorbuf) *errorbuf = strdup("Sandbox profiles are not implemented");
++	errno = ENOTSUP;
++	return -1;
+ }
+ 
+ const char kSBXProfileNoInternet[] = "no_internet";
+@@ -24,22 +25,22 @@ const char kSBXProfileNoWriteExceptTemporary[] = "no_write_except_temporary";
+ 
+ const char kSBXProfilePureComputation[] = "pure_computation";
+ 
+-const char APP_SANDBOX_IOKIT_CLIENT[] = "com.apple.app-sandbox.iokit-client";
+-const char APP_SANDBOX_MACH[] = "com.apple.app-sandbox.mach";
+-const char APP_SANDBOX_READ[] = "com.apple.app-sandbox.read";
+-const char APP_SANDBOX_READ_WRITE[] = "com.apple.app-sandbox.read-write";
++const char* const APP_SANDBOX_IOKIT_CLIENT = "com.apple.app-sandbox.iokit-client";
++const char* const APP_SANDBOX_MACH = "com.apple.app-sandbox.mach";
++const char* const APP_SANDBOX_READ = "com.apple.app-sandbox.read";
++const char* const APP_SANDBOX_READ_WRITE = "com.apple.app-sandbox.read-write";
+ const char IOS_SANDBOX_APPLICATION_GROUP[] = "com.apple.sandbox.application-group";
+ const char IOS_SANDBOX_CONTAINER[] = "com.apple.sandbox.container";
+ 
+-// Assuming these are 64-bit only because at least one has a value
+-// that can't be stored in a 32-bit integer.
++// These are uint32_t objects. Reading eight bytes in the native image joins
++// two neighboring constants; the old definitions incorrectly did that.
+ #ifdef __LP64__
+ 
+-const uint64_t SANDBOX_EXTENSION_CANONICAL = 0x0000001000000002;
+-const uint64_t SANDBOX_EXTENSION_DEFAULT = 0x0000000400000000;
++const uint32_t SANDBOX_EXTENSION_CANONICAL = 2;
++const uint32_t SANDBOX_EXTENSION_DEFAULT = 0;
+ const uint64_t SANDBOX_EXTENSION_MAGIC = 0x0000000000000001;
+-const uint64_t SANDBOX_EXTENSION_NO_REPORT = 0x0000000100000010;
+-const uint64_t SANDBOX_EXTENSION_PREFIXMATCH = 0x0000000200000004;
++const uint32_t SANDBOX_EXTENSION_NO_REPORT = 16;
++const uint32_t SANDBOX_EXTENSION_PREFIXMATCH = 4;
+ const uint64_t SANDBOX_EXTENSION_UNRESOLVED = 0x0000000100000001;
+ 
+ #endif
+@@ -51,20 +52,18 @@ void sandbox_free_error(char *errorbuf)
+ 
+ int sandbox_init_with_parameters(const char *profile, uint64_t flags, const char *const parameters[], char **errorbuf)
+ {
+-	*errorbuf = strdup("Not implemented");
+-	return 0;
++	if (errorbuf) *errorbuf = strdup("Sandbox profiles are not implemented");
++	errno = ENOTSUP;
++	return -1;
+ }
+ 
+ int sandbox_init_with_extensions(const char *profile, uint64_t flags, const char *const extensions[], char **errorbuf)
+ {
+-	*errorbuf = strdup("Not implemented");
+-	return 0;
++	if (errorbuf) *errorbuf = strdup("Sandbox profiles are not implemented");
++	errno = ENOTSUP;
++	return -1;
+ }
+ 
+-int sandbox_check(pid_t pid, const char *operation, enum sandbox_filter_type type, ...)
+-{
+-	return 0;
+-}
+ 
+ int sandbox_note(const char *note)
+ {
+@@ -147,11 +146,6 @@ int rootless_allows_task_for_pid(pid_t pid) {
+ 	return 1;
+ }
+ 
+-int sandbox_check_by_audit_token(audit_token_t tok, const char* operation, enum sandbox_filter_type filt, ...) {
+-	// technically unimplemented
+-	// just return 0 as an indiciation that whatever operation the caller asked about is allowed
+-	return 0;
+-};
+ 
+ int rootless_check_trusted(const char* path) {
+ 	// also unimplemented
+@@ -173,4 +167,4 @@ int rootless_check_datavault_flag(const char* path, const char* storage_class) {
+ 
+ int sandbox_query_approval_policy_for_path(const char* query, const char* path, char **approval) {
+ 	return -1;
+-}
+\ No newline at end of file
++}
+diff --git a/src/sandbox/sandbox.h b/src/sandbox/sandbox.h
+index 6fa2d088..2cc2c8df 100644
+--- a/src/sandbox/sandbox.h
++++ b/src/sandbox/sandbox.h
+@@ -143,6 +143,12 @@ enum sandbox_filter_type {
+ };
+ 
+ extern const enum sandbox_filter_type SANDBOX_CHECK_NO_REPORT __attribute__((weak_import));
++extern const enum sandbox_filter_type SANDBOX_CHECK_CANONICAL __attribute__((weak_import));
++extern const enum sandbox_filter_type SANDBOX_CHECK_NOFOLLOW __attribute__((weak_import));
++extern const enum sandbox_filter_type SANDBOX_CHECK_NO_APPROVAL __attribute__((weak_import));
++extern const enum sandbox_filter_type SANDBOX_CHECK_ALLOW_APPROVAL __attribute__((weak_import));
++extern const enum sandbox_filter_type SANDBOX_CHECK_POSIX_READABLE __attribute__((weak_import));
++extern const enum sandbox_filter_type SANDBOX_CHECK_POSIX_WRITEABLE __attribute__((weak_import));
+ 
+ enum sandbox_extension_flags {
+ 	FS_EXT_DEFAULTS =              0,

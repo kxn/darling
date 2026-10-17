@@ -1,0 +1,15 @@
+{
+  "original_class_address": "0x7ff843b0afc8",
+  "original_class_ro_address": "0x7ff840661f38",
+  "instance_size": 24,
+  "ivars": [
+    {
+      "name": "_persistentRef",
+      "offset": 8
+    },
+    {
+      "name": "_currentItemPointerModificationTime",
+      "offset": 16
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+from pathlib import Path
+from datetime import datetime,timezone
+import hashlib,json,runpy,subprocess
+root=Path(__file__).resolve().parent.parent;sdk=root/'runtime/state/prefix/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk';guest=root/'runtime/rootfs/usr/libexec/darling';build=root/'runtime/objc-selector-source/tests';build.mkdir(parents=True,exist_ok=True)
+inputs=[('selector','fixtures/hello/objc-selector-native.c',[]),('plugin','fixtures/hello/objc-enumeration-plugin.m',[]),('enumeration','fixtures/hello/objc-class-enumeration.m',[]),('signatures','fixtures/hello/objc-selector-signatures.m',[]),('tagged','fixtures/hello/objc-source-tagged.m',['-Iruntime/objc-selector-source/include'])]
+for name,src,extra in inputs:
+ subprocess.run(['clang-19','-target','x86_64-apple-macos11','-isysroot',str(sdk),'-O2','-fblocks',*extra,'-c',src,'-o',str(build/(name+'.o'))],cwd=root,check=True)
+ subprocess.run(['ld64.lld-19','-arch','x86_64','-platform_version','macos','11','11','-syslibroot',str(sdk),'-L',str(guest/'usr/lib'),'-L',str(guest/'usr/lib/system'),'-lobjc','-lSystem',*(['-framework','Foundation','-framework','CoreFoundation'] if name=='signatures' else []),*(['-dylib','-install_name','/Volumes/SystemRoot/workspace/runtime/objc-selector-source/tests/plugin.dylib'] if name=='plugin' else []),str(build/(name+'.o')),'-o',str(build/('plugin.dylib' if name=='plugin' else name))],check=True)
+m=runpy.run_path(str(root/'scripts/objc-selector-source-profile.py'));p=m['profile']();prefix='/Volumes/SystemRoot/workspace/';h=prefix+p['source_selector']['helper'];runtime=prefix+p['source_objc']['library'];checks=[];digest=lambda n:hashlib.sha256((root/n).read_bytes()).hexdigest()
+entries=[('direct',[prefix+'runtime/objc-selector-source/tests/selector',runtime],'OBJC_SELECTOR_EXISTING_IDENTITY_UNKNOWN_NO_REGISTRATION_UTF8_AND_CONCURRENT_GROWTH_OK'),('helper',[prefix+'runtime/objc-selector-source/tests/selector',h],'OBJC_SELECTOR_EXISTING_IDENTITY_UNKNOWN_NO_REGISTRATION_UTF8_AND_CONCURRENT_GROWTH_OK'),('enumeration',[prefix+'runtime/objc-selector-source/tests/enumeration',h,prefix+'runtime/objc-selector-source/tests/plugin.dylib'],'OBJC_ENUMERATION_CALLER_HEADER_HANDLES_FILTERS_DYNAMIC_STOP_AND_LAZY_METADATA_OK'),('signatures',[prefix+'runtime/objc-selector-source/tests/signatures'],'SOURCE_OBJC_NATIVE_INVOCATION_INTEGER_DOUBLE_AND_STRUCT_RETURN_OK'),('tagged',[prefix+'runtime/objc-selector-source/tests/tagged'],'SOURCE_OBJC_TAGGED_19_BASIC_EXTENDED_BOUNDARIES_CLASS_DISPATCH_RR_WEAK_AND_HEAP_OK')]
+for name,tail,marker in entries:
+ command=p['command'][:-2]+tail;log='logs/objc-selector-source-'+name+'.log'
+ with (root/log).open('w') as stream:r=subprocess.run(command,cwd=root,env=m['environment'](p),stdout=stream,stderr=subprocess.STDOUT)
+ output=(root/log).read_text();verified=r.returncode==0 and marker in output;print(name,r.returncode,output[-2500:],flush=True);checks.append(dict(name=name,command=command,exit_status=r.returncode,log=log,log_sha256=digest(log),verified=verified))
+ if not verified:break
+record={**p,'checked_at':datetime.now(timezone.utc).isoformat(),'checks':checks,'runtime_execution_verified':len(checks)==5 and all(c['verified'] for c in checks),'sources':{src:digest(src) for _,src,_ in inputs},'binaries':{str(f.relative_to(root)):digest(str(f.relative_to(root))) for f in build.iterdir() if f.is_file()},'full_xcode_build_ready':False,'signing_ready':False}
+(root/'artifacts/objc-selector-source-test.json').write_text(json.dumps(record,indent=2)+'\n');raise SystemExit(0 if record['runtime_execution_verified'] else 1)

@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/gnustep/libs-base",
+  "commit": "e00f6dc184b0b1d95d2dc788832ff22a80abbe58",
+  "files": {
+    "NSPersonNameComponentsFormatter.m": "c3ba1a97d69d4d0c3a0b7d7d1b3fbfb183a7597b0b488632367fb5b21ebea3d2",
+    "NSPersonNameComponentsFormatter.h": "efd49394954388912c0476c5a6b93eae30536a7421aabb85285f1df81e22f563",
+    "COPYING.LIB": "8f4ad2e1aee681bf71f36a76e4d6a383260b27c748042879322293a414bc51e5"
+  },
+  "scope": "Selected invariant/English-locale name formatting, nil-field safety, composed-character initials, phonetic values and formatter copying. Locale coverage, parsing, archive compatibility and annotated output are not established; unsupported formatting locales/annotations raise exceptions."
+}

@@ -1,0 +1,76 @@
+{
+  "source_commit": "db15acbe6a7f257a859ad9a3bb86097bfe0679d9",
+  "source_files": {
+    "protocol/SecProtocol.m": "a9ee8ab495d63555e4bd46c82a2ee959b9617e7f29af84a5ad2169aa37a2739e",
+    "protocol/SecProtocolPriv.h": "94d635d2d714ff60f50b56a606181ff863d1aab6a815177073b2ac25fcf95ab4",
+    "protocol/SecProtocolRestrictedOptionsGoAwayIfNotApprovedForEPSKsPriv.h": "d98a710e073e07bb4d2c10b6b62ab681bfef0ed3288e16a7946e950824c35f56"
+  },
+  "native_path": "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+  "native_sha256": "53bad77d92bf3df5d6f50630be2dc2fcdff7321acf3563e05c3598558fe0e8f6",
+  "classes": {
+    "SecSessionInfo": {
+      "instance_size": 48,
+      "ivars": [
+        {
+          "name": "_ticket_age_add",
+          "offset": 8
+        },
+        {
+          "name": "_psk",
+          "offset": 16
+        },
+        {
+          "name": "_psk_id",
+          "offset": 24
+        },
+        {
+          "name": "_ticket_creation_time",
+          "offset": 32
+        },
+        {
+          "name": "_ticket_lifetime",
+          "offset": 40
+        }
+      ]
+    },
+    "SecExternalPreSharedKey": {
+      "instance_size": 32,
+      "ivars": [
+        {
+          "name": "_external_identity",
+          "offset": 8
+        },
+        {
+          "name": "_epsk",
+          "offset": 16
+        },
+        {
+          "name": "_context",
+          "offset": 24
+        }
+      ]
+    },
+    "ExternalPreSharedKey": {
+      "instance_size": 32,
+      "ivars": []
+    },
+    "SecOfferedEPSK": {
+      "instance_size": 24,
+      "ivars": [
+        {
+          "name": "_external_identity",
+          "offset": 8
+        },
+        {
+          "name": "_context",
+          "offset": 16
+        }
+      ]
+    },
+    "OfferedEPSK": {
+      "instance_size": 24,
+      "ivars": []
+    }
+  },
+  "scope": "Unmodified Apple source implementations for five session/PSK value classes. No TLS configuration, handshake, peer verification or keychain operation implementation."
+}

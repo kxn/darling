@@ -1,0 +1,18 @@
+{
+  "sdk": "runtime/state/prefix/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+  "files": {
+    "runtime/state/prefix/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/sys/fcntl.h": "805fd8c695f8e5e1c327b6852382cc5533738bbfd8f18bc11f850531166e4fe8",
+    "runtime/rootfs/usr/libexec/darling/usr/lib/system/libsystem_kernel.dylib": "4f4a39fbab9fc5c78f73d5a48466d78eccaf6c69b93ef6af8dac756389031044",
+    "vendor/darling/src/external/xnu/bsd/sys/content_protection.h": "b474233af27611f788693ff0a651ec0f7cfd78bb3894d11ec9ff7036ff1add18",
+    "vendor/darling/src/external/xnu/bsd/vfs/vfs_syscalls.c": "58d6ff54471b68538bebd241145a6ec20b40214dc59c62f6fd2ccae3ba050753",
+    "vendor/darling/src/external/xnu/darling/src/libsystem_kernel/emulation/src/xnu_syscall/bsd/impl/fcntl/openat.c": "909eb8d35cd92b67eeb578ea04a52943c106a575c464e23a5153512b6b731218",
+    "vendor/darling/src/external/xnu/darling/src/libsystem_kernel/emulation/src/xnu_syscall/bsd/impl/hfs/stub.c": "0d7beb8d5b7e73f5e195ceb6a008e1d1a6edc54be2c6e6a56ace9751c6fe4758",
+    "vendor/darling/src/external/xnu/darling/src/libsystem_kernel/emulation/src/xnu_syscall/bsd/impl/unistd/symlinkat.c": "d9a9c71f292b951a3bce4d7e0121f2bee6c99ca029fdd30a2506b6ea96310835"
+  },
+  "scope": "Actual Linux-backed openat behavior when protection class is DEFAULT (-1), or when O_CREAT is absent and the class is ignored as in XNU. Nondefault creation classes and raw/authentication flags fail explicitly. No encrypted-file protection implementation.",
+  "existing_backend_limit": "Existing Darling open_dprotected_np ignores protection class/flags and calls sys_open. This adapter does not extend that behavior to nondefault protection requests.",
+  "known_backend_differences": [
+    "The current path expander accepts -1 as an internal cwd descriptor; this entry point validates relative-path descriptors with fcntl to preserve EBADF.",
+    "Existing symlinkat ignores its directory descriptor. The test creates its symlink fixture by absolute pathname; that base API is unchanged."
+  ]
+}

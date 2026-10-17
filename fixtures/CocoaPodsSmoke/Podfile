@@ -1,0 +1,7 @@
+platform :osx, '11.0'
+source 'file:///Volumes/SystemRoot/workspace/fixtures/CocoaPodsSmoke/LocalSpecs'
+project 'CocoaPodsSmoke.xcodeproj'
+
+target 'XcodeSmoke' do
+  pod 'LocalMath', :path => 'LocalMath'
+end

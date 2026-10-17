@@ -1,0 +1,11 @@
+{
+  "source": "runtime/rootfs/usr/libexec/darling/usr/lib/libFND.dylib",
+  "source_sha256": "0275ed2ee2a24f62a995ac287f7ec352871bb652919337aa7efb509d9943beda",
+  "symbols": [
+    "_OBJC_CLASS_$_NSXPCDecoder",
+    "_OBJC_METACLASS_$_NSXPCDecoder",
+    "_OBJC_CLASS_$_NSXPCEncoder",
+    "_OBJC_METACLASS_$_NSXPCEncoder"
+  ],
+  "scope": "Expose existing hidden Darling class objects through the export trie. No new class objects, method code or private object layouts are introduced."
+}

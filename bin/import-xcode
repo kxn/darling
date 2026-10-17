@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""Copy an extracted Intel-capable Xcode.app into the isolated Darling prefix."""
+import fcntl
+import hashlib
+import json
+from pathlib import Path
+import plistlib
+import shutil
+import struct
+import subprocess
+import sys
+
+project = Path(__file__).resolve().parent.parent
+if len(sys.argv) != 2:
+    sys.exit("Usage: bin/import-xcode /path/to/Xcode.app")
+source = Path(sys.argv[1]).resolve()
+executable = source / "Contents/Developer/usr/bin/xcodebuild"
+if not executable.is_file():
+    sys.exit("The input must be an extracted Xcode.app containing xcodebuild.")
+data = executable.read_bytes()
+magic = data[:4]
+if magic in (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe"):
+    architectures = [struct.unpack_from("<I", data, 4)[0]]
+elif magic in (b"\xfe\xed\xfa\xcf", b"\xfe\xed\xfa\xce"):
+    architectures = [struct.unpack_from(">I", data, 4)[0]]
+elif magic in (b"\xca\xfe\xba\xbe", b"\xca\xfe\xba\xbf", b"\xbe\xba\xfe\xca", b"\xbf\xba\xfe\xca"):
+    endian = ">" if magic[:1] == b"\xca" else "<"
+    stride = 32 if magic in (b"\xca\xfe\xba\xbf", b"\xbf\xba\xfe\xca") else 20
+    count = struct.unpack_from(endian + "I", data, 4)[0]
+    if count > 64 or 8 + count * stride > len(data):
+        sys.exit("Invalid Mach-O architecture table.")
+    architectures = [struct.unpack_from(endian + "I", data, 8 + i * stride)[0] for i in range(count)]
+else:
+    sys.exit("xcodebuild is not a recognized Mach-O executable.")
+if 0x01000007 not in architectures:
+    sys.exit("This Xcode does not contain an x86_64 xcodebuild executable.")
+
+prefix = project / "runtime/state/prefix"
+if not (prefix / "private/etc/passwd").exists():
+    sys.exit("Initialize Darling first: bin/darling shell uname -a")
+destination = prefix / "Applications/Xcode.app"
+staging = destination.with_name("Xcode.app.importing")
+with (project / "runtime/session.lock").open("a") as lock:
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    if destination.exists() or staging.exists():
+        sys.exit("An Xcode installation or unfinished import already exists; it will not be overwritten.")
+    print(f"Copying {source} to {destination}", flush=True)
+    subprocess.run(["cp", "-a", "--reflink=auto", str(source), str(staging)], check=True)
+    staging.rename(destination)
+    with (source / "Contents/Info.plist").open("rb") as stream:
+        info = plistlib.load(stream)
+    with (source / "Contents/version.plist").open("rb") as stream:
+        version_info = plistlib.load(stream)
+    manifest = {
+        "source": str(source),
+        "version": info.get("CFBundleShortVersionString"),
+        "build": version_info.get("ProductBuildVersion"),
+        "built_with_xcode_build": info.get("DTXcodeBuild"),
+        "xcodebuild_sha256": hashlib.sha256(data).hexdigest(),
+        "architectures": architectures,
+    }
+    (project / "artifacts/xcode.json").write_text(json.dumps(manifest, indent=2) + "\n")
+subprocess.run([
+    str(project / "bin/darling"), "shell", "/usr/bin/xcode-select", "--switch",
+    "/Applications/Xcode.app/Contents/Developer",
+], check=True)
+print("Imported. Validate with: bin/darling shell xcodebuild -version")

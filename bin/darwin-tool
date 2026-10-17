@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+tool=${1:?Darwin tool path required}
+shift
+project=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+working_directory=$(pwd -P)
+case "$working_directory" in
+    "$project") guest_directory=/Volumes/SystemRoot/workspace ;;
+    "$project"/*) guest_directory=/Volumes/SystemRoot/workspace/${working_directory#"$project"/} ;;
+    *) echo "Run from within $project so project files are visible in the isolated runtime." >&2; exit 1 ;;
+esac
+exec "$project/bin/darling" shell /bin/bash -c \
+    'cd "$1" || exit; tool=$2; shift 2; exec "$tool" "$@"' \
+    darwin-tool "$guest_directory" "$tool" "$@"

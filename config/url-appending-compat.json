@@ -1,0 +1,17 @@
+{
+  "repository": "https://github.com/swiftlang/swift-foundation",
+  "commit": "ce72b18a1eb91ce92138550b63325b64074a6bfc",
+  "files": {
+    "Sources/FoundationEssentials/URL/URL.swift": "c0f309673879d2c9857cfd9632a94ef3a736d95090347e1bc13ea86d18b3fb0c",
+    "Sources/FoundationEssentials/URL/URL_Impl.swift": "fee87623236535ec5235b627949d35ac30303f8d0deed93193f764781cde5c31",
+    "Tests/FoundationEssentialsTests/URLTests.swift": "1ba4aa3955b654d188a31c29e83e30e83964c795490a4eaeab9fbc5c204ab624"
+  },
+  "scope": "Semantics reference for a selected public API backport; not a build of the full Swift Foundation framework.",
+  "backend_reference": {
+    "root": "vendor/darling/src/external/foundation",
+    "commit": "55a4341b470c2a56fea667c1d2167fb074226f04",
+    "files": {
+      "src/NSURL.m": "7578788230746b36ee3eea6e2435003aee33f45a37555cb6837f58aa925ed967"
+    }
+  }
+}

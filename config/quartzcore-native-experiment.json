@@ -1,0 +1,15 @@
+{
+  "installed": false,
+  "full_compatibility": false,
+  "framework_stage": "runtime/quartzcore-native/frameworks",
+  "library_stage": "runtime/quartzcore-native/libraries",
+  "dependency_targets": [
+    {
+      "target": "symbolication-native",
+      "swift_relative": true
+    },
+    {
+      "target": "core-symbolication-native"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "runtime_binary": "runtime/rootfs/usr/bin/darlingserver",
+  "original_sha256": "fb25d4a70990229fee3d280d7c271c7f50bda031522e76829771aa8df456dedb",
+  "source_reference_commit": "89751e64bc6c2082f7725061824ee0e33395b0de",
+  "source_reference_files": {
+    "duct-tape/src/host.c": "e0f4e44bf164e48b32766d231d4088cad93ce93ab5a8bed15ffd816af42e929e",
+    "duct-tape/src/processor.c": "819040b76e760f9b72b9316ccc52f365c64b10b5c8629158b29f6ea46a4d95ba"
+  },
+  "patches": [
+    {
+      "role": "processor_basic_info",
+      "file_offset": "0x114546",
+      "original_instruction": "c7400403000000",
+      "patched_instruction": "c7400408000000"
+    },
+    {
+      "role": "host_basic_info",
+      "file_offset": "0x192ab2",
+      "original_instruction": "c7401003000000",
+      "patched_instruction": "c7401008000000"
+    },
+    {
+      "role": "host_preferred_user_arch",
+      "file_offset": "0x192c48",
+      "original_instruction": "c7400403000000",
+      "patched_instruction": "c7400408000000"
+    }
+  ],
+  "reported_subtype": 8,
+  "guard": "Check actual CPU Haswell ISA features and enabled OS XMM/YMM state before every project Darling launch.",
+  "scope": "Only project-local user-space darlingserver CPU subtype reporting for the x86_64 experiment; no host kernel changes."
+}

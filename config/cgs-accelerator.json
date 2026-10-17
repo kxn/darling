@@ -1,0 +1,63 @@
+{
+  "import_symbol": "_CGSAcceleratorForDisplayNumber",
+  "declared_provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+  "actual_provider": "/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/SkyLight",
+  "actual_export": "_SLSAcceleratorForDisplayNumber",
+  "actual_provider_sha256": "c65551730208f3441f77a6a22b0da305f5bff1883f1982f915b58475203f32c3",
+  "functions": [
+    {
+      "name": "SLSAcceleratorForDisplayNumber",
+      "address": "0x7ff8093d76ef",
+      "length": 371,
+      "sha256": "40dcc2a20b05e45bddbbb33fff58171244e23512c5ace38cae821e9bd87f7e46"
+    },
+    {
+      "name": "displayAccelerator",
+      "address": "0x7ff8093d7862",
+      "length": 473,
+      "sha256": "14cdc00123995adf7a12e7d1192a3046f571e59c7aa012dc51df88d1f7a612c6"
+    },
+    {
+      "name": "get_canonical_display_id",
+      "address": "0x7ff8093d3cf7",
+      "length": 89,
+      "sha256": "a4a48fa78cce78f53af5447fa35c160282cf387ba125478426460980f27cba87"
+    }
+  ],
+  "observations": [
+    "First argument is 32-bit display number; second and third arguments are pointers to 32-bit outputs, cleared at entry",
+    "get_canonical_display_id runs before display lookup; do not mistake its result for CGS connection ID",
+    "WindowServer request ID 0x84d5, reply ID 0x8539; 40-byte request, complex 52-byte success reply with one port descriptor and one trailing 32-bit field",
+    "Actual unsupported/no-display path returns CGError 1000 with zeroed outputs",
+    "CoreDisplay server path confirms the second output is an accelerator service port and the third is the IOAccelFindAccelerator framebuffer index; exact original byte ranges are pinned below."
+  ],
+  "available_darling_backend": [
+    "Existing CGDisplayIOServicePort implementation",
+    "Existing IOKit IOAccelFindAccelerator implementation"
+  ],
+  "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+  "backend": "runtime/rootfs/usr/libexec/darling/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+  "backend_sha256": "79370ffc086f792481184a80f5041126737e2b275eda0f8e4ad371bcfd75b1cc",
+  "source": "vendor/darling/src/external/cocotron/CoreGraphics/CGSAccelerator.c",
+  "source_commit": "c8d38d16a9f613d300157bebbab2b9501bc0c274",
+  "scope": "Darling CoreGraphics client-side accelerator query via actual CGDisplayIOServicePort and IOAccelFindAccelerator. Borrowed cached output and failure cleanup. Real graphics devices, mirror/hotplug behavior and hardware acceleration are not established by selected tests.",
+  "core_display_reference": {
+    "provider": "/System/Library/Frameworks/CoreDisplay.framework/Versions/A/CoreDisplay",
+    "provider_sha256": "e8ca1d0b851143235aa2acb500bab5e8ca2d5dbb708647d135f9f8458d3d933f",
+    "functions": [
+      {
+        "name": "MPAcceleratorForDisplayDevice",
+        "address": "0x7ff8053f4aa1",
+        "length": 135,
+        "sha256": "858d596ac8e23948ec34ffde922bf51a0e4c35855d96872aab4b95a31a77e80a"
+      },
+      {
+        "name": "IOAccelFindAccelerator_into_MPPriv",
+        "address": "0x7ff805408b71",
+        "length": 54,
+        "sha256": "7b249a7136398ea4c6f3eb9f1acad061b3f2ebeaeb7c2e1c598f7adb877a4ac0"
+      }
+    ]
+  },
+  "native_cached_output_semantics": "CoreDisplay IOAccelFindAccelerator call stores port at MPPriv+0x5c and framebuffer index at +0x98 (0x7ff805408b95); MPAcceleratorForDisplayDevice returns these exact two fields (0x7ff8053f4adf and 0x7ff8053f4aea). SkyLight caches the send right and returns it without retaining."
+}

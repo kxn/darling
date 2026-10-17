@@ -1,0 +1,35 @@
+{
+  "server_source": "vendor/darlingserver",
+  "server_commit": "89751e64bc6c2082f7725061824ee0e33395b0de",
+  "darling_source": "vendor/darling",
+  "darling_commit": "60ba801decee7a00782f74f6be4c8ffb013f79ff",
+  "bootstrap_source": "vendor/darling/src/external/bootstrap_cmds",
+  "bootstrap_commit": "0f300a7a04bb1174a3b7db58b57d738aadc14e13",
+  "runtime_binary": "runtime/rootfs/usr/bin/darlingserver",
+  "runtime_binary_sha256": "70791e61e605f7f979a5ae14ad75b1458532f620781c1cf382609f89c088900c",
+  "source_binary": "runtime/darlingserver-source-build/darlingserver/darlingserver",
+  "tools": [
+    {
+      "package": "bison",
+      "version": "2:3.8.2+dfsg-1+b2",
+      "architecture": "amd64",
+      "filename": "bison_2%3a3.8.2+dfsg-1+b2_amd64.deb",
+      "sha256": "ce6eb1f7aad18850e32d223a68f54bcbe756d74f138c8ec5460ad9d220f4d335"
+    },
+    {
+      "package": "flex",
+      "version": "2.6.4-8.2+b4",
+      "architecture": "amd64",
+      "filename": "flex_2.6.4-8.2+b4_amd64.deb",
+      "sha256": "75f963765232c356d0a2fb70e780dfa9de2425aca036ec60eefb7fc98a2c905b"
+    },
+    {
+      "package": "m4",
+      "version": "1.4.19-8",
+      "architecture": "amd64",
+      "filename": "m4_1.4.19-8_amd64.deb",
+      "sha256": "221b3e224708c1da2a1a88b6824380593579b2254ae7d914afa14cbd5d343334"
+    }
+  ],
+  "scope": "Standalone full x86_64 Linux darlingserver build, source Mach memory-entry implementation including VM_PROT_IS_MASK mapping, guarded CPUID/OS XMM/YMM based CPU subtype reporting, and private per-launch bind mount. Not a full Darling rebuild or the default runtime server."
+}

@@ -1,0 +1,41 @@
+{
+  "repository": "https://github.com/llvm/llvm-project",
+  "tag": "llvmorg-21.1.8",
+  "commit": "2078da43e25a4623cab2d0d60decddf709aaea28",
+  "files": {
+    "libcxx/src/charconv.cpp": "347b5c9eaa719e28554cb911be699afd2ff6dc40d5d0c12eaee9522e830a82d1",
+    "libcxx/src/include/to_chars_floating_point.h": "16b3b4882654a6f0ef6a450bd158eb32720b8586f1cbcaafa06e84765bbda601",
+    "libcxx/src/include/ryu/common.h": "5d0df36eb16d08610f226cc206fe1dcabbfe23bde33a481068381312401baed3",
+    "libcxx/src/include/ryu/d2fixed.h": "eb44884fccbbfc39e21d9744fae1edc7f2cd2f1a2c59dacf2ac81cf4d62f6a3f",
+    "libcxx/src/include/ryu/d2fixed_full_table.h": "b68007164e979c0cca68b19f52057065b412395d819c9900810e1729f1991726",
+    "libcxx/src/include/ryu/d2s.h": "46fad5fe88cd9a9986ed4a9c8bad0c302b4f3076cebd731bad14fa4a7714a566",
+    "libcxx/src/include/ryu/d2s_full_table.h": "50206d8a5d1d9f05f0041a79f450490e88251961dd8c0df93106cbf67f4fae96",
+    "libcxx/src/include/ryu/d2s_intrinsics.h": "5fdbfa56dfeb2fd5f445111bf6cb9cc5410e309220043fdc8c8f20450b27f3bb",
+    "libcxx/src/include/ryu/digit_table.h": "b9e50c0b5506de9d104fbae85272bf9e3b1987df840d3ece5d566c5921e76ec2",
+    "libcxx/src/include/ryu/f2s.h": "0685f0962c4121afa0f99603484d73dfccbadc54348fe8919d87f6242107471b",
+    "libcxx/src/include/ryu/ryu.h": "f2ee014117048b62d243898821b75d37f65a59688d3c929734632a147f2dba6f",
+    "libcxx/src/ryu/d2fixed.cpp": "e182d7b5a2cc2a59d25955cb41319ed8ec22ae43acc4434d04e82295a03d4fae",
+    "libcxx/src/ryu/d2s.cpp": "a2c7c814c5a5d98a60643ba7b107084189f7181f66da45177f4e56c0f8ffe6af",
+    "libcxx/src/ryu/f2s.cpp": "6b20f690d560361141cc99032e40bf6be39b3e46b11c169fc0a2f478135a119b"
+  },
+  "existing_objects": {
+    "runtime/build-libcxx-compat/compat.o": "19a61881417ac8a3940035b51dba0b35bb0d2f7a07213c89d0bb96ba68ffd316",
+    "runtime/build-libcxx-compat/operations.o": "eba81ee65be69d7e2cfd3e7f2a3dd409834dd45279073f2ff8ed0f2c495266d0",
+    "runtime/build-libcxx-compat/directory_iterator.o": "d3c58351542168074541acc91fcee9af86ca061b4651406093076f359589b557",
+    "runtime/build-libcxx-compat/int128_builtins.o": "887ec2d873818382f0c6592c947d3dd402fbdd12d881e46d35263ef6c4bba10e",
+    "runtime/build-libcxx-compat/functional.o": "978de75c5ff8500aaec558e8c171c216cd68b4748f64ec336840d1f843bd1090"
+  },
+  "existing_wrapper_sha256": "0687ddff30fa49b1078ae1241c0cbcdf140e312e8e2cdb312cbd29cc86a6f517",
+  "existing_backend_sha256": "a8b4ef7c48ef790e6b3c483203adb304c3e795e71ac7eb92e25311d1c58764c8",
+  "scope": "Official LLVM float/double default, format and precision overloads. Three long-double overloads reproduce observed Apple Intel narrowing to double; they do not preserve 80-bit precision. Existing libc++ direct exports and backend preserved; complete libc++ compatibility unverified.",
+  "native_long_double_reference": {
+    "provider": "/usr/lib/libc++.1.dylib",
+    "provider_sha256": "98a388765e2b9a56940265d09723d2b1fccb9db63953157e5c6006089cab3ac8",
+    "entry_prefixes": {
+      "__ZNSt3__18to_charsEPcS0_e": "554889e5db6d10dd5df8f20f1045f831d231c95de9e4feffff",
+      "__ZNSt3__18to_charsEPcS0_eNS_12chars_formatE": "554889e5db6d10dd5df8f20f1045f831c95de9d7feffff",
+      "__ZNSt3__18to_charsEPcS0_eNS_12chars_formatEi": "554889e5db6d10dd5df8f20f1045f85de9bbfeffff"
+    },
+    "observed": "All three actual Apple Intel entries load x87 80-bit argument, store qword, move to xmm0 and tail-jump into double conversion."
+  }
+}

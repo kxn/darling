@@ -1,0 +1,47 @@
+// !$*UTF8*$!
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 56;
+    objects = {
+        100000000000000000000001 = {isa = PBXBuildFile; fileRef = 100000000000000000000002; };
+        100000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
+        100000000000000000000003 = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; path = XcodeSmoke; sourceTree = BUILT_PRODUCTS_DIR; };
+        100000000000000000000004 = {isa = PBXGroup; children = (100000000000000000000002, 100000000000000000000005,); sourceTree = "<group>"; };
+        100000000000000000000005 = {isa = PBXGroup; children = (100000000000000000000003,); name = Products; sourceTree = "<group>"; };
+        100000000000000000000006 = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = 10000000000000000000000B;
+            buildPhases = (100000000000000000000008, 100000000000000000000009,);
+            buildRules = ();
+            dependencies = ();
+            name = XcodeSmoke;
+            productName = XcodeSmoke;
+            productReference = 100000000000000000000003;
+            productType = "com.apple.product-type.tool";
+        };
+        100000000000000000000007 = {
+            isa = PBXProject;
+            attributes = {LastUpgradeCheck = 1600; };
+            buildConfigurationList = 10000000000000000000000A;
+            compatibilityVersion = "Xcode 14.0";
+            developmentRegion = en;
+            hasScannedForEncodings = 0;
+            knownRegions = (en, Base,);
+            mainGroup = 100000000000000000000004;
+            productRefGroup = 100000000000000000000005;
+            projectDirPath = "";
+            projectRoot = "";
+            targets = (100000000000000000000006,);
+        };
+        100000000000000000000008 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000001,); runOnlyForDeploymentPostprocessing = 0; };
+        100000000000000000000009 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        10000000000000000000000A = {isa = XCConfigurationList; buildConfigurations = (10000000000000000000000C, 10000000000000000000000D,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+        10000000000000000000000B = {isa = XCConfigurationList; buildConfigurations = (10000000000000000000000E, 10000000000000000000000F,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+        10000000000000000000000C = {isa = XCBuildConfiguration; buildSettings = {SDKROOT = macosx; ARCHS = x86_64; MACOSX_DEPLOYMENT_TARGET = 11.0; }; name = Debug; };
+        10000000000000000000000D = {isa = XCBuildConfiguration; buildSettings = {SDKROOT = macosx; ARCHS = x86_64; MACOSX_DEPLOYMENT_TARGET = 11.0; }; name = Release; };
+        10000000000000000000000E = {isa = XCBuildConfiguration; buildSettings = {PRODUCT_NAME = "$(TARGET_NAME)"; CODE_SIGNING_ALLOWED = NO; }; name = Debug; };
+        10000000000000000000000F = {isa = XCBuildConfiguration; buildSettings = {PRODUCT_NAME = "$(TARGET_NAME)"; CODE_SIGNING_ALLOWED = NO; }; name = Release; };
+    };
+    rootObject = 100000000000000000000007;
+}

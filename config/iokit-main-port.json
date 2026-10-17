@@ -1,0 +1,10 @@
+{
+  "provider": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+  "provider_sha256": "7571eb0a4972a96b487ff2e85ba77e20240cb837ebedfd61a4bc08fbd7b8af4c",
+  "symbol": "_kIOMainPortDefault",
+  "address": "0x7ff806d19bb4",
+  "bytes": "00000000",
+  "backend": "runtime/rootfs/usr/libexec/darling/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+  "backend_sha256": "4cc64e94a200e3cb472bc800732e350063226a03f7d550a1e2950b587da83077",
+  "source_commit": "534684e6748dffbd875c6cd1942477a52b66a077"
+}

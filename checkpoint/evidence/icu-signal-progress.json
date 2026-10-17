@@ -1,0 +1,494 @@
+{
+  "checked_at": "2026-10-17T09:59:40.701095+00:00",
+  "goal_status": "active",
+  "complete": false,
+  "full_xcode_build_ready": false,
+  "signing_ready": false,
+  "default_entry_promoted": false,
+  "previous_goal_turn_classification": "progress",
+  "current_goal_turn_classification": "progress",
+  "experimental_runtime_wrapper": "bin/darling-system-version",
+  "default_runtime_wrapper_unchanged": true,
+  "persistent_system_version_unchanged": true,
+  "private_system_version_is_original_reference_metadata": true,
+  "source_kernel_files": 879,
+  "native_ICU_version": "78.1.0.0",
+  "native_ICU_checks": 157,
+  "native_number_roundtrips": 36,
+  "native_number_locales": 4,
+  "native_RSA_import_and_OpenSSL_signature_verification": true,
+  "native_RSA_modified_message_rejected": true,
+  "fatal_children_tested": 8,
+  "default_fatal_signal_no_longer_targets_whole_process_group": true,
+  "abort_with_payload_no_longer_targets_whole_process_group": true,
+  "parent_and_sibling_fatal_signals_after_fix": 0,
+  "early_dyld_variant_fatal_signal_paths_verified": false,
+  "default_stop_and_Darwin_tracer_group_signal_paths_fixed": false,
+  "abort_ignored_SIGABRT_semantics_implemented": false,
+  "original_Xcode_null_formatter_certificate_import_crash_resolved": true,
+  "old_wrapper_exit_1_was_not_proof_of_a_persistent_wait": true,
+  "original_OSLog_exports": 67,
+  "original_OSLog_classes": 11,
+  "original_swiftOSLog_exports": 13,
+  "original_log_backend_calls_preserved": true,
+  "full_OSLog_or_logd_service_semantics_verified": false,
+  "original_SwiftBuild_service_started": true,
+  "original_build_description_created": true,
+  "original_build_tasks_executed": true,
+  "actual_project_compilation_started": false,
+  "actual_project_linking_completed": false,
+  "original_project_build_succeeded": false,
+  "current_observed_failure": "The unchanged original SWBBuildService computes the dependency graph and build description, executes directory/header-map/response-file tasks and announces compiler/linker probes. Its ClangStatCache task fails because clang-stat-cache cannot resolve FSEventsGetCurrentEventId through the selected CoreServices umbrella. No CompileC/SwiftCompile or successful link was observed.",
+  "diagnostic_build_uses_explicit_permissive_coreservices_policy": true,
+  "strict_Sandbox_enforcement_verified": false,
+  "source_runtime": {
+    "LINUXCODE_DARLING_SERVER": {
+      "path": "runtime/swb-swift-logging-normal/darlingserver",
+      "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+    },
+    "LINUXCODE_LIBXPC": {
+      "path": "runtime/swb-swift-logging-normal/libxpc.dylib",
+      "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+    },
+    "LINUXCODE_LAUNCHD": {
+      "path": "runtime/swb-swift-logging-normal/launchd",
+      "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+    },
+    "LINUXCODE_LIBSYSTEM_KERNEL": {
+      "path": "runtime/swb-swift-logging-normal/libsystem_kernel.dylib",
+      "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
+    },
+    "LINUXCODE_QUARANTINE": {
+      "path": "runtime/swb-swift-logging-normal/libquarantine.dylib",
+      "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+    },
+    "LINUXCODE_SANDBOX": {
+      "path": "runtime/swb-swift-logging-normal/libsystem_sandbox.dylib",
+      "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+    },
+    "LINUXCODE_LIBDYLD": {
+      "path": "runtime/swb-swift-logging-normal/libdyld.dylib",
+      "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+    }
+  },
+  "original_icu_data": {
+    "original_resources": {
+      "runtime/recovery/macOS Base System/usr/share/icu/icudt78l.dat": "666a97d4dd1139f537290d74a661cc6b6da6cc58da24486b3cb282eacbcfa549",
+      "runtime/recovery/macOS Base System/usr/share/icu/icutzformat.txt": "327d09f9e798492441b2a7839e2ce11498c64ae4c36ea98e248b89c5fc3172fe"
+    },
+    "selected_native_icu": "runtime/foundation-native-library-stage/libicucore.A.dylib",
+    "selected_native_icu_sha256": "d985892d8a6a8b3987d655501416f446031472b88c0449c8d20ae163acf1d70c",
+    "runtimes": {
+      "normal": {
+        "previous_source_runtime": {
+          "LINUXCODE_DARLING_SERVER": {
+            "path": "runtime/materialize-policy-normal/darlingserver",
+            "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+          },
+          "LINUXCODE_LIBXPC": {
+            "path": "runtime/materialize-policy-normal/libxpc.dylib",
+            "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+          },
+          "LINUXCODE_LAUNCHD": {
+            "path": "runtime/materialize-policy-normal/launchd",
+            "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+          },
+          "LINUXCODE_LIBSYSTEM_KERNEL": {
+            "path": "runtime/materialize-policy-normal/libsystem_kernel.dylib",
+            "sha256": "433141327e681e5307933567a5fec312097ace3465542b5a75884e2d7ef2087b"
+          },
+          "LINUXCODE_QUARANTINE": {
+            "path": "runtime/materialize-policy-normal/libquarantine.dylib",
+            "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+          },
+          "LINUXCODE_SANDBOX": {
+            "path": "runtime/materialize-policy-normal/libsystem_sandbox.dylib",
+            "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+          },
+          "LINUXCODE_LIBDYLD": {
+            "path": "runtime/materialize-policy-normal/libdyld.dylib",
+            "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+          }
+        },
+        "source_runtime": {
+          "LINUXCODE_DARLING_SERVER": {
+            "path": "runtime/icu-data-normal/darlingserver",
+            "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+          },
+          "LINUXCODE_LIBXPC": {
+            "path": "runtime/icu-data-normal/libxpc.dylib",
+            "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+          },
+          "LINUXCODE_LAUNCHD": {
+            "path": "runtime/icu-data-normal/launchd",
+            "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+          },
+          "LINUXCODE_LIBSYSTEM_KERNEL": {
+            "path": "runtime/icu-data-normal/libsystem_kernel.dylib",
+            "sha256": "433141327e681e5307933567a5fec312097ace3465542b5a75884e2d7ef2087b"
+          },
+          "LINUXCODE_QUARANTINE": {
+            "path": "runtime/icu-data-normal/libquarantine.dylib",
+            "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+          },
+          "LINUXCODE_SANDBOX": {
+            "path": "runtime/icu-data-normal/libsystem_sandbox.dylib",
+            "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+          },
+          "LINUXCODE_LIBDYLD": {
+            "path": "runtime/icu-data-normal/libdyld.dylib",
+            "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+          }
+        },
+        "variant_root": "runtime/icu-data-normal/darling-root",
+        "resources": {
+          "runtime/icu-data-normal/darling-root/usr/share/icu/icudt78l.dat": "666a97d4dd1139f537290d74a661cc6b6da6cc58da24486b3cb282eacbcfa549",
+          "runtime/icu-data-normal/darling-root/usr/share/icu/icutzformat.txt": "327d09f9e798492441b2a7839e2ce11498c64ae4c36ea98e248b89c5fc3172fe"
+        },
+        "test_only_permissive_coreservices_policy": false
+      },
+      "diagnostic": {
+        "previous_source_runtime": {
+          "LINUXCODE_DARLING_SERVER": {
+            "path": "runtime/materialize-policy-diagnostic/darlingserver",
+            "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+          },
+          "LINUXCODE_LIBXPC": {
+            "path": "runtime/materialize-policy-diagnostic/libxpc.dylib",
+            "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+          },
+          "LINUXCODE_LAUNCHD": {
+            "path": "runtime/materialize-policy-diagnostic/launchd",
+            "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+          },
+          "LINUXCODE_LIBSYSTEM_KERNEL": {
+            "path": "runtime/materialize-policy-diagnostic/libsystem_kernel.dylib",
+            "sha256": "433141327e681e5307933567a5fec312097ace3465542b5a75884e2d7ef2087b"
+          },
+          "LINUXCODE_QUARANTINE": {
+            "path": "runtime/materialize-policy-diagnostic/libquarantine.dylib",
+            "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+          },
+          "LINUXCODE_SANDBOX": {
+            "path": "runtime/materialize-policy-diagnostic/libsystem_sandbox.dylib",
+            "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+          },
+          "LINUXCODE_LIBDYLD": {
+            "path": "runtime/materialize-policy-diagnostic/libdyld.dylib",
+            "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+          }
+        },
+        "source_runtime": {
+          "LINUXCODE_DARLING_SERVER": {
+            "path": "runtime/icu-data-diagnostic/darlingserver",
+            "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+          },
+          "LINUXCODE_LIBXPC": {
+            "path": "runtime/icu-data-diagnostic/libxpc.dylib",
+            "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+          },
+          "LINUXCODE_LAUNCHD": {
+            "path": "runtime/icu-data-diagnostic/launchd",
+            "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+          },
+          "LINUXCODE_LIBSYSTEM_KERNEL": {
+            "path": "runtime/icu-data-diagnostic/libsystem_kernel.dylib",
+            "sha256": "433141327e681e5307933567a5fec312097ace3465542b5a75884e2d7ef2087b"
+          },
+          "LINUXCODE_QUARANTINE": {
+            "path": "runtime/icu-data-diagnostic/libquarantine.dylib",
+            "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+          },
+          "LINUXCODE_SANDBOX": {
+            "path": "runtime/icu-data-diagnostic/libsystem_sandbox.dylib",
+            "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+          },
+          "LINUXCODE_LIBDYLD": {
+            "path": "runtime/icu-data-diagnostic/libdyld.dylib",
+            "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+          }
+        },
+        "variant_root": "runtime/icu-data-diagnostic/darling-root",
+        "resources": {
+          "runtime/icu-data-diagnostic/darling-root/usr/share/icu/icudt78l.dat": "666a97d4dd1139f537290d74a661cc6b6da6cc58da24486b3cb282eacbcfa549",
+          "runtime/icu-data-diagnostic/darling-root/usr/share/icu/icutzformat.txt": "327d09f9e798492441b2a7839e2ce11498c64ae4c36ea98e248b89c5fc3172fe"
+        },
+        "test_only_permissive_coreservices_policy": true
+      }
+    },
+    "default_entry_promoted": false,
+    "full_xcode_build_ready": false
+  },
+  "original_system_version": {
+    "original_resources": {
+      "runtime/recovery/macOS Base System/System/Library/CoreServices/SystemVersion.plist": "6151cb883e5b48d43a33d4d41956405a1cd502e0c8622319388d943e2cb804a1"
+    },
+    "selected_native_icu": "runtime/foundation-native-library-stage/libicucore.A.dylib",
+    "selected_native_icu_sha256": "d985892d8a6a8b3987d655501416f446031472b88c0449c8d20ae163acf1d70c",
+    "runtimes": {
+      "normal": {
+        "previous_source_runtime": {
+          "LINUXCODE_DARLING_SERVER": {
+            "path": "runtime/fatal-signal-normal/darlingserver",
+            "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+          },
+          "LINUXCODE_LIBXPC": {
+            "path": "runtime/fatal-signal-normal/libxpc.dylib",
+            "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+          },
+          "LINUXCODE_LAUNCHD": {
+            "path": "runtime/fatal-signal-normal/launchd",
+            "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+          },
+          "LINUXCODE_LIBSYSTEM_KERNEL": {
+            "path": "runtime/fatal-signal-normal/libsystem_kernel.dylib",
+            "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
+          },
+          "LINUXCODE_QUARANTINE": {
+            "path": "runtime/fatal-signal-normal/libquarantine.dylib",
+            "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+          },
+          "LINUXCODE_SANDBOX": {
+            "path": "runtime/fatal-signal-normal/libsystem_sandbox.dylib",
+            "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+          },
+          "LINUXCODE_LIBDYLD": {
+            "path": "runtime/fatal-signal-normal/libdyld.dylib",
+            "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+          }
+        },
+        "source_runtime": {
+          "LINUXCODE_DARLING_SERVER": {
+            "path": "runtime/system-version-normal/darlingserver",
+            "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+          },
+          "LINUXCODE_LIBXPC": {
+            "path": "runtime/system-version-normal/libxpc.dylib",
+            "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+          },
+          "LINUXCODE_LAUNCHD": {
+            "path": "runtime/system-version-normal/launchd",
+            "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+          },
+          "LINUXCODE_LIBSYSTEM_KERNEL": {
+            "path": "runtime/system-version-normal/libsystem_kernel.dylib",
+            "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
+          },
+          "LINUXCODE_QUARANTINE": {
+            "path": "runtime/system-version-normal/libquarantine.dylib",
+            "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+          },
+          "LINUXCODE_SANDBOX": {
+            "path": "runtime/system-version-normal/libsystem_sandbox.dylib",
+            "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+          },
+          "LINUXCODE_LIBDYLD": {
+            "path": "runtime/system-version-normal/libdyld.dylib",
+            "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+          }
+        },
+        "variant_root": "runtime/system-version-normal/darling-root",
+        "resources": {
+          "runtime/system-version-normal/darling-root/System/Library/CoreServices/SystemVersion.plist": "6151cb883e5b48d43a33d4d41956405a1cd502e0c8622319388d943e2cb804a1"
+        },
+        "test_only_permissive_coreservices_policy": false
+      },
+      "diagnostic": {
+        "previous_source_runtime": {
+          "LINUXCODE_DARLING_SERVER": {
+            "path": "runtime/fatal-signal-diagnostic/darlingserver",
+            "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+          },
+          "LINUXCODE_LIBXPC": {
+            "path": "runtime/fatal-signal-diagnostic/libxpc.dylib",
+            "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+          },
+          "LINUXCODE_LAUNCHD": {
+            "path": "runtime/fatal-signal-diagnostic/launchd",
+            "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+          },
+          "LINUXCODE_LIBSYSTEM_KERNEL": {
+            "path": "runtime/fatal-signal-diagnostic/libsystem_kernel.dylib",
+            "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
+          },
+          "LINUXCODE_QUARANTINE": {
+            "path": "runtime/fatal-signal-diagnostic/libquarantine.dylib",
+            "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+          },
+          "LINUXCODE_SANDBOX": {
+            "path": "runtime/fatal-signal-diagnostic/libsystem_sandbox.dylib",
+            "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+          },
+          "LINUXCODE_LIBDYLD": {
+            "path": "runtime/fatal-signal-diagnostic/libdyld.dylib",
+            "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+          }
+        },
+        "source_runtime": {
+          "LINUXCODE_DARLING_SERVER": {
+            "path": "runtime/system-version-diagnostic/darlingserver",
+            "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+          },
+          "LINUXCODE_LIBXPC": {
+            "path": "runtime/system-version-diagnostic/libxpc.dylib",
+            "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+          },
+          "LINUXCODE_LAUNCHD": {
+            "path": "runtime/system-version-diagnostic/launchd",
+            "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+          },
+          "LINUXCODE_LIBSYSTEM_KERNEL": {
+            "path": "runtime/system-version-diagnostic/libsystem_kernel.dylib",
+            "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
+          },
+          "LINUXCODE_QUARANTINE": {
+            "path": "runtime/system-version-diagnostic/libquarantine.dylib",
+            "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+          },
+          "LINUXCODE_SANDBOX": {
+            "path": "runtime/system-version-diagnostic/libsystem_sandbox.dylib",
+            "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+          },
+          "LINUXCODE_LIBDYLD": {
+            "path": "runtime/system-version-diagnostic/libdyld.dylib",
+            "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+          }
+        },
+        "variant_root": "runtime/system-version-diagnostic/darling-root",
+        "resources": {
+          "runtime/system-version-diagnostic/darling-root/System/Library/CoreServices/SystemVersion.plist": "6151cb883e5b48d43a33d4d41956405a1cd502e0c8622319388d943e2cb804a1"
+        },
+        "test_only_permissive_coreservices_policy": true
+      }
+    },
+    "default_entry_promoted": false,
+    "full_xcode_build_ready": false
+  },
+  "original_build_output_snapshots": [
+    {
+      "source_path": "runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XCBuildData/e081f052f2ccb932ce610126f0d68f0a.xcbuilddata/build-request.json",
+      "path": "artifacts/icu-signal-build-output-snapshot/c6b521272d7b0d4216486d38db4c49268d6f8344765339bdaeb7b8ce28ace2c3",
+      "sha256": "c6b521272d7b0d4216486d38db4c49268d6f8344765339bdaeb7b8ce28ace2c3",
+      "size": 2307,
+      "source_mtime": 1792230800.4069912
+    },
+    {
+      "source_path": "runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XCBuildData/e081f052f2ccb932ce610126f0d68f0a.xcbuilddata/manifest.json",
+      "path": "artifacts/icu-signal-build-output-snapshot/c8ee343994c804da25751539631c255cef1f775ba077a342a1459418a0e13bb4",
+      "sha256": "c8ee343994c804da25751539631c255cef1f775ba077a342a1459418a0e13bb4",
+      "size": 71556,
+      "source_mtime": 1792230800.3949914
+    },
+    {
+      "source_path": "runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/Objects-normal/x86_64/7187679823f38a2a940e0043cdf9d637-common-args.resp",
+      "path": "artifacts/icu-signal-build-output-snapshot/3a4a913d66b9ba85aa98749d5f52faab50442b919b50e1aa751f69d6482476ba",
+      "sha256": "3a4a913d66b9ba85aa98749d5f52faab50442b919b50e1aa751f69d6482476ba",
+      "size": 1462,
+      "source_mtime": 1792230800.534991
+    },
+    {
+      "source_path": "runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/XcodeSmoke-all-non-framework-target-headers.hmap",
+      "path": "artifacts/icu-signal-build-output-snapshot/12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8",
+      "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8",
+      "size": 121,
+      "source_mtime": 1792230800.5229912
+    },
+    {
+      "source_path": "runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/XcodeSmoke-all-target-headers.hmap",
+      "path": "artifacts/icu-signal-build-output-snapshot/12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8",
+      "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8",
+      "size": 121,
+      "source_mtime": 1792230800.5269911
+    },
+    {
+      "source_path": "runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/XcodeSmoke-generated-files.hmap",
+      "path": "artifacts/icu-signal-build-output-snapshot/12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8",
+      "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8",
+      "size": 121,
+      "source_mtime": 1792230800.5229912
+    },
+    {
+      "source_path": "runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/XcodeSmoke-own-target-headers.hmap",
+      "path": "artifacts/icu-signal-build-output-snapshot/12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8",
+      "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8",
+      "size": 121,
+      "source_mtime": 1792230800.5269911
+    },
+    {
+      "source_path": "runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/XcodeSmoke-project-headers.hmap",
+      "path": "artifacts/icu-signal-build-output-snapshot/12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8",
+      "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8",
+      "size": 121,
+      "source_mtime": 1792230800.5229912
+    },
+    {
+      "source_path": "runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/XcodeSmoke.hmap",
+      "path": "artifacts/icu-signal-build-output-snapshot/12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8",
+      "sha256": "12ed03f05477a53a9fdc4a0af4e10c3954d23c914d83548dc9176139cfa66bd8",
+      "size": 121,
+      "source_mtime": 1792230800.518991
+    }
+  ],
+  "original_xcode_regressions": {
+    "version": {
+      "report": "artifacts/xcode-service-runtime-swb-swift-logging-version-76aff2a5fc4a.json",
+      "sha256": "aebd762ddb4b9436fa46530cc7dd01360f56288ea4dce8a43c614187838b3236",
+      "exit_status": 0
+    },
+    "showsdks": {
+      "report": "artifacts/xcode-service-runtime-swb-swift-logging-showsdks-e15ef6cbe791.json",
+      "sha256": "c405c498ed9635080013c4375cf2e683e264e21bf09b5ab0e6d5717f2f899a70",
+      "exit_status": 0
+    }
+  },
+  "original_project_attempts": [
+    {
+      "report": "artifacts/xcode-service-runtime-fatal-signal-diagnostic-build-a16fe5d9aeb3.json",
+      "sha256": "6aec0766930243644c7556e6c41a7ced7c6dc4f9637006a7f290ce9d9a7d5e4e",
+      "exit_status": 65,
+      "xcode_process_returned": true,
+      "UTI_preflight_verified": true
+    },
+    {
+      "report": "artifacts/xcode-service-runtime-system-version-diagnostic-build-08f452ea0874.json",
+      "sha256": "13b81b276ea965f0157ae3e9ac064c3e366190c71644f42a24c1bf8ada6581de",
+      "exit_status": 65,
+      "xcode_process_returned": true,
+      "UTI_preflight_verified": true
+    },
+    {
+      "report": "artifacts/xcode-service-runtime-system-version-diagnostic-build-1a8e629d11f1.json",
+      "sha256": "378ebadbf4b97b110c08c0702b753ae776c0ad59f345f7219735b44744cc4378",
+      "exit_status": 65,
+      "xcode_process_returned": true,
+      "UTI_preflight_verified": true
+    },
+    {
+      "report": "artifacts/xcode-service-runtime-swb-logging-diagnostic-build-ccf4f42a8822.json",
+      "sha256": "5df047cf208c265fdcc6e16579f5f6e174deb26ad54d7a33487a6dd723625fd9",
+      "exit_status": 65,
+      "xcode_process_returned": true,
+      "UTI_preflight_verified": true
+    },
+    {
+      "report": "artifacts/xcode-service-runtime-swb-swift-logging-diagnostic-build-7658d962f551.json",
+      "sha256": "ac8adf79f0f9ce38d79c2adb1e2dc04af05aaa8bda0e2d2ac487d2b6dbca45da",
+      "exit_status": 65,
+      "xcode_process_returned": true,
+      "UTI_preflight_verified": true
+    }
+  ],
+  "latest_original_project": {
+    "report": "artifacts/xcode-service-runtime-swb-swift-logging-diagnostic-build-7658d962f551.json",
+    "sha256": "ac8adf79f0f9ce38d79c2adb1e2dc04af05aaa8bda0e2d2ac487d2b6dbca45da",
+    "exit_status": 65,
+    "xcode_process_returned": true,
+    "UTI_preflight_verified": true
+  },
+  "next_work": [
+    "Restore the genuine FSEventsGetCurrentEventId API and CoreServices umbrella export path required by original clang-stat-cache. Audit its other FSEvents imports and cache invalidation/replay semantics against actual Linux events; do not disable the cache, return a fabricated event ID or change the original build arguments.",
+    "Retry unchanged XcodeSmoke through actual CompileC/link and verify the produced program. Preserve real build-service task execution and inspect child environment selection as needed. CoreSimulator service bootstrap and CreatedByBuildSystem xattr warnings remain unresolved.",
+    "Continue full Unity/CocoaPods, iOS/macOS archive, signing and export; complete restrictive Sandbox, startup volumes, actual RunningBoard monitoring and other recorded runtime gaps. Current original RSA verification is not a signing/keychain/provisioning completion claim."
+  ],
+  "checkpoint_note": "Selected fields from the local report, not a full artifact archive; see local-evidence-index.json."
+}

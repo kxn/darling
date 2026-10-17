@@ -1,0 +1,9 @@
+{
+  "source_commit": "55a4341b470c2a56fea667c1d2167fb074226f04",
+  "files": {
+    "src/NSSpellEngine.m": "b3edb0d9fe7e8bc6c780b11d6e4a33b73155344e5a577d06f99b66ad32a188b8",
+    "include/Foundation/NSSpellEngine.h": "49d5099b0ce2c484f5c46344c0b843b009420ac359ffca8aaf0a60de524cf9bb",
+    "src/NSPlatform_darwin.m": "a3cc2a6c1b6db32ffe320cd7e48ec9424f0b8b4c6f4a12807dbbda8332c53b3d"
+  },
+  "scope": "Existing Darling private spell-engine base class and its actual resource-provider registry, plus the original Darwin platform resource suffix. Actual spelling/grammar implementations remain unavailable and raise explicitly when invoked; no spelling success is synthesized."
+}

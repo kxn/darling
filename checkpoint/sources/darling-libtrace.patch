@@ -1,0 +1,929 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index a272b00..83cf7c0 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -10,6 +10,7 @@ include(darling_static_lib)
+ set(system_trace_sources
+ 	libsystem_trace/libtrace_assert.c
+ 	libsystem_trace/os_log.c
++	libsystem_trace/log_hooks.m
+ 	libsystem_trace/os_activity.m
+ 	libsystem_trace/stubs.c
+ 	libsystem_trace/unpack_buffer.m
+@@ -23,7 +24,7 @@ add_circular(system_trace FAT
+ 	SOURCES
+ 		${system_trace_sources}
+ 	SIBLINGS
+-		platform system_kernel system_c system_malloc system_asl system_duct libdispatch_shared system_dyld system_blocks
++		platform system_kernel system_c system_malloc system_asl system_duct libdispatch_shared system_dyld system_blocks system_pthread unwind
+ 	UPWARD
+ 		objc
+ )
+diff --git a/include/os/log_private.h b/include/os/log_private.h
+index c0ccdb0..bc6d0d4 100644
+--- a/include/os/log_private.h
++++ b/include/os/log_private.h
+@@ -8,6 +8,42 @@
+ 
+ __BEGIN_DECLS
+ 
++OS_EXPORT
++int os_log_compare_enablement(os_log_type_t lhs, os_log_type_t rhs);
++
++/* Intel message layout also used by WebKit's public OSLogSPI.h. The opaque
++ * trace metadata is intentionally not interpreted as an os_log_s object. */
++typedef struct os_log_message_s {
++	uint64_t trace_id;
++	uint8_t opaque[80];
++	const char *format;
++	const uint8_t *buffer;
++	size_t buffer_sz;
++	const uint8_t *privdata;
++	size_t privdata_sz;
++	const char *subsystem;
++	const char *category;
++} *os_log_message_t;
++typedef void (^os_log_hook_t)(os_log_type_t, os_log_message_t);
++OS_EXPORT os_log_hook_t os_log_set_hook(os_log_type_t level, os_log_hook_t hook);
++OS_EXPORT os_log_type_t os_log_get_type(os_log_message_t message);
++
++/* The original Intel fault dispatch helper builds this 64-byte record. */
++struct os_log_fault_info_s {
++	uint64_t version;
++	os_log_t log;
++	const char *subsystem;
++	const char *category;
++	const char *format;
++	const char *message;
++	const void *pc;
++	uint8_t flags;
++	uint8_t reserved[7];
++};
++typedef void (*os_log_fault_callback_t)(const struct os_log_fault_info_s *);
++OS_EXPORT os_log_fault_callback_t os_log_set_fault_callback(os_log_fault_callback_t callback);
++OS_EXPORT void os_log_fault_default_callback(const struct os_log_fault_info_s *info);
++
+ OS_EXPORT OS_NOTHROW OS_NOT_TAIL_CALLED OS_NONNULL5
+ void os_log_with_args(os_log_t oslog, os_log_type_t type, const char *format, va_list args, void *ret_addr);
+ 
+@@ -24,6 +60,11 @@ struct os_log_pack_s {
+ 	const void* olp_mh;
+ 	const void* olp_pc;
+ 	const char* olp_format;
++	/* Modern Intel ABI: fill returns byte 68, while sizeof(header) is 72.
++	 * The four trailing allocation bytes are not part of the encoded data. */
++	uint8_t olp_reserved[16];
++	uint16_t olp_errno;
++	uint16_t olp_data_size;
+ 	uint8_t olp_data[];
+ };
+ 
+@@ -36,12 +77,21 @@ uint8_t* _os_log_pack_fill(os_log_pack_t pack, size_t size, int saved_errno, con
+ 
+ OS_EXPORT
+ void os_log_pack_send(os_log_pack_t pack, os_log_t log, os_log_type_t type);
++char *os_log_pack_send_and_compose(os_log_pack_t pack, os_log_t log,
++    os_log_type_t type, char *buffer, size_t capacity);
++char *_os_log_send_and_compose_impl(unsigned flags, const char **out_format,
++    char *buffer, uint32_t capacity, void *dso, os_log_t log,
++    os_log_type_t type, const char *format, uint8_t *encoded, uint32_t size);
+ 
+ // needed for libc
+ // not entirely sure how these should be defined
+-#define os_log_pack_size(fmt, ...) _os_log_pack_size(sizeof(fmt))
+-// this one is definitely wrong (it's missing the va_args)
+-#define os_log_pack_fill(pack, size, errno, fmt, ...) _os_log_pack_fill(pack, size, errno, NULL, fmt)
++#define os_log_pack_size(fmt, ...) \
++	_os_log_pack_size(__builtin_os_log_format_buffer_size(fmt, ##__VA_ARGS__))
++#define os_log_pack_fill(pack, size, saved_errno, fmt, ...) ({ \
++	uint8_t *_olp_buffer = _os_log_pack_fill(pack, size, saved_errno, NULL, fmt); \
++	__builtin_os_log_format(_olp_buffer, fmt, ##__VA_ARGS__); \
++	_olp_buffer; \
++})
+ 
+ OS_EXPORT
+ int os_log_shim_enabled(void* return_address);
+diff --git a/libsbuf/libsbuf.c b/libsbuf/libsbuf.c
+index a6aeeaf..fdda41e 100644
+--- a/libsbuf/libsbuf.c
++++ b/libsbuf/libsbuf.c
+@@ -55,7 +55,7 @@ int	sbuf_setpos(struct sbuf *sb, int pos) {
+ }
+ 
+ int	sbuf_bcat(struct sbuf *sb, const void *ptr, size_t len) {
+-	while ((sb->s_len + len) > sb->s_size) {
++	while ((sb->s_len + len) >= sb->s_size) {
+ 		sb->s_size *= 2;
+ 		sb->s_buf = realloc(sb->s_buf, sb->s_size);
+ 	}
+@@ -66,7 +66,7 @@ int	sbuf_bcat(struct sbuf *sb, const void *ptr, size_t len) {
+ }
+ 
+ int sbuf_bcpy(struct sbuf *sb, const void *ptr, size_t len) {
+-	while (len > sb->s_size) {
++	while (len >= sb->s_size) {
+ 		sb->s_size *= 2;
+ 		sb->s_buf = realloc(sb->s_buf, sb->s_size);
+ 	}
+diff --git a/libsystem_trace/log_hooks.m b/libsystem_trace/log_hooks.m
+new file mode 100644
+index 0000000..7b4c1d0
+--- /dev/null
++++ b/libsystem_trace/log_hooks.m
+@@ -0,0 +1,206 @@
++/* Source delivery for the Intel OSLog hook ABI. Compiler pointer records are
++ * packed into bounded inline ranges before a hook sees them; private payloads
++ * remain absent under Darling's existing privacy policy. */
++#include <os/log_private.h>
++#include <Block.h>
++#include <errno.h>
++#include <pthread.h>
++#include <stdint.h>
++#include <stddef.h>
++#include <stdlib.h>
++#include <string.h>
++#include <wchar.h>
++#import <Foundation/NSString.h>
++#include "os_log_s.h"
++#include "libtrace_assert.h"
++
++_Static_assert(offsetof(struct os_log_message_s,format)==0x58,"Intel format ABI");
++_Static_assert(offsetof(struct os_log_message_s,subsystem)==0x80,"Intel subsystem ABI");
++_Static_assert(sizeof(struct os_log_fault_info_s)==64,"Intel fault ABI");
++
++static pthread_mutex_t hook_lock=PTHREAD_MUTEX_INITIALIZER;
++static os_log_hook_t current_hook;
++static os_log_type_t hook_level=OS_LOG_TYPE_FAULT;
++static os_log_fault_callback_t fault_callback=os_log_fault_default_callback;
++static bool dispatcher_active;
++static pthread_once_t key_once=PTHREAD_ONCE_INIT;
++static pthread_key_t active_key;
++static void make_key(void) {
++    int error=pthread_key_create(&active_key,NULL);
++    libtrace_assert(error==0,"Cannot create log recursion key: %d",error);
++}
++
++os_log_hook_t os_log_set_hook(os_log_type_t level,os_log_hook_t hook) {
++    libtrace_precondition(hook!=NULL,"Log hook cannot be NULL");
++    (void)os_log_compare_enablement(level,level);
++    os_log_hook_t replacement=Block_copy(hook);
++    libtrace_assert(replacement!=NULL,"Cannot copy log hook");
++    pthread_mutex_lock(&hook_lock);
++    if(os_log_compare_enablement(level,hook_level)<0)hook_level=level;
++    os_log_hook_t previous=current_hook;current_hook=replacement;
++    __atomic_store_n(&dispatcher_active,true,__ATOMIC_RELEASE);
++    pthread_mutex_unlock(&hook_lock);
++    /* Like the native atomic exchange, return the previous copied block.
++     * The caller may chain it and owns that outstanding registration retain. */
++    return previous;
++}
++
++os_log_type_t os_log_get_type(os_log_message_t message) {
++    return (os_log_type_t)((message->trace_id>>8)&0xff);
++}
++
++void os_log_fault_default_callback(const struct os_log_fault_info_s *info) {
++    /* The original Intel default callback is a single return instruction. */
++    (void)info;
++}
++
++os_log_fault_callback_t os_log_set_fault_callback(os_log_fault_callback_t callback) {
++    pthread_mutex_lock(&hook_lock);
++    os_log_fault_callback_t previous=fault_callback;
++    if(callback){
++        fault_callback=callback; /* NULL queries; it does not clear. */
++        if(callback!=os_log_fault_default_callback)
++            __atomic_store_n(&dispatcher_active,true,__ATOMIC_RELEASE);
++    }
++    pthread_mutex_unlock(&hook_lock);return previous;
++}
++
++struct packed_log {uint8_t *bytes;size_t descriptors,pool,capacity;};
++static bool reserve(struct packed_log *p,size_t amount) {
++    if(amount>UINT16_MAX-p->descriptors-p->pool){errno=EOVERFLOW;return false;}
++    return true;
++}
++static bool range_record(struct packed_log *p,uint8_t descriptor,const void *bytes,size_t length,bool private) {
++    if(!reserve(p,6+(private?0:length)))return false;
++    uint16_t offset=(uint16_t)p->pool,n=(uint16_t)length;
++    uint8_t *record=p->bytes+p->descriptors;record[0]=descriptor;record[1]=4;
++    memcpy(record+2,&offset,2);memcpy(record+4,&n,2);p->descriptors+=6;
++    if(!private&&length){memcpy(p->bytes+p->capacity+p->pool,bytes,length);p->pool+=length;}
++    return true;
++}
++static bool raw_record(struct packed_log *p,uint8_t descriptor,const void *bytes,uint8_t length) {
++    if(!reserve(p,2+length))return false;
++    uint8_t *record=p->bytes+p->descriptors;record[0]=descriptor;record[1]=length;
++    memcpy(record+2,bytes,length);p->descriptors+=2+length;return true;
++}
++
++/* No record or pointed-to object is read before its envelope is validated.
++ * Pool offsets/lengths use the native unsigned 16-bit inline range encoding. */
++static uint8_t *pack_buffer(const uint8_t *source,uint32_t size,size_t *out_size,int saved_errno) {
++    if(!source||size<2){errno=EINVAL;return NULL;}
++    size_t cursor=2;
++    for(unsigned i=0;i<source[1];i++){
++        if(cursor>size||size-cursor<2||source[cursor+1]>size-cursor-2){errno=EINVAL;return NULL;}
++        cursor+=2+source[cursor+1];
++    }
++    if(cursor!=size){errno=EINVAL;return NULL;}
++    struct packed_log p={.capacity=UINT16_MAX,.descriptors=2};
++    p.bytes=malloc(2*UINT16_MAX);if(!p.bytes)return NULL;p.bytes[0]=source[0];p.bytes[1]=source[1];
++    cursor=2;uint64_t precision=UINT64_MAX;
++    @try {
++    for(unsigned i=0;i<source[1];i++){
++        uint8_t descriptor=source[cursor],length=source[cursor+1],kind=descriptor>>4,privacy=descriptor&15;
++        const uint8_t *value=source+cursor+2;cursor+=2+length;
++        if(privacy>2){errno=ENOTSUP;goto fail;}
++        bool private=privacy==1||(privacy==0&&kind>=2&&kind<=5);
++        if(private)descriptor=(descriptor&0xf0)|1;
++        if(kind==0||kind==1){
++            if(length!=1&&length!=2&&length!=4&&length!=8){errno=EINVAL;goto fail;}
++            if(kind==1){precision=0;memcpy(&precision,value,length);}
++            if(private){if(!range_record(&p,descriptor,NULL,length,true))goto fail;}
++            else if(!raw_record(&p,descriptor,value,length))goto fail;
++            if(kind==0)precision=UINT64_MAX;
++        }else if(kind>=2&&kind<=5){
++            if(length!=sizeof(void *)){errno=EINVAL;goto fail;}
++            if(private){if(!range_record(&p,descriptor,NULL,0,true))goto fail;precision=UINT64_MAX;continue;}
++            const void *pointer=NULL;memcpy(&pointer,value,sizeof(pointer));
++            size_t n=0;const void *data=pointer;char *converted=NULL;
++            if(kind==2){
++                const char *text=pointer?pointer:"(null)";size_t limit=precision<UINT16_MAX?precision:UINT16_MAX;
++                n=strnlen(text,limit);
++                if(n==UINT16_MAX){errno=EOVERFLOW;goto fail;}
++                /* The serialized pool owns a terminator, including precision
++                 * zero, without reading beyond a precision-bounded pointer. */
++                converted=malloc(n+1);if(!converted)goto fail;
++                if(n)memcpy(converted,text,n);converted[n++]=0;data=converted;
++            }else if(kind==3){
++                if(precision==UINT64_MAX||precision>UINT16_MAX){errno=EINVAL;goto fail;}
++                n=pointer?(size_t)precision:0;
++            }else if(kind==4){
++                NSString *description=pointer?[(id)pointer description]:nil;
++                const char *text=[description UTF8String];if(!text)text="(null)";
++                n=strnlen(text,UINT16_MAX);if(n==UINT16_MAX){errno=EOVERFLOW;goto fail;}
++                converted=strdup(text);if(!converted)goto fail;data=converted;n++;
++            }else{
++                /* The native wire pool contains UTF-8 even for a compiler
++                 * wide-string pointer; sending raw wchar_t truncates at its
++                 * first zero byte. Convert without the process locale. */
++                const wchar_t *text=pointer;size_t count=0;
++                converted=malloc(UINT16_MAX);if(!converted)goto fail;
++                if(text)while(count<precision){
++                    uint32_t c=(uint32_t)text[count];if(!c)break;count++;
++                    if(c>0x10ffff||(c>=0xd800&&c<=0xdfff)){free(converted);errno=EILSEQ;goto fail;}
++                    size_t length=c<0x80?1:c<0x800?2:c<0x10000?3:4;
++                    if(n+length>=UINT16_MAX){free(converted);errno=EOVERFLOW;goto fail;}
++                    if(length==1)converted[n++]=(char)c;
++                    else{for(size_t j=length-1;j>0;j--){converted[n+j]=(char)(0x80|(c&63));c>>=6;}converted[n]=(char)((length==2?0xc0:length==3?0xe0:0xf0)|c);n+=length;}
++                }
++                else{memcpy(converted,"(null)",6);n=6;}
++                converted[n++]=0;data=converted;
++            }
++            bool ok=range_record(&p,descriptor,data,n,false);free(converted);if(!ok)goto fail;
++            precision=UINT64_MAX;
++        }else if(kind==6){
++            if(length!=0){errno=EINVAL;goto fail;}
++            /* Compiler ERRNO is an emit-time request. Native serialized %m
++             * consumes a SCALAR containing the saved errno, not kind 6. */
++            descriptor&=15;
++            if(private){if(!range_record(&p,descriptor,NULL,sizeof(saved_errno),true))goto fail;}
++            else if(!raw_record(&p,descriptor,&saved_errno,sizeof(saved_errno)))goto fail;
++        }else{errno=ENOTSUP;goto fail;}
++    }
++    } @catch(id exception) {free(p.bytes);@throw;}
++    memmove(p.bytes+p.descriptors,p.bytes+p.capacity,p.pool);
++    *out_size=p.descriptors+p.pool;return p.bytes;
++fail:
++    free(p.bytes);return NULL;
++}
++
++__XNU_PRIVATE_EXTERN
++void _darling_os_log_dispatch(os_log_t log,os_log_type_t type,const char *format,
++    const uint8_t *buffer,uint32_t size,const char *decoded,int saved_errno,const void *pc) {
++    /* A process which never registered an observer needs no callback TLS or
++     * locks. In particular, ordinary early Foundation logging must not create
++     * callback-specific pthread state before its own initialization finishes. */
++    if(!__atomic_load_n(&dispatcher_active,__ATOMIC_ACQUIRE))return;
++    struct os_log_s *object=(struct os_log_s *)log;
++    pthread_once(&key_once,make_key);
++    if(pthread_getspecific(active_key))return;
++    pthread_mutex_lock(&hook_lock);
++    os_log_hook_t hook=current_hook&&os_log_compare_enablement(type,hook_level)>=0?Block_copy(current_hook):NULL;
++    os_log_fault_callback_t fault=type==OS_LOG_TYPE_FAULT?fault_callback:NULL;
++    pthread_mutex_unlock(&hook_lock);
++    if(!hook&&(!fault||fault==os_log_fault_default_callback))return;
++    int before=errno;uint8_t *packed=NULL;size_t packed_size=0;
++    pthread_setspecific(active_key,(void *)1);
++    @try {
++        if(hook){
++            packed=pack_buffer(buffer,size,&packed_size,saved_errno);
++            if(packed){
++                struct os_log_message_s message={.trace_id=((uint64_t)type<<8)|4,
++                    .format=format,.buffer=packed,.buffer_sz=packed_size,
++                    .subsystem=object->subsystem,.category=object->category};
++                hook(type,&message);
++            }
++        }
++        if(fault&&decoded){
++            struct os_log_fault_info_s info={.version=1,.log=log,
++                .subsystem=object->subsystem,.category=object->category,
++                .format=format,.message=decoded,.pc=pc};
++            fault(&info);
++        }
++    } @finally {
++        free(packed);if(hook)Block_release(hook);
++        pthread_setspecific(active_key,NULL);errno=before;
++    }
++}
+diff --git a/libsystem_trace/os_log.c b/libsystem_trace/os_log.c
+index 7239f3c..2420673 100644
+--- a/libsystem_trace/os_log.c
++++ b/libsystem_trace/os_log.c
+@@ -28,7 +28,11 @@
+ #include "os_log_s.h"
+ #include "libtrace_assert.h"
+ #include <asl.h>
++#include <errno.h>
+ #include <os/log.h>
++#include <os/log_private.h>
++#include <stddef.h>
++#include <stdint.h>
+ #import <os/object_private.h>
+ 
+ #ifdef os_log_create
+@@ -61,7 +65,10 @@ static asl_object_t get_client() {
+ 	static asl_object_t client = NULL;
+ 	static dispatch_once_t token;
+ 	dispatch_once(&token, ^{
+-		client = asl_open(NULL, "org.puredarwin.os_log", 0);
++		const char *diagnostic = getenv("DARLING_OS_LOG_STDERR");
++		bool to_stderr = diagnostic && strcmp(diagnostic, "1") == 0;
++		client = asl_open(NULL, "org.puredarwin.os_log", to_stderr ? ASL_OPT_STDERR : 0);
++		if (client && to_stderr) asl_set_filter(client, ASL_FILTER_MASK_UPTO(ASL_LEVEL_DEBUG));
+ 	});
+ 	return client;
+ };
+@@ -84,13 +91,46 @@ bool os_log_type_enabled(os_log_t log, os_log_type_t type) {
+ 	return true;
+ }
+ 
++/* Enablement order differs from the numeric enum order: DEBUG < INFO <
++ * DEFAULT < ERROR < FAULT. The native comparator returns the rank difference,
++ * including magnitudes greater than one, and rejects undefined log types. */
++static int os_log_enablement_rank(os_log_type_t type) {
++	switch (type) {
++		case OS_LOG_TYPE_DEBUG: return 0;
++		case OS_LOG_TYPE_INFO: return 1;
++		case OS_LOG_TYPE_DEFAULT: return 2;
++		case OS_LOG_TYPE_ERROR: return 3;
++		case OS_LOG_TYPE_FAULT: return 4;
++		default:
++			libtrace_precondition(false, "Invalid log type in os_log_compare_enablement");
++			__builtin_trap();
++	}
++}
++
++int os_log_compare_enablement(os_log_type_t lhs, os_log_type_t rhs) {
++	return os_log_enablement_rank(lhs) - os_log_enablement_rank(rhs);
++}
++
+ __XNU_PRIVATE_EXTERN
+ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t bufferSize);
+ __XNU_PRIVATE_EXTERN
+ const char *os_log_buffer_to_hex_string(const uint8_t *buffer, uint32_t buffer_size);
+ 
+-void
+-_os_log_impl(void *dso, os_log_t log, os_log_type_t type, const char *format, uint8_t *buf, uint32_t size) {
++__XNU_PRIVATE_EXTERN
++void _darling_os_log_dispatch(os_log_t log, os_log_type_t type,
++    const char *format, const uint8_t *buffer, uint32_t size,
++    const char *decoded, int saved_errno, const void *pc);
++
++static void
++emit_encoded_log(void *dso, os_log_t log, os_log_type_t type, const char *format,
++    uint8_t *buf, uint32_t size, int saved_errno, const void *pc, char **composed) {
++	/* A composed result is owned by the caller. Decode once for the ASL output
++	 * and composed return; hook serialization retains its existing behavior. */
++	char *decodedBuffer = NULL;
++	if (composed) {
++		errno = saved_errno;
++		decodedBuffer = *composed = os_log_decode_buffer(format, buf, size);
++	}
+ 	libtrace_precondition(log != NULL, "os_log_t cannot be NULL");
+ 	if (log->magic == OS_LOG_DISABLED_MAGIC) return;
+ 	libtrace_precondition(log->magic == OS_LOG_DEFAULT_MAGIC || log->magic == OS_LOG_MAGIC, "Invalid os_log_t pointer parameter passed to _os_log_impl()");
+@@ -133,11 +173,109 @@ _os_log_impl(void *dso, os_log_t log, os_log_type_t type, const char *format, ui
+ 			libtrace_assert(false, "Invalid os_log_type_t not caught by precondition");
+ 	}
+ 
+-	char *decodedBuffer = os_log_decode_buffer(format, buf, size);
+-	asl_log(get_client(), message, level, "%s", decodedBuffer);
++	errno = saved_errno;
++	if (!composed) decodedBuffer = os_log_decode_buffer(format, buf, size);
++	_darling_os_log_dispatch(log, type, format, buf, size, decodedBuffer,
++	    saved_errno, pc);
++	if (decodedBuffer) {
++		asl_log(get_client(), message, level, "%s", decodedBuffer);
++	} else {
++		// Preserve the original format and encoded data for an invalid record.
++		// Never feed an invalid buffer to the object/string formatter.
++		asl_log(get_client(), message, ASL_LEVEL_ERR,
++			"os_log: invalid encoded arguments for format: %s", format);
++	}
+ 	asl_release(message);
+-	free(decodedBuffer);
++	if (!composed) free(decodedBuffer);
+ 	free((void *)buffer_hex);
++	/* Logging must not alter the caller's errno, including when callback or
++	 * ASL work uses pthread/syscall paths internally. */
++	errno = saved_errno;
++}
++
++void
++_os_log_impl(void *dso, os_log_t log, os_log_type_t type, const char *format,
++    uint8_t *buf, uint32_t size) {
++	emit_encoded_log(dso, log, type, format, buf, size, errno,
++	    __builtin_return_address(0), NULL);
++}
++
++_Static_assert(sizeof(struct os_log_pack_s) == 72, "Intel log-pack size ABI");
++_Static_assert(offsetof(struct os_log_pack_s, olp_errno) == 64, "Intel log-pack errno ABI");
++_Static_assert(offsetof(struct os_log_pack_s, olp_data) == 68, "Intel log-pack data ABI");
++
++size_t _os_log_pack_size(size_t encoded_size) {
++	libtrace_precondition(encoded_size <= SIZE_MAX - sizeof(struct os_log_pack_s),
++	    "Log-pack allocation size overflow");
++	return sizeof(struct os_log_pack_s) + encoded_size;
++}
++
++uint8_t *_os_log_pack_fill(os_log_pack_t pack, size_t size, int saved_errno,
++    const void *dso, const char *format) {
++	libtrace_precondition(pack && format && size >= sizeof(*pack) && size < 65536,
++	    "Invalid log-pack buffer or allocation size");
++	/* These fields are zero in the original Intel fill routine. Timestamp
++	 * acquisition belongs to its send path, not to the compiler's fill. */
++	pack->olp_continuous_time = 0;
++	memset(&pack->olp_wall_time, 0, sizeof(pack->olp_wall_time));
++	pack->olp_mh = dso;
++	pack->olp_pc = __builtin_return_address(0);
++	pack->olp_format = format;
++	memset(pack->olp_reserved, 0, sizeof(pack->olp_reserved));
++	pack->olp_errno = (uint16_t)saved_errno;
++	pack->olp_data_size = (uint16_t)(size - sizeof(*pack));
++	return pack->olp_data;
++}
++
++void os_log_pack_send(os_log_pack_t pack, os_log_t log, os_log_type_t type) {
++	int caller_errno = errno;
++	libtrace_precondition(pack && pack->olp_format, "Invalid log-pack header");
++	/* Reuse the actual encoded-buffer decoder, ASL output, privacy policy,
++	 * hooks and fault callbacks. Preserve the pack's original call site and
++	 * errno for formatting while leaving the sending caller's errno intact. */
++	emit_encoded_log((void *)pack->olp_mh, log, type, pack->olp_format,
++	    pack->olp_data, pack->olp_data_size, pack->olp_errno, pack->olp_pc, NULL);
++	errno = caller_errno;
++}
++
++static char *send_and_compose(unsigned flags, char *buffer, uint32_t capacity,
++    void *dso, os_log_t log, os_log_type_t type, const char *format,
++    uint8_t *encoded, uint32_t size, int saved_errno, const void *pc) {
++	int caller_errno = errno;
++	char *text = NULL;
++	if (flags & 1) {
++		emit_encoded_log(dso, log, type & 0x7f, format, encoded, size,
++		    saved_errno, pc, (flags & 2) ? &text : NULL);
++	} else if (flags & 2) {
++		errno = saved_errno;
++		text = os_log_decode_buffer(format, encoded, size);
++	}
++	if (text && buffer && strlen(text) < capacity) {
++		memcpy(buffer, text, strlen(text) + 1);
++		free(text);
++		text = buffer;
++	}
++	errno = caller_errno;
++	return text;
++}
++
++/* Verified Intel ABI: flags bit 0 sends, bit 1 composes; the optional second
++ * parameter receives the original format pointer. A fitting caller buffer is
++ * returned unchanged; otherwise the returned string must be freed. */
++char *_os_log_send_and_compose_impl(unsigned flags, const char **out_format,
++    char *buffer, uint32_t capacity, void *dso, os_log_t log,
++    os_log_type_t type, const char *format, uint8_t *encoded, uint32_t size) {
++	if (out_format) *out_format = format;
++	return send_and_compose(flags, buffer, capacity, dso, log, type, format,
++	    encoded, size, errno, __builtin_return_address(0));
++}
++
++char *os_log_pack_send_and_compose(os_log_pack_t pack, os_log_t log,
++    os_log_type_t type, char *buffer, size_t capacity) {
++	libtrace_precondition(pack && pack->olp_format, "Invalid log-pack header");
++	return send_and_compose(3, buffer, (uint32_t)capacity,
++	    (void *)pack->olp_mh, log, type, pack->olp_format, pack->olp_data,
++	    pack->olp_data_size, pack->olp_errno, pack->olp_pc);
+ }
+ 
+ #pragma mark Legacy Functions
+diff --git a/libsystem_trace/stubs.c b/libsystem_trace/stubs.c
+index 0531476..49d033e 100644
+--- a/libsystem_trace/stubs.c
++++ b/libsystem_trace/stubs.c
+@@ -60,16 +60,6 @@ _os_activity_stream_entry_encode(void) {
+ 	_libtrace_assert_fail("_os_activity_stream_entry_encode: Function unimplemented");
+ }
+ 
+-uint8_t* _os_log_pack_fill(os_log_pack_t pack, size_t size, int saved_errno, const void* dso, const char* format) {
+-	_libtrace_assert_fail("_os_log_pack_fill: Function unimplemented");
+-	return NULL;
+-}
+-
+-size_t _os_log_pack_size(size_t os_log_format_buffer_size) {
+-	_libtrace_assert_fail("_os_log_pack_size: Function unimplemented");
+-	return 0;
+-}
+-
+ void
+ _os_log_preferences_compute(void) {
+ 	_libtrace_assert_fail("_os_log_preferences_compute: Function unimplemented");
+@@ -400,11 +390,6 @@ os_log_errors_count(void) {
+ 	_libtrace_assert_fail("os_log_errors_count: Function unimplemented");
+ }
+ 
+-void
+-os_log_fault_default_callback(void) {
+-	_libtrace_assert_fail("os_log_fault_default_callback: Function unimplemented");
+-}
+-
+ void
+ os_log_faults_count(void) {
+ 	_libtrace_assert_fail("os_log_faults_count: Function unimplemented");
+@@ -430,25 +415,11 @@ os_log_fmt_get_plugin(void) {
+ 	_libtrace_assert_fail("os_log_fmt_get_plugin: Function unimplemented");
+ }
+ 
+-void
+-os_log_get_type(void) {
+-	_libtrace_assert_fail("os_log_get_type: Function unimplemented");
+-}
+-
+ void
+ os_log_pack_compose(void) {
+ 	_libtrace_assert_fail("os_log_pack_compose: Function unimplemented");
+ }
+ 
+-void os_log_pack_send(os_log_pack_t pack, os_log_t log, os_log_type_t type) {
+-	_libtrace_assert_fail("os_log_pack_send: Function unimplemented");
+-}
+-
+-void
+-os_log_pack_send_and_compose(void) {
+-	_libtrace_assert_fail("os_log_pack_send_and_compose: Function unimplemented");
+-}
+-
+ void
+ os_log_set_client_type(void) {
+ 	_libtrace_assert_fail("os_log_set_client_type: Function unimplemented");
+@@ -459,11 +430,6 @@ os_log_set_enabled(void) {
+ 	_libtrace_assert_fail("os_log_set_enabled: Function unimplemented");
+ }
+ 
+-void
+-os_log_set_fault_callback(void) {
+-	_libtrace_assert_fail("os_log_set_fault_callback: Function unimplemented");
+-}
+-
+ int os_log_shim_enabled(void* return_address) {
+ 	_libtrace_assert_fail("os_log_shim_enabled: Function unimplemented");
+ 
+diff --git a/libsystem_trace/unpack_buffer.m b/libsystem_trace/unpack_buffer.m
+index 6ad0785..9b64555 100644
+--- a/libsystem_trace/unpack_buffer.m
++++ b/libsystem_trace/unpack_buffer.m
+@@ -78,22 +78,41 @@ OS_ENUM(os_log_buffer_item_type, uint8_t,
+ );
+ 
+ static bool readScalar(void* buffer, uint8_t length, uint64_t* outScalar) {
++	*outScalar = 0;
+ 	if (length == 1) {
+-		*outScalar = *(uint8_t*)buffer;
++		uint8_t value;
++		memcpy(&value, buffer, sizeof(value));
++		*outScalar = value;
+ 	} else if (length == 2) {
+-		*outScalar = *(uint16_t*)buffer;
++		uint16_t value;
++		memcpy(&value, buffer, sizeof(value));
++		*outScalar = value;
+ 	} else if (length == 4) {
+-		*outScalar = *(uint32_t*)buffer;
++		uint32_t value;
++		memcpy(&value, buffer, sizeof(value));
++		*outScalar = value;
+ 	} else if (length == 8) {
+-		*outScalar = *(uint64_t*)buffer;
++		uint64_t value;
++		memcpy(&value, buffer, sizeof(value));
++		*outScalar = value;
+ 	} else {
+ 		return false;
+ 	}
+ 	return true;
+ };
+ 
+-__XNU_PRIVATE_EXTERN
++__attribute__((visibility("default")))
+ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t bufferSize) {
++	if (!formatString || !buffer || bufferSize < 2) { errno = EINVAL; return NULL; }
++	// Validate every encoded record before the format walker reads a payload.
++	uint32_t cursor = 2;
++	for (unsigned i = 0; i < buffer[1]; ++i) {
++		if (cursor > bufferSize || bufferSize - cursor < 2) { errno = EINVAL; return NULL; }
++		unsigned length = buffer[cursor + 1];
++		if (length > bufferSize - cursor - 2) { errno = EINVAL; return NULL; }
++		cursor += 2 + length;
++	}
++	if (cursor != bufferSize) { errno = EINVAL; return NULL; }
+ 	uint32_t bufferIndex = 0;
+ 	// uint8_t summaryByte = buffer[bufferIndex]; // not actually used, hence commented out
+ 	bufferIndex++;
+@@ -104,6 +123,9 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 
+ 	struct sbuf *sbuf = sbuf_new_auto();
+ 	size_t formatIndex = 0;
++	char *formattedArgument = NULL;
++	bool formattedArgumentNeedsFree = true;
++#define DECODE_REQUIRE(condition, ...) do { if (!(condition)) goto invalid; } while (0)
+ 
+ 	while (formatString[formatIndex] != '\0') {
+ 		if (formatString[formatIndex] != '%') {
+@@ -112,8 +134,14 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 			continue;
+ 		}
+ 
+-		libtrace_assert(formatString[formatIndex] == '%', "next char not % (this shouldn't happen)");
++		DECODE_REQUIRE(formatString[formatIndex] == '%', "next char not % (this shouldn't happen)");
+ 		formatIndex++;
++		if (formatString[formatIndex] == '%') {
++			sbuf_putc(sbuf, '%');
++			formatIndex++;
++			continue;
++		}
++		DECODE_REQUIRE(bufferIndex <= bufferSize && bufferSize - bufferIndex >= 2);
+ 
+ 		os_log_buffer_item_type_t itemType = buffer[bufferIndex] >> 4;
+ 		privacy_setting_t privacy = buffer[bufferIndex] & 0x0f;
+@@ -122,11 +150,13 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 		uint8_t itemSize = buffer[bufferIndex];
+ 		++bufferIndex;
+ 
+-		libtrace_assert(argsSeen < argCount, "Too many format specifiers in os_log string (expected %d)", argCount);
++		DECODE_REQUIRE(argsSeen < argCount, "Too many format specifiers in os_log string (expected %d)", argCount);
+ 
+ 		if (formatString[formatIndex] == '{') {
+ 			// just skip it; the buffer will tell us if it's public or private or unspecified
+-			formatString = strchr(formatString + formatIndex, '}') + 1;
++			const char *end = strchr(formatString + formatIndex, '}');
++			DECODE_REQUIRE(end != NULL);
++			formatIndex = (size_t)(end - formatString) + 1;
+ 		}
+ 
+ 		// skip these, for now
+@@ -167,8 +197,8 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 			++formatIndex;
+ 		}
+ 
+-		char* formattedArgument = NULL;
+-		bool formattedArgumentNeedsFree = true;
++		formattedArgument = NULL;
++		formattedArgumentNeedsFree = true;
+ 		size_t formattedArgumentLength = SIZE_MAX;
+ 
+ 		if (formatString[formatIndex] == 's') {
+@@ -176,8 +206,9 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 			uint64_t pointer = 0;
+ 
+ 			if (itemType == os_log_buffer_item_type_count) {
+-				libtrace_assert(readScalar(&buffer[bufferIndex], itemSize, &maxLength), "failed to read maximum string length from buffer");
++				DECODE_REQUIRE(readScalar(&buffer[bufferIndex], itemSize, &maxLength), "failed to read maximum string length from buffer");
+ 				bufferIndex += itemSize;
++				DECODE_REQUIRE(bufferIndex <= bufferSize && bufferSize - bufferIndex >= 2);
+ 				itemType = buffer[bufferIndex] >> 4;
+ 				privacy = buffer[bufferIndex] & 0x0f;
+ 				++bufferIndex;
+@@ -185,13 +216,13 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 				++bufferIndex;
+ 			}
+ 
+-			libtrace_assert(itemType == os_log_buffer_item_type_string, "expected buffer item to be a string");
+-			libtrace_assert(itemSize == sizeof(const char*), "expected pointer size to match platform pointer length");
++			DECODE_REQUIRE(itemType == os_log_buffer_item_type_string, "expected buffer item to be a string");
++			DECODE_REQUIRE(itemSize == sizeof(const char*), "expected pointer size to match platform pointer length");
+ 
+-			libtrace_assert(readScalar(&buffer[bufferIndex], itemSize, &pointer), "failed to read string pointer from buffer");
++			DECODE_REQUIRE(readScalar(&buffer[bufferIndex], itemSize, &pointer), "failed to read string pointer from buffer");
+ 			bufferIndex += itemSize;
+ 
+-			formattedArgument = (char*)pointer;
++			formattedArgument = pointer ? (char*)pointer : "(null)";
+ 			formattedArgumentNeedsFree = false;
+ 			formattedArgumentLength = (size_t)maxLength;
+ 
+@@ -203,8 +234,9 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 			mbstate_t state = {0};
+ 
+ 			if (itemType == os_log_buffer_item_type_count) {
+-				libtrace_assert(readScalar(&buffer[bufferIndex], itemSize, &maxLength), "failed to read maximum string length from buffer");
++				DECODE_REQUIRE(readScalar(&buffer[bufferIndex], itemSize, &maxLength), "failed to read maximum string length from buffer");
+ 				bufferIndex += itemSize;
++				DECODE_REQUIRE(bufferIndex <= bufferSize && bufferSize - bufferIndex >= 2);
+ 				itemType = buffer[bufferIndex] >> 4;
+ 				privacy = buffer[bufferIndex] & 0x0f;
+ 				++bufferIndex;
+@@ -212,10 +244,10 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 				++bufferIndex;
+ 			}
+ 
+-			libtrace_assert(itemType == os_log_buffer_item_type_string, "expected buffer item to be a string");
+-			libtrace_assert(itemSize == sizeof(const wchar_t*), "expected pointer size to match platform pointer length");
++			DECODE_REQUIRE(itemType == os_log_buffer_item_type_string, "expected buffer item to be a string");
++			DECODE_REQUIRE(itemSize == sizeof(const wchar_t*), "expected pointer size to match platform pointer length");
+ 
+-			libtrace_assert(readScalar(&buffer[bufferIndex], itemSize, &pointer), "failed to read string pointer from buffer");
++			DECODE_REQUIRE(readScalar(&buffer[bufferIndex], itemSize, &pointer), "failed to read string pointer from buffer");
+ 			bufferIndex += itemSize;
+ 
+ 			// technically, this is wrong; the output string will be a multi-byte string of whatever locale the system is currently using
+@@ -224,31 +256,32 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 
+ 			wideArgument = (const wchar_t*)pointer;
+ 			formattedArgumentLength = wcsnrtombs(NULL, &wideArgument, maxLength, 0, &state);
+-			libtrace_assert(formattedArgumentLength != (size_t)-1, "wide character string argument cannot be converted to multi-byte string");
++			DECODE_REQUIRE(formattedArgumentLength != (size_t)-1, "wide character string argument cannot be converted to multi-byte string");
+ 			formattedArgument = calloc(formattedArgumentLength + 1, sizeof(char));
+ 
+ 			memset(&state, 0, sizeof(state));
+ 			wideArgument = (const wchar_t*)pointer;
+-			libtrace_assert(wcsnrtombs(formattedArgument, &wideArgument, maxLength, formattedArgumentLength, &state) == formattedArgumentLength, "wide character string argument cannot be converted to multi-byte string");
++			DECODE_REQUIRE(wcsnrtombs(formattedArgument, &wideArgument, maxLength, formattedArgumentLength, &state) == formattedArgumentLength, "wide character string argument cannot be converted to multi-byte string");
+ 
+ 			if (privacy == privacy_setting_unset) privacy = privacy_setting_private;
+ 		} else if (formatString[formatIndex] == 'P') {
+ 			uint64_t length = 0;
+ 			uint64_t pointer = 0;
+ 
+-			libtrace_assert(itemType == os_log_buffer_item_type_count, "expected buffer item to be a count");
+-			libtrace_assert(readScalar(&buffer[bufferIndex], itemSize, &length), "failed to read maximum data length from buffer");
++			DECODE_REQUIRE(itemType == os_log_buffer_item_type_count, "expected buffer item to be a count");
++			DECODE_REQUIRE(readScalar(&buffer[bufferIndex], itemSize, &length), "failed to read maximum data length from buffer");
+ 			bufferIndex += itemSize;
++			DECODE_REQUIRE(bufferIndex <= bufferSize && bufferSize - bufferIndex >= 2);
+ 			itemType = buffer[bufferIndex] >> 4;
+ 			privacy = buffer[bufferIndex] & 0x0f;
+ 			++bufferIndex;
+ 			itemSize = buffer[bufferIndex];
+ 			++bufferIndex;
+ 
+-			libtrace_assert(itemType == os_log_buffer_item_type_pointer, "expected buffer item to be a pointer");
+-			libtrace_assert(itemSize == sizeof(const void*), "expected pointer size to match platform pointer length");
++			DECODE_REQUIRE(itemType == os_log_buffer_item_type_pointer, "expected buffer item to be a pointer");
++			DECODE_REQUIRE(itemSize == sizeof(const void*), "expected pointer size to match platform pointer length");
+ 
+-			libtrace_assert(readScalar(&buffer[bufferIndex], itemSize, &pointer), "failed to read pointer from buffer");
++			DECODE_REQUIRE(readScalar(&buffer[bufferIndex], itemSize, &pointer), "failed to read pointer from buffer");
+ 			bufferIndex += itemSize;
+ 
+ 			struct sbuf *dataHex = sbuf_new_auto();
+@@ -268,8 +301,9 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 			id object = nil;
+ 			NSString* description = nil;
+ 
+-			libtrace_assert(itemType == os_log_buffer_item_type_objc, "expected buffer item to be an object pointer");
+-			libtrace_assert(readScalar(&buffer[bufferIndex], itemSize, (uint64_t*)&integer), "failed to read object pointer from buffer");
++			DECODE_REQUIRE(itemType == os_log_buffer_item_type_objc, "expected buffer item to be an object pointer");
++			DECODE_REQUIRE(itemSize == sizeof(id));
++			DECODE_REQUIRE(readScalar(&buffer[bufferIndex], itemSize, (uint64_t*)&integer), "failed to read object pointer from buffer");
+ 			bufferIndex += itemSize;
+ 
+ 			object = (id)integer;
+@@ -286,8 +320,8 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 
+ 			if (privacy == privacy_setting_unset) privacy = privacy_setting_private;
+ 		} else if (formatString[formatIndex] == 'm') {
+-			libtrace_assert(itemType == os_log_buffer_item_type_errno, "expected buffer item to be a request for errno");
+-			libtrace_assert(itemSize == 0, "expected item size to be 0");
++			DECODE_REQUIRE(itemType == os_log_buffer_item_type_errno, "expected buffer item to be a request for errno");
++			DECODE_REQUIRE(itemSize == 0, "expected item size to be 0");
+ 
+ 			formattedArgument = strdup(strerror(errno));
+ 
+@@ -296,9 +330,10 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 			uint64_t integer;
+ 			char character;
+ 
+-			libtrace_assert(itemType == os_log_buffer_item_type_scalar, "expected buffer item to be a scalar");
+-			libtrace_assert(itemSize == 1, "expected item size to be 1");
+-			libtrace_assert(readScalar(&buffer[bufferIndex], itemSize, (uint64_t*)&integer), "failed to read scalar from buffer");
++			DECODE_REQUIRE(itemType == os_log_buffer_item_type_scalar, "expected buffer item to be a scalar");
++			// printf promotes char to int; retain older one-byte encodings too.
++			DECODE_REQUIRE(itemSize == 1 || itemSize == sizeof(int));
++			DECODE_REQUIRE(readScalar(&buffer[bufferIndex], itemSize, (uint64_t*)&integer), "failed to read scalar from buffer");
+ 			bufferIndex += itemSize;
+ 
+ 			character = (char)integer;
+@@ -306,10 +341,18 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 
+ 			if (privacy == privacy_setting_unset) privacy = privacy_setting_public;
+ 		} else if (formatString[formatIndex] == 'd' || formatString[formatIndex] == 'i') {
++			uint64_t rawInteger;
+ 			int64_t integer;
+ 
+-			libtrace_assert(itemType == os_log_buffer_item_type_scalar, "expected buffer item to be a scalar");
+-			libtrace_assert(readScalar(&buffer[bufferIndex], itemSize, (uint64_t*)&integer), "failed to read scalar from buffer");
++			DECODE_REQUIRE(itemType == os_log_buffer_item_type_scalar, "expected buffer item to be a scalar");
++			DECODE_REQUIRE(readScalar(&buffer[bufferIndex], itemSize, &rawInteger));
++			switch (itemSize) {
++				case 1: integer = (int8_t)rawInteger; break;
++				case 2: integer = (int16_t)rawInteger; break;
++				case 4: integer = (int32_t)rawInteger; break;
++				case 8: memcpy(&integer, &rawInteger, sizeof(integer)); break;
++				default: goto invalid;
++			}
+ 			bufferIndex += itemSize;
+ 
+ 			asprintf(&formattedArgument, "%lld", integer);
+@@ -319,8 +362,8 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 			uint64_t integer;
+ 			char format[] = { '%', 'l', 'l', formatString[formatIndex], '\0' };
+ 
+-			libtrace_assert(itemType == os_log_buffer_item_type_scalar, "expected buffer item to be a scalar");
+-			libtrace_assert(readScalar(&buffer[bufferIndex], itemSize, (uint64_t*)&integer), "failed to read scalar from buffer");
++			DECODE_REQUIRE(itemType == os_log_buffer_item_type_scalar, "expected buffer item to be a scalar");
++			DECODE_REQUIRE(readScalar(&buffer[bufferIndex], itemSize, (uint64_t*)&integer), "failed to read scalar from buffer");
+ 			bufferIndex += itemSize;
+ 
+ 			asprintf(&formattedArgument, format, integer);
+@@ -330,8 +373,8 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 			uint64_t integer;
+ 			void* pointer = NULL;
+ 
+-			libtrace_assert(itemType == os_log_buffer_item_type_scalar, "expected buffer item to be a scalar");
+-			libtrace_assert(readScalar(&buffer[bufferIndex], itemSize, (uint64_t*)&integer), "failed to read scalar from buffer");
++			DECODE_REQUIRE(itemType == os_log_buffer_item_type_scalar, "expected buffer item to be a scalar");
++			DECODE_REQUIRE(readScalar(&buffer[bufferIndex], itemSize, (uint64_t*)&integer), "failed to read scalar from buffer");
+ 			bufferIndex += itemSize;
+ 
+ 			pointer = (void*)integer;
+@@ -340,10 +383,13 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 			if (privacy == privacy_setting_unset) privacy = privacy_setting_private;
+ 		} else if (formatString[formatIndex] == 'f' || formatString[formatIndex] == 'F' || formatString[formatIndex] == 'e' || formatString[formatIndex] == 'E' || formatString[formatIndex] == 'g' || formatString[formatIndex] == 'G' || formatString[formatIndex] == 'a' || formatString[formatIndex] == 'A') {
+ 			double decimal;
++			uint64_t bits;
+ 			char format[] = { '%', formatString[formatIndex], '\0' };
+ 
+-			libtrace_assert(itemType == os_log_buffer_item_type_scalar, "expected buffer item to be a scalar");
+-			libtrace_assert(readScalar(&buffer[bufferIndex], itemSize, (uint64_t*)&decimal), "failed to read scalar from buffer");
++			DECODE_REQUIRE(itemType == os_log_buffer_item_type_scalar, "expected buffer item to be a scalar");
++			DECODE_REQUIRE(itemSize == sizeof(double));
++			DECODE_REQUIRE(readScalar(&buffer[bufferIndex], itemSize, &bits));
++			memcpy(&decimal, &bits, sizeof(decimal));
+ 			bufferIndex += itemSize;
+ 
+ 			asprintf(&formattedArgument, format, decimal);
+@@ -355,11 +401,12 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 			// skip the item in the buffer
+ 			bufferIndex += itemSize;
+ 
+-			libtrace_assert(false, "Unknown format argument %%%c in os_log() call", formatString[formatIndex]);
++			DECODE_REQUIRE(false, "Unknown format argument %%%c in os_log() call", formatString[formatIndex]);
+ 		}
+ 
+ 		++formatIndex;
+ 
++		DECODE_REQUIRE(formattedArgument != NULL);
+ 		formattedArgumentLength = strnlen(formattedArgument, formattedArgumentLength);
+ 
+ #if OS_LOG_PRIVACY
+@@ -374,6 +421,7 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 
+ 		if (formattedArgumentNeedsFree) {
+ 			free(formattedArgument);
++			formattedArgument = NULL;
+ 		}
+ 
+ 		argsSeen++;
+@@ -382,6 +430,12 @@ char *os_log_decode_buffer(const char *formatString, uint8_t *buffer, uint32_t b
+ 	char *retval = strdup(sbuf_data(sbuf));
+ 	sbuf_delete(sbuf);
+ 	return retval;
++invalid:
++	if (formattedArgumentNeedsFree) free(formattedArgument);
++	sbuf_delete(sbuf);
++	errno = EINVAL;
++	return NULL;
++#undef DECODE_REQUIRE
+ }
+ 
+ __XNU_PRIVATE_EXTERN

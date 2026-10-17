@@ -1,0 +1,17 @@
+{
+  "provider": "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+  "provider_sha256": "37aa85f7da365c9c81244c8dc67c95362edef4dacf495db2fa7655840a254c7d",
+  "routines": {
+    "__NSErrorWithFilePathErrnoAndVariant": {
+      "address": "0x7ff804c72186",
+      "length": 14,
+      "sha256": "0b2a146f60048c409b468a6e6828d799c3917e6de4302e7e34f54766823c8fe1"
+    },
+    "__NSErrorWithFilePathErrnoVariantAndExtraUserInfo": {
+      "address": "0x7ff8041b01f1",
+      "length": 877,
+      "sha256": "556b6a84d1d515edbe466c02c68a3cb92471e1be0526b5563f39bef2cfa047d1"
+    }
+  },
+  "scope": "Source adapter based on pinned original x86_64 routines: errno/read-write Cocoa mappings, POSIX underlying error, string/URL path keys, variant array and extra userInfo fills missing keys."
+}

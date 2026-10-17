@@ -1,0 +1,1378 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 84161fd..c195f8d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -29,12 +29,14 @@ set(iokitd_sources
+ 	src/stubs-powermanagement.c
+ 	src/iokitd.cpp
+ 	src/ServiceRegistry.mm
++	src/IOMatchingNotification.mm
+ 	src/IOObject.cpp
+ 	src/IOIterator.cpp
+ 	src/IOService.mm
+ 	src/IORegistryEntry.mm
+ 	src/IODisplayConnect.mm
+ 	src/IODisplayConnectX11.mm
++	src/IOPowerRootDomain.mm
+ 	src/PowerAssertions.mm
+ 	src/PowerAssertionsX11.mm
+ 	src/IOSurfaceRoot.mm
+diff --git a/src/IOIterator.cpp b/src/IOIterator.cpp
+index 2a9e7d0..baa749c 100644
+--- a/src/IOIterator.cpp
++++ b/src/IOIterator.cpp
+@@ -26,7 +26,12 @@ extern "C" {
+ IOIterator::IOIterator(const std::vector<IOObject*>& objects)
+ : m_objects(objects)
+ {
++	for (auto* object : m_objects) object->retain();
++}
+ 
++IOIterator::~IOIterator()
++{
++	for (auto* object : m_objects) object->release();
+ }
+ 
+ void IOIterator::reset()
+diff --git a/src/IOIterator.h b/src/IOIterator.h
+index f9918b9..9f0a4b7 100644
+--- a/src/IOIterator.h
++++ b/src/IOIterator.h
+@@ -26,11 +26,12 @@ class IOIterator : public IOObject
+ {
+ public:
+ 	IOIterator(const std::vector<IOObject*>& objects);
++	~IOIterator() override;
+ 
+ 	const char* className() const override;
+ 
+-	void reset();
+-	IOObject* next();
++	virtual void reset();
++	virtual IOObject* next();
+ private:
+ 	std::vector<IOObject*> m_objects;
+ 	int m_pos = 0;
+diff --git a/src/IOMatchingNotification.h b/src/IOMatchingNotification.h
+new file mode 100644
+index 0000000..033505e
+--- /dev/null
++++ b/src/IOMatchingNotification.h
+@@ -0,0 +1,34 @@
++#ifndef IOKITD_IOMATCHINGNOTIFICATION_H
++#define IOKITD_IOMATCHINGNOTIFICATION_H
++#include "IOIterator.h"
++#include "IOService.h"
++#include <deque>
++
++// Main-queue confined, like the registry and the IOObject Mach demultiplexer.
++class IOMatchingNotification : public IOIterator {
++public:
++    enum class Kind { Publish, FirstPublish, Matched, FirstMatch, Terminated };
++    IOMatchingNotification(Kind kind, NSDictionary* matching, mach_port_t wake,
++        const uint64_t* references, unsigned count);
++    ~IOMatchingNotification() override;
++    IOObject* next() override;
++    void reset() override {} // Native notification iterators cannot rewind.
++    void serviceChanged(IOService* service, bool terminated, bool first);
++    void enqueue(IOObject* service);
++    Kind kind() const { return m_kind; }
++    NSDictionary* matching() const { return m_matching; }
++private:
++    void ping();
++    Kind m_kind;
++    NSDictionary* m_matching;
++    mach_port_t m_wake;
++    uint64_t m_references[8] = {};
++    unsigned m_referenceCount;
++    std::deque<IOObject*> m_pending;
++    bool m_armed = false;
++    bool m_retryScheduled = false;
++    uint64_t m_cookie;
++    uint64_t m_retryEpoch = 0;
++    static uint64_t s_nextCookie;
++};
++#endif
+diff --git a/src/IOMatchingNotification.mm b/src/IOMatchingNotification.mm
+new file mode 100644
+index 0000000..e31b06e
+--- /dev/null
++++ b/src/IOMatchingNotification.mm
+@@ -0,0 +1,146 @@
++#include "IOMatchingNotification.h"
++#include "ServiceRegistry.h"
++#include "iokitd.h"
++#include <IOKit/IOCFUnserialize.h>
++#include <IOKit/OSMessageNotification.h>
++#include <Foundation/NSString.h>
++#include <os/log.h>
++#include <cstring>
++#include <algorithm>
++extern "C" {
++#include "iokitmigServer.h"
++}
++
++uint64_t IOMatchingNotification::s_nextCookie = 0;
++
++IOMatchingNotification::IOMatchingNotification(Kind kind, NSDictionary* matching,
++    mach_port_t wake, const uint64_t* references, unsigned count)
++    : IOIterator({}), m_kind(kind), m_matching([matching copy]), m_wake(wake), m_referenceCount(count), m_cookie(++s_nextCookie)
++{
++    std::copy(references, references + count, m_references);
++    ServiceRegistry::instance()->addNotification(this);
++    if (kind != Kind::Terminated)
++        for (auto* service : ServiceRegistry::instance()->matchingServices(matching)) enqueue(service);
++}
++IOMatchingNotification::~IOMatchingNotification()
++{
++    ServiceRegistry::instance()->removeNotification(this);
++    for (auto* object : m_pending) object->release();
++    [m_matching release];
++    if (MACH_PORT_VALID(m_wake)) mach_port_deallocate(mach_task_self(), m_wake);
++}
++IOObject* IOMatchingNotification::next()
++{
++    if (m_pending.empty()) { m_armed = true; return nullptr; }
++    auto* object = m_pending.back();
++    m_pending.pop_back();
++    // The MIG reply copies the service capability before this queued release.
++    object->releaseLater();
++    return object;
++}
++void IOMatchingNotification::serviceChanged(IOService* service, bool terminated, bool first)
++{
++    if (terminated != (m_kind == Kind::Terminated)) return;
++    if (!first && (m_kind == Kind::FirstPublish || m_kind == Kind::FirstMatch)) return;
++    if (service->matches(m_matching)) enqueue(service);
++}
++void IOMatchingNotification::enqueue(IOObject* service)
++{
++    if (std::find(m_pending.begin(), m_pending.end(), service) != m_pending.end()) return;
++    bool notify = m_armed && m_pending.empty();
++    service->retain();
++    m_pending.push_back(service);
++    if (notify) { m_armed = false; ping(); }
++}
++void IOMatchingNotification::ping()
++{
++    if (!MACH_PORT_VALID(m_wake)) return;
++    // Apple's ping includes only the supplied async references, not the full
++    // eight-slot maximum, and transfers a fresh notifier send right.
++    struct { mach_msg_header_t head; OSNotificationHeader64 notification; } packet = {};
++    packet.head.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, MACH_MSG_TYPE_MAKE_SEND);
++    packet.head.msgh_remote_port = m_wake;
++    packet.head.msgh_local_port = port();
++    packet.head.msgh_id = kOSNotificationMessageID;
++    packet.head.msgh_size = sizeof(mach_msg_header_t) + 8 + m_referenceCount * sizeof(uint64_t);
++    packet.notification.type = m_kind == Kind::Terminated ? kIOServiceTerminatedNotificationType :
++        (m_kind == Kind::Matched || m_kind == Kind::FirstMatch) ? kIOServiceMatchedNotificationType : kIOServicePublishNotificationType;
++    std::copy(m_references, m_references + m_referenceCount, packet.notification.reference);
++    auto result = mach_msg(&packet.head, MACH_SEND_MSG | MACH_SEND_TIMEOUT, packet.head.msgh_size,
++        0, MACH_PORT_NULL, 0, MACH_PORT_NULL);
++    if (result == MACH_SEND_TIMED_OUT || result == MACH_SEND_INVALID_DEST) {
++        // A failed send can return freshly copied rights in pseudo-receive form.
++        // Destroy those returned rights, without consuming the original wake right.
++        auto localType = MACH_MSGH_BITS_LOCAL(packet.head.msgh_bits);
++        if (MACH_PORT_VALID(packet.head.msgh_local_port) &&
++            (localType == MACH_MSG_TYPE_MOVE_SEND || localType == MACH_MSG_TYPE_MOVE_SEND_ONCE))
++            mach_port_deallocate(mach_task_self(), packet.head.msgh_local_port);
++        mach_msg_destroy(&packet.head);
++    }
++    if (result == MACH_SEND_TIMED_OUT && !m_retryScheduled) {
++        // A retry must not own a send right to its notifier: that would prevent
++        // NO_SENDERS cleanup when the subscriber deregisters while its queue is full.
++        m_retryScheduled = true;
++        const auto expectedCookie = m_cookie, expectedEpoch = ++m_retryEpoch;
++        const auto objectPort = port();
++        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_MSEC * 10), dispatch_get_main_queue(), ^{
++            auto* token = dynamic_cast<IOMatchingNotification*>(IOObject::lookup(objectPort));
++            if (!token || token->m_cookie != expectedCookie || token->m_retryEpoch != expectedEpoch || !token->m_retryScheduled) return;
++            token->m_retryScheduled = false;
++            if (!token->m_pending.empty() && !token->m_armed) token->ping();
++        });
++    } else if (result == KERN_SUCCESS) {
++        m_retryScheduled = false;
++        ++m_retryEpoch;
++    } else if (result != MACH_SEND_TIMED_OUT) {
++        os_log_error(OS_LOG_DEFAULT, "IOKit matching notification delivery failed: %d", result);
++    }
++}
++
++static kern_return_t subscribe(mach_port_t master, const char* type, const void* bytes, unsigned size,
++    mach_port_t wake, const uint64_t* references, unsigned count, mach_port_t* notification)
++{
++    *notification = MACH_PORT_NULL;
++    if (master != g_masterPort) return kIOReturnNotPrivileged;
++    if (!size || size > sizeof(io_struct_inband_t) * 1024 || count > kOSAsyncRef64Count) return kIOReturnBadArgument;
++    IOMatchingNotification::Kind kind;
++    if (!std::strcmp(type,kIOPublishNotification)) kind=IOMatchingNotification::Kind::Publish;
++    else if (!std::strcmp(type,kIOFirstPublishNotification)) kind=IOMatchingNotification::Kind::FirstPublish;
++    else if (!std::strcmp(type,kIOMatchedNotification)) kind=IOMatchingNotification::Kind::Matched;
++    else if (!std::strcmp(type,kIOFirstMatchNotification)) kind=IOMatchingNotification::Kind::FirstMatch;
++    else if (!std::strcmp(type,kIOTerminatedNotification)) kind=IOMatchingNotification::Kind::Terminated;
++    else return kIOReturnUnsupported;
++    CFStringRef error = nullptr;
++    CFTypeRef criteria = IOCFUnserializeWithSize((const char*)bytes,size,kCFAllocatorDefault,0,&error);
++    if (error) CFRelease(error);
++    if (!criteria) return kIOReturnBadArgument;
++    if (CFGetTypeID(criteria) != CFDictionaryGetTypeID()) { CFRelease(criteria); return kIOReturnBadArgument; }
++    auto* token = new IOMatchingNotification(kind,(NSDictionary*)criteria,wake,references,count);
++    CFRelease(criteria);
++    *notification = token->port(); token->releaseLater();
++    return KERN_SUCCESS;
++}
++kern_return_t is_io_service_add_notification_bin_64(mach_port_t master, io_name_t type,
++    io_struct_inband_t matching, mach_msg_type_number_t size, mach_port_t wake,
++    io_async_ref64_t refs, mach_msg_type_number_t count, mach_port_t* notification)
++{
++    return subscribe(master,type,matching,size,wake,refs,count,notification);
++}
++kern_return_t is_io_service_add_notification_64(mach_port_t master, io_name_t type,
++    io_string_t matching, mach_port_t wake, io_async_ref64_t refs,
++    mach_msg_type_number_t count, mach_port_t* notification)
++{
++    auto size = strnlen(matching,sizeof(io_string_t));
++    if (size == sizeof(io_string_t)) return kIOReturnBadArgument;
++    return subscribe(master,type,matching,size+1,wake,refs,count,notification);
++}
++kern_return_t is_io_service_add_notification_ool_64(mach_port_t master, io_name_t type,
++    io_buf_ptr_t matching, mach_msg_type_number_t size, mach_port_t wake,
++    io_async_ref64_t refs, mach_msg_type_number_t count, kern_return_t* result, mach_port_t* notification)
++{
++    *result=subscribe(master,type,matching,size,wake,refs,count,notification);
++    if (matching && size) vm_deallocate(mach_task_self(),(vm_address_t)matching,size);
++    // The RPC transport succeeds even when the reported operation fails.
++    if (*result != KERN_SUCCESS && MACH_PORT_VALID(wake)) mach_port_deallocate(mach_task_self(),wake);
++    return KERN_SUCCESS;
++}
+diff --git a/src/IOObject.cpp b/src/IOObject.cpp
+index 1a40da6..4d90430 100644
+--- a/src/IOObject.cpp
++++ b/src/IOObject.cpp
+@@ -21,6 +21,7 @@
+ #include "iokitd.h"
+ #include <stdexcept>
+ #include <cstring>
++#include <cstddef>
+ #include <os/log.h>
+ #include <dispatch/private.h>
+ #include <IOKit/IOReturn.h>
+@@ -50,12 +51,16 @@ IOObject::IOObject()
+ 		throw std::runtime_error("Failed to create dispatch source");
+ 
+ 	dispatch_source_set_event_handler(m_dispatchSource, ^{
+-		dispatch_mig_server(m_dispatchSource, is_iokit_subsystem.maxsize, iokit_server);
++		dispatch_mig_server(m_dispatchSource, is_iokit_subsystem.maxsize, IOObject::dispatchMessage);
++	});
++	const mach_port_t receivePort = m_port;
++	dispatch_source_set_cancel_handler(m_dispatchSource, ^{
++		mach_port_destroy(mach_task_self(), receivePort);
+ 	});
+ 	dispatch_resume(m_dispatchSource);
+ 
+ 	mach_port_t	oldTargetOfNotification	= MACH_PORT_NULL;
+-	kr = mach_port_request_notification(task, m_port, MACH_NOTIFY_NO_SENDERS, 1, g_deathPort, MACH_MSG_TYPE_MAKE_SEND_ONCE, &oldTargetOfNotification);
++	kr = mach_port_request_notification(task, m_port, MACH_NOTIFY_NO_SENDERS, 1, m_port, MACH_MSG_TYPE_MAKE_SEND_ONCE, &oldTargetOfNotification);
+ 	if (kr != KERN_SUCCESS)
+ 		throw std::runtime_error("Failed to setup MACH_NOTIFY_NO_SENDERS");
+ 
+@@ -64,12 +69,44 @@ IOObject::IOObject()
+ 
+ IOObject::~IOObject()
+ {
+-	if (m_dispatchSource)
++	if (m_dispatchSource) {
++		dispatch_source_cancel(m_dispatchSource);
+ 		dispatch_release(m_dispatchSource);
++	}
+ 
+ 	m_objects.erase(m_port);
+ 
+-	mach_port_deallocate(mach_task_self(), m_port);
++}
++
++boolean_t IOObject::dispatchMessage(mach_msg_header_t* request, mach_msg_header_t* reply)
++{
++    if (request->msgh_id == MACH_NOTIFY_NO_SENDERS &&
++        request->msgh_size == offsetof(mach_no_senders_notification_t, trailer)) {
++        // Each receive port identifies its object. Recheck the kernel's current
++        // sender state: a queued NO_SENDERS may precede a new MAKE_SEND right.
++        auto* object = lookup(request->msgh_local_port);
++        if (object) {
++            mach_port_status_t status = {};
++            mach_msg_type_number_t count = MACH_PORT_RECEIVE_STATUS_COUNT;
++            auto kr = mach_port_get_attributes(mach_task_self(), object->port(),
++                MACH_PORT_RECEIVE_STATUS, (mach_port_info_t)&status, &count);
++            if (kr == KERN_SUCCESS && !status.mps_srights &&
++                status.mps_mscount == ((mach_no_senders_notification_t*)request)->not_count) {
++                // Cancel the receive source before destroying its port. No code
++                // in this handler accesses object after delete.
++                delete object;
++            } else if (kr == KERN_SUCCESS) {
++                mach_port_t previous = MACH_PORT_NULL;
++                mach_port_request_notification(mach_task_self(), object->port(),
++                    MACH_NOTIFY_NO_SENDERS, status.mps_mscount, object->port(),
++                    MACH_MSG_TYPE_MAKE_SEND_ONCE, &previous);
++                if (MACH_PORT_VALID(previous)) mach_port_deallocate(mach_task_self(), previous);
++            }
++        }
++        ((mig_reply_error_t*)reply)->RetCode = MIG_NO_REPLY;
++        return true;
++    }
++    return iokitSaveAuditTrail(request, reply);
+ }
+ 
+ void IOObject::retain()
+diff --git a/src/IOObject.h b/src/IOObject.h
+index 52a9503..8b1f957 100644
+--- a/src/IOObject.h
++++ b/src/IOObject.h
+@@ -44,6 +44,7 @@ public:
+ 	static IOObject* lookup(mach_port_t port);
+ 	static boolean_t deathNotify(mach_msg_header_t *request, mach_msg_header_t *reply);
+ private:
++	static boolean_t dispatchMessage(mach_msg_header_t* request, mach_msg_header_t* reply);
+ 	mach_port_t m_port;
+ 	dispatch_source_t m_dispatchSource = nullptr;
+ 	static std::unordered_map<mach_port_t, IOObject*> m_objects;
+diff --git a/src/IOPowerRootDomain.h b/src/IOPowerRootDomain.h
+new file mode 100644
+index 0000000..13c55f8
+--- /dev/null
++++ b/src/IOPowerRootDomain.h
+@@ -0,0 +1,13 @@
++#ifndef IOKITD_IOPOWERROOTDOMAIN_H
++#define IOKITD_IOPOWERROOTDOMAIN_H
++#include "IOService.h"
++#include "ServiceRegistry.h"
++
++class IOPowerRootDomain : public IOService {
++public:
++    static void registerSelf(ServiceRegistry* registry);
++    const char* className() const override { return "IOPMrootDomain"; }
++    NSDictionary* matchingDictionary() override;
++    NSDictionary* getProperties() override;
++};
++#endif
+diff --git a/src/IOPowerRootDomain.mm b/src/IOPowerRootDomain.mm
+new file mode 100644
+index 0000000..b17e7b7
+--- /dev/null
++++ b/src/IOPowerRootDomain.mm
+@@ -0,0 +1,188 @@
++// Linux-backed IOPower registry, Mach user clients, and resume notifications.
++// Suspend permission barriers and power-control selectors are not implemented;
++// unsupported operations must not report success.
++#include "IOPowerRootDomain.h"
++#import <Foundation/NSString.h>
++#import <Foundation/NSNumber.h>
++#include "IOUserClient.h"
++#include "LinuxResumeClock.h"
++#include "iokitd.h"
++#include <IOKit/IOMessage.h>
++#include <IOKit/OSMessageNotification.h>
++#include <IOKit/pwr_mgt/IOPM.h>
++#include <mach/mach.h>
++#include <os/log.h>
++#include <set>
++#include <cstring>
++#include <climits>
++extern "C" {
++#include "iokitmigServer.h"
++int __linux_syscall(int number, ...);
++}
++
++namespace {
++class PowerConnection : public IOUserClient {
++public:
++    explicit PowerConnection(IOPowerRootDomain* domain) : domain(domain) {}
++    const char* className() const override { return "IOPMrootDomainUserClient"; }
++    NSDictionary* matchingDictionary() override { return @{}; }
++    IOExternalMethod* getExternalMethodForIndex(UInt32) override { return nullptr; }
++    IOPowerRootDomain* domain;
++    bool closed = false;
++};
++
++class PowerInterest : public IOObject {
++public:
++    PowerInterest(IOPowerRootDomain* domain, mach_port_t wake, const uint64_t* refs, unsigned count)
++        : domain(domain), wake(wake) {
++        std::memcpy(reference, refs, count * sizeof(*refs));
++        interests.insert(this);
++    }
++    ~PowerInterest() override {
++        interests.erase(this);
++        mach_port_deallocate(mach_task_self(), wake);
++    }
++    const char* className() const override { return "IOServiceMessageUserNotification"; }
++    void send(uint32_t message) {
++        // Native IOKit consumes one service descriptor and a notifier send right.
++        // These rights also let it suppress queued callbacks after deregistration.
++#pragma pack(push, 4)
++        struct Packet {
++            mach_msg_header_t head;
++            mach_msg_body_t body;
++            mach_msg_port_descriptor_t service;
++            OSNotificationHeader64 notification;
++            IOServiceInterestContent64 content;
++        } packet = {};
++#pragma pack(pop)
++        static_assert(sizeof(Packet) == 124, "Intel IOKit notification ABI");
++        packet.head.msgh_bits = MACH_MSGH_BITS_COMPLEX |
++            MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, MACH_MSG_TYPE_MAKE_SEND);
++        packet.head.msgh_size = sizeof(packet);
++        packet.head.msgh_remote_port = wake;
++        packet.head.msgh_local_port = port();
++        packet.head.msgh_id = kOSNotificationMessageID;
++        packet.body.msgh_descriptor_count = 1;
++        packet.service.name = domain->port();
++        packet.service.disposition = MACH_MSG_TYPE_MAKE_SEND;
++        packet.service.type = MACH_MSG_PORT_DESCRIPTOR;
++        packet.notification.type = kIOServiceMessageNotificationType;
++        packet.notification.size = sizeof(packet.content);
++        std::memcpy(packet.notification.reference, reference, sizeof(reference));
++        packet.content.messageType = message;
++        // Resume messages carry no acknowledgement token.
++        kern_return_t kr = mach_msg(&packet.head, MACH_SEND_MSG | MACH_SEND_TIMEOUT,
++            sizeof(packet), 0, MACH_PORT_NULL, 0, MACH_PORT_NULL);
++        if (kr != KERN_SUCCESS)
++            os_log_error(OS_LOG_DEFAULT, "IOPower resume notification delivery failed: %d", kr);
++    }
++    static std::set<PowerInterest*> interests;
++private:
++    IOPowerRootDomain* domain;
++    mach_port_t wake;
++    uint64_t reference[kOSAsyncRef64Count] = {};
++};
++std::set<PowerInterest*> PowerInterest::interests;
++
++bool readLinuxClock(int which, int64_t& nanos) {
++    // Linux x86_64 timespec, not the Darwin clock_gettime ABI.
++    struct { int64_t sec, nsec; } value = {};
++    if (__linux_syscall(228, which, &value) != 0 || value.sec < 0 ||
++        value.nsec < 0 || value.nsec >= 1000000000 ||
++        value.sec > (INT64_MAX - value.nsec) / 1000000000) return false;
++    nanos = value.sec * 1000000000 + value.nsec;
++    return true;
++}
++bool sample(LinuxResumeClock& clock, bool& resumed) {
++    int64_t before, boot, after;
++    if (!readLinuxClock(1, before) || !readLinuxClock(7, boot) || !readLinuxClock(1, after)) return false;
++    resumed = clock.observe(before, boot, after);
++    return true;
++}
++}
++
++NSDictionary* IOPowerRootDomain::matchingDictionary() {
++    return @{ @"IOProviderClass": @"IOPMrootDomain", @"IOClass": @"IOPMrootDomain" };
++}
++NSDictionary* IOPowerRootDomain::getProperties() {
++    return @{ @"IOClass": @"IOPMrootDomain", @"DarlingPowerBackend": @"Linux CLOCK_BOOTTIME/CLOCK_MONOTONIC",
++        @"DarlingPowerObservesResume": @YES, @"DarlingPowerSupportsSleepBarrier": @NO };
++}
++void IOPowerRootDomain::registerSelf(ServiceRegistry* registry) {
++    static LinuxResumeClock clock;
++    bool resumed;
++    if (!sample(clock, resumed)) {
++        os_log_error(OS_LOG_DEFAULT, "Linux suspend-aware clocks unavailable; IOPower domain not registered");
++        return;
++    }
++    auto* connection = new IORegistryEntry;
++    connection->registerInPlane(kIOPowerPlane, "IOPowerConnection", IORegistryEntry::root());
++    auto* domain = new IOPowerRootDomain;
++    domain->registerInPlane(kIOPowerPlane, "IOPMrootDomain", connection);
++    domain->registerInPlane(kIOServicePlane, "IOPMrootDomain", IORegistryEntry::root());
++    registry->registerService(domain);
++    auto timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
++    dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), NSEC_PER_SEC, NSEC_PER_MSEC * 20);
++    dispatch_source_set_event_handler(timer, ^{
++        bool resumed;
++        if (sample(clock, resumed) && resumed) {
++            for (auto* interest : PowerInterest::interests) interest->send(kIOMessageSystemWillPowerOn);
++            for (auto* interest : PowerInterest::interests) interest->send(kIOMessageSystemHasPoweredOn);
++        }
++    });
++    dispatch_resume(timer);
++}
++
++kern_return_t is_io_service_open_extended(mach_port_t service, task_t owningTask, uint32_t type,
++    NDR_record_t, io_buf_ptr_t properties, mach_msg_type_number_t propertiesCount,
++    kern_return_t* result, mach_port_t* connection) {
++    *connection = MACH_PORT_NULL;
++    *result = kIOReturnUnsupported;
++    auto* domain = dynamic_cast<IOPowerRootDomain*>(IOObject::lookup(service));
++    pid_t owner = -1;
++    if (!domain) *result = kIOReturnUnsupported;
++    else if (type != 0 || propertiesCount) *result = kIOReturnUnsupported;
++    else if (pid_for_task(owningTask, &owner) != KERN_SUCCESS || owner <= 0 || owner != g_iokitCurrentCallerPID)
++        *result = kIOReturnNotPermitted;
++    else {
++        auto* client = new PowerConnection(domain);
++        *connection = client->port();
++        client->releaseLater();
++        *result = kIOReturnSuccess;
++    }
++    // MIG transfers both the task send right and any OOL properties to us.
++    if (MACH_PORT_VALID(owningTask)) mach_port_deallocate(mach_task_self(), owningTask);
++    if (properties && propertiesCount) vm_deallocate(mach_task_self(), (vm_address_t)properties, propertiesCount);
++    return KERN_SUCCESS;
++}
++kern_return_t is_io_service_close(mach_port_t connection) {
++    auto* client = dynamic_cast<PowerConnection*>(IOObject::lookup(connection));
++    if (!client || client->closed) return kIOReturnNotOpen;
++    client->closed = true;
++    return kIOReturnSuccess;
++}
++kern_return_t is_io_connect_get_service(mach_port_t connection, mach_port_t* service) {
++    *service = MACH_PORT_NULL;
++    auto* client = dynamic_cast<PowerConnection*>(IOObject::lookup(connection));
++    if (!client || client->closed) return kIOReturnNotOpen;
++    *service = client->domain->port();
++    return KERN_SUCCESS;
++}
++kern_return_t is_io_service_add_interest_notification_64(mach_port_t service, io_name_t interest,
++    mach_port_t wake, io_async_ref64_t reference, mach_msg_type_number_t count, mach_port_t* notification) {
++    *notification = MACH_PORT_NULL;
++    auto* domain = dynamic_cast<IOPowerRootDomain*>(IOObject::lookup(service));
++    kern_return_t result = kIOReturnUnsupported;
++    if (domain && std::strcmp(interest, kIOAppPowerStateInterest) == 0) {
++        if (!MACH_PORT_VALID(wake) || count != kIOInterestCalloutCount || reference[kIOInterestCalloutFuncIndex] == 0)
++            result = kIOReturnBadArgument;
++        else {
++            auto* token = new PowerInterest(domain, wake, reference, count);
++            *notification = token->port();
++            token->releaseLater();
++            return KERN_SUCCESS;
++        }
++    }
++    // Errors are destroyed by MIG; successful requests transfer ownership here.
++    return result;
++}
+diff --git a/src/IORegistryEntry.mm b/src/IORegistryEntry.mm
+index 50c10fe..dc7d55f 100644
+--- a/src/IORegistryEntry.mm
++++ b/src/IORegistryEntry.mm
+@@ -1,3 +1,5 @@
++#include <mach/mach_vm.h>
++#include "iokitd.h"
+ #include "IORegistryEntry.h"
+ #include <stack>
+ #include <IOKit/IOCFSerialize.h>
+@@ -27,6 +29,11 @@ IORegistryEntry::IORegistryEntry()
+ 
+ IORegistryEntry::~IORegistryEntry()
+ {
++	// Registry links must not retain dangling pointers after a dynamic service dies.
++	for (const auto& [plane, parents] : m_parents)
++		for (auto* parent : parents) parent->m_children[plane].erase(this);
++	for (const auto& [plane, children] : m_children)
++		for (auto* child : children) child->m_parents[plane].erase(this);
+ 	std::unique_lock l(m_entriesByIdMutex);
+ 	m_entriesById.erase(m_id);
+ }
+@@ -438,23 +445,19 @@ kern_return_t is_io_registry_entry_from_path
+ 	return kIOReturnSuccess;
+ }
+ 
+-static NSDictionary* findKey(IORegistryEntry* e, const char* plane, NSString* key)
++static id findKey(IORegistryEntry* entry, const char* plane, NSString* key, uint32_t options)
+ {
+-	NSDictionary* props = e->getProperties();
+-	id value = [props objectForKey: key];
+-
+-	if (value != nil)
+-		return @{ key: value };
+-	
+-	auto set = e->getChildren(plane);
+-	for (IORegistryEntry* c : set)
+-	{
+-		NSDictionary* rv = findKey(c, plane, key);
+-		if (rv != nil)
+-			return rv;
+-	}
+-
+-	return nil;
++    std::vector<IORegistryEntry*> pending{entry};
++    std::set<IORegistryEntry*> visited;
++    while (!pending.empty()) {
++        auto* current = pending.back(); pending.pop_back();
++        if (!visited.insert(current).second) continue;
++        id value = [current->getProperties() objectForKey:key];
++        if (value) return value;
++        auto adjacent = options & kIORegistryIterateParents ? current->getParents(plane) : current->getChildren(plane);
++        pending.insert(pending.end(), adjacent.begin(), adjacent.end());
++    }
++    return nil;
+ }
+ 
+ kern_return_t is_io_registry_entry_get_property_bin
+@@ -476,7 +479,7 @@ kern_return_t is_io_registry_entry_get_property_bin
+ 	*propertiesCnt = 0;
+ 	*properties = nullptr;
+ 
+-	NSDictionary* retval;
++	id retval;
+ 
+ 	NSString* propName = [NSString stringWithUTF8String: property_name];
+ 
+@@ -484,10 +487,10 @@ kern_return_t is_io_registry_entry_get_property_bin
+ 	{
+ 		// Recursive search for the property
+ 		auto set = e->getChildren(plane);
+-		retval = findKey(e, plane, propName);
++		retval = findKey(e, plane, propName, options);
+ 
+ 		if (!retval)
+-			return kIOReturnError; // TODO: or another code?
++			return kIOReturnNotFound;
+ 	}
+ 	else
+ 	{
+@@ -496,9 +499,9 @@ kern_return_t is_io_registry_entry_get_property_bin
+ 		id value = [props objectForKey: propName];
+ 
+ 		if (!value)
+-			return kIOReturnError; // TODO: or another code?
++			return kIOReturnNotFound;
+ 
+-		retval = @{ propName: value };
++		retval = value;
+ 	}
+ 
+ 	CFDataRef data = IOCFSerialize(retval, kIOCFSerializeToBinary);
+@@ -513,3 +516,36 @@ kern_return_t is_io_registry_entry_get_property_bin
+     return kr;
+ }
+ 
++
++// A userspace daemon must copy into the actual audited caller's task, never
++// interpret that task's address as a pointer in its own address space.
++static kern_return_t copyPropertyBuffer(mach_vm_address_t buffer, mach_vm_size_t* capacity,
++    io_buf_ptr_t* properties, mach_msg_type_number_t* count, kern_return_t result)
++{
++    if (result != KERN_SUCCESS) return result;
++    if (!buffer || *capacity < *count) { *capacity = 0; return KERN_SUCCESS; }
++    mach_port_t caller = MACH_PORT_NULL;
++    result = g_iokitCurrentCallerPID > 0 ?
++        task_for_pid(mach_task_self(), g_iokitCurrentCallerPID, &caller) : KERN_PROTECTION_FAILURE;
++    if (result == KERN_SUCCESS)
++        result = mach_vm_write(caller, buffer, (vm_offset_t)*properties, *count);
++    if (MACH_PORT_VALID(caller)) mach_port_deallocate(mach_task_self(), caller);
++    *capacity = result == KERN_SUCCESS ? *count : 0;
++    vm_deallocate(mach_task_self(), (vm_address_t)*properties, *count);
++    *properties = nullptr; *count = 0;
++    return result == KERN_SUCCESS ? KERN_SUCCESS : kIOReturnVMError;
++}
++kern_return_t is_io_registry_entry_get_properties_bin_buf(mach_port_t entry,
++    mach_vm_address_t buffer, mach_vm_size_t* capacity, io_buf_ptr_t* properties,
++    mach_msg_type_number_t* count)
++{
++    return copyPropertyBuffer(buffer, capacity, properties, count,
++        is_io_registry_entry_get_properties_bin(entry, properties, count));
++}
++kern_return_t is_io_registry_entry_get_property_bin_buf(mach_port_t entry, io_name_t plane,
++    io_name_t key, uint32_t options, mach_vm_address_t buffer, mach_vm_size_t* capacity,
++    io_buf_ptr_t* properties, mach_msg_type_number_t* count)
++{
++    return copyPropertyBuffer(buffer, capacity, properties, count,
++        is_io_registry_entry_get_property_bin(entry, plane, key, options, properties, count));
++}
+diff --git a/src/IOService.h b/src/IOService.h
+index ab8f5c3..645d35f 100644
+--- a/src/IOService.h
++++ b/src/IOService.h
+@@ -35,10 +35,13 @@ public:
+ 	uint32_t busyState() const { return m_busyState; }
+ 	uint64_t accumulatedBusyTime() const { return m_accumulatedBusyTime; }
+ 	uint64_t state() const { return m_state; }
++private:
++	friend class ServiceRegistry;
++	bool m_everPublished = false;
+ protected:
+ 	uint32_t m_busyState = 0;
+ 	uint64_t m_accumulatedBusyTime = 0;
+-	uint64_t m_state = kIOServiceRegisteredState | kIOServiceMatchedState;
++	uint64_t m_state = 0;
+ };
+ 
+ #endif
+diff --git a/src/IOService.mm b/src/IOService.mm
+index 0316b30..970fd87 100644
+--- a/src/IOService.mm
++++ b/src/IOService.mm
+@@ -19,6 +19,8 @@
+ 
+ #include "IOService.h"
+ #import <Foundation/NSArray.h>
++#import <Foundation/NSString.h>
++#import <Foundation/NSNumber.h>
+ 
+ extern "C" {
+ #include "iokitmigServer.h"
+@@ -29,46 +31,50 @@ IOService::IOService()
+ 
+ }
+ 
+-// https://unix.superglobalmegacorp.com/xnu/newsrc/iokit/KernelConfigTables.cpp.html
++static bool propertySubset(NSDictionary* actual, id expected)
++{
++    if ([expected isKindOfClass:[NSArray class]]) {
++        for (id choice in expected) if (propertySubset(actual, choice)) return true;
++        return false;
++    }
++    if (![expected isKindOfClass:[NSDictionary class]]) return false;
++    for (id key in expected)
++        if (![expected[key] isEqual:actual[key]]) return false;
++    return true;
++}
+ bool IOService::matches(NSDictionary* dict)
+ {
+-	NSDictionary* ourProps = matchingDictionary();
+-
+-	for (NSString* key in dict)
+-	{
+-		NSObject* ourProp = ourProps[key];
+-		NSObject* expectedValue = dict[key];
+-
+-		if ([ourProp isKindOfClass:[NSArray class]])
+-		{
+-			NSArray* array = (NSArray*) ourProp;
+-			if (![array containsObject: expectedValue])
+-				return false;
+-		}
+-		else if (ourProp != nil)
+-		{
+-			if (![expectedValue isEqual: ourProp])
+-				return false;
+-		}
+-		else
+-		{
+-			if ([key isEqualToString: @"IONameMatch"])
+-			{
+-				if (![ourProps[@"IOClass"] isEqual: expectedValue])
+-					return false;
+-			}
+-			else
+-				return false;
+-		}
+-	}
+-	return true;
++    NSDictionary* matching = matchingDictionary();
++    NSDictionary* properties = getProperties();
++    for (NSString* key in dict) {
++        ::id value = dict[key];
++        if ([key isEqualToString:@"IOProviderClass"] || [key isEqualToString:@"IOClass"]) {
++            bool found = false;
++            NSArray* classes = [value isKindOfClass:[NSArray class]] ? value : @[value];
++            for (::id name in classes)
++                if ([name isKindOfClass:[NSString class]] && conformsTo([name UTF8String])) found = true;
++            if (!found) return false;
++        } else if ([key isEqualToString:@"IONameMatch"]) {
++            NSString* name = [NSString stringWithUTF8String:getName(kIOServicePlane).c_str()];
++            if ([value isKindOfClass:[NSArray class]]) { if (![value containsObject:name]) return false; }
++            else if (![value isEqual:name]) return false;
++        } else if ([key isEqualToString:@"IORegistryEntryID"]) {
++            if (![value isKindOfClass:[NSNumber class]] || [value unsignedLongLongValue] != id()) return false;
++        } else if ([key isEqualToString:@"IOPropertyMatch"]) {
++            if (!propertySubset(properties,value)) return false;
++        } else {
++            ::id actual = matching[key] ?: properties[key];
++            if (!actual || ![value isEqual:actual]) return false;
++        }
++    }
++    return true;
+ }
+ 
+ bool IOService::conformsTo(const char* className)
+ {
+ 	if (strcmp(className, "IOService") == 0)
+ 		return true;
+-	return IOObject::conformsTo(className);
++	return strcmp(className, "IORegistryEntry") == 0 || IOObject::conformsTo(className);
+ }
+ 
+ kern_return_t is_io_service_get_state
+diff --git a/src/LinuxResumeClock.h b/src/LinuxResumeClock.h
+new file mode 100644
+index 0000000..31b1aab
+--- /dev/null
++++ b/src/LinuxResumeClock.h
+@@ -0,0 +1,25 @@
++#ifndef IOKITD_LINUX_RESUME_CLOCK_H
++#define IOKITD_LINUX_RESUME_CLOCK_H
++#include <cstdint>
++
++// CLOCK_BOOTTIME includes suspend; CLOCK_MONOTONIC excludes it. Bracket the
++// boottime read with monotonic reads so scheduling delays are not sleep events.
++// This observes resume only. It cannot authorize, delay, or announce suspend.
++class LinuxResumeClock {
++public:
++    bool observe(int64_t before, int64_t boot, int64_t after) {
++        if (before < 0 || boot < after || after < before || after - before > 20000000)
++            return false;
++        const int64_t lower = boot - after, upper = boot - before;
++        const bool resumed = valid && before >= lastAfter && lower > lastUpper &&
++            lower - lastUpper > 100000000;
++        lastAfter = after;
++        lastUpper = upper;
++        valid = true;
++        return resumed;
++    }
++private:
++    bool valid = false;
++    int64_t lastAfter = 0, lastUpper = 0;
++};
++#endif
+diff --git a/src/ServiceRegistry.h b/src/ServiceRegistry.h
+index 34e74ad..5e452cb 100644
+--- a/src/ServiceRegistry.h
++++ b/src/ServiceRegistry.h
+@@ -24,6 +24,8 @@
+ #import <Foundation/NSDictionary.h>
+ #include "IOIterator.h"
+ 
++class IOMatchingNotification;
++
+ class ServiceRegistry
+ {
+ private:
+@@ -31,9 +33,14 @@ private:
+ public:
+ 	static ServiceRegistry* instance();
+ 	void registerService(IOService* service);
++	void unregisterService(IOService* service);
++	std::vector<IOObject*> matchingServices(NSDictionary* criteria) const;
++	void addNotification(IOMatchingNotification* notification);
++	void removeNotification(IOMatchingNotification* notification);
+ 	IOIterator* iteratorForMatchingServices(NSDictionary* criteria) const;
+ private:
+ 	std::list<IOService*> m_registeredServices;
++	std::list<IOMatchingNotification*> m_notifications;
+ };
+ 
+ #endif
+diff --git a/src/ServiceRegistry.mm b/src/ServiceRegistry.mm
+index aaed046..ea24f12 100644
+--- a/src/ServiceRegistry.mm
++++ b/src/ServiceRegistry.mm
+@@ -25,6 +25,9 @@
+ #include <os/log.h>
+ #include <stdexcept>
+ #include "IOIterator.h"
++#include "IOMatchingNotification.h"
++#include <algorithm>
++#include <cstring>
+ 
+ extern "C" {
+ #include "iokitmigServer.h"
+@@ -36,85 +39,115 @@ ServiceRegistry* ServiceRegistry::instance()
+ 	return &reg;
+ }
+ 
++std::vector<IOObject*> ServiceRegistry::matchingServices(NSDictionary* criteria) const
++{
++    std::vector<IOObject*> matching;
++    for (auto* service : m_registeredServices)
++        if (service->matches(criteria)) matching.push_back(service);
++    return matching;
++}
+ IOIterator* ServiceRegistry::iteratorForMatchingServices(NSDictionary* criteria) const
+ {
+-	std::vector<IOObject*> matching;
+-
+-	for (auto it = m_registeredServices.begin(); it != m_registeredServices.end(); it++)
+-	{
+-		if ((*it)->matches(criteria))
+-			matching.push_back(*it);
+-	}
+-
+-	return new IOIterator(matching);
++    return new IOIterator(matchingServices(criteria));
+ }
+-
+ void ServiceRegistry::registerService(IOService* service)
+ {
+-	m_registeredServices.push_back(service);
++    if (service->m_state & kIOServiceInactiveState) return;
++    if (std::find(m_registeredServices.begin(), m_registeredServices.end(), service) == m_registeredServices.end()) {
++        service->retain();
++        m_registeredServices.push_back(service);
++    }
++    bool first = !service->m_everPublished;
++    service->m_state |= kIOServiceRegisteredState | kIOServiceMatchedState;
++    service->m_everPublished = true;
++    if (first) service->m_state |= kIOServiceFirstPublishState | kIOServiceFirstMatchState;
++    for (auto* notification : m_notifications) notification->serviceChanged(service, false, first);
+ }
+-
+-kern_return_t is_io_service_get_matching_services_ool
+-(
+-	mach_port_t master_port,
+-	io_buf_ptr_t matching,
+-	mach_msg_type_number_t matchingCnt,
+-	kern_return_t *result,
+-	mach_port_t *existing
+-)
++void ServiceRegistry::unregisterService(IOService* service)
+ {
+-	// TODO
+-    return kIOReturnUnsupported;
++    auto found = std::find(m_registeredServices.begin(), m_registeredServices.end(), service);
++    if (found == m_registeredServices.end()) return;
++    service->m_state |= kIOServiceInactiveState;
++    m_registeredServices.erase(found);
++    for (auto* notification : m_notifications) notification->serviceChanged(service, true, false);
++    service->release();
+ }
+-
+-kern_return_t is_io_service_get_matching_services_bin
+-(
+-	mach_port_t master_port,
+-	io_struct_inband_t matching,
+-	mach_msg_type_number_t matchingCnt,
+-	mach_port_t *existing
+-)
++void ServiceRegistry::addNotification(IOMatchingNotification* notification)
+ {
+-	CFStringRef errorString = nullptr;
+-	try
+-	{
+-		CFTypeRef criteria = IOCFUnserializeBinary(matching, matchingCnt, nullptr, 0, &errorString);
+-
+-		if (!criteria)
+-			throwCFStringException(CFSTR("io_service_get_matching_services_bin(): cannot parse 'matching': %@"), errorString);
+-		
+-		if (CFGetTypeID(criteria) != CFDictionaryGetTypeID())
+-			throw std::runtime_error("io_service_get_matching_services_bin(): dictionary expected");
+-
+-		// Criteria example:
+-		// IOProviderClass -> IODisplayConnect
+-		IOIterator* iterator = ServiceRegistry::instance()->iteratorForMatchingServices((NSDictionary*) criteria);
+-		CFShow(criteria);
+-		CFRelease(criteria);
+-
+-		*existing = iterator->port();
+-
+-		iterator->releaseLater();
+-
+-		return kIOReturnSuccess;
+-	}
+-	catch (const std::exception& e)
+-	{
+-		os_log_error(OS_LOG_DEFAULT, "is_io_service_get_matching_services_bin: %s", e.what());
+-		if (errorString)
+-			CFRelease(errorString);
+-
+-		return kIOReturnBadArgument;
+-	}
++    m_notifications.push_back(notification);
+ }
+-
+-kern_return_t is_io_service_get_matching_services
+-(
+-	mach_port_t master_port,
+-	io_string_t matching,
+-	mach_port_t *existing
+-)
++void ServiceRegistry::removeNotification(IOMatchingNotification* notification)
+ {
+-    // Old unsupported API
+-    return kIOReturnUnsupported;
++    m_notifications.remove(notification);
++}
++
++namespace {
++NSDictionary* decodeMatching(const void* bytes, unsigned size) {
++    if (!size || size > sizeof(io_struct_inband_t) * 1024) return nil;
++    CFStringRef error = nullptr;
++    CFTypeRef criteria = IOCFUnserializeWithSize((const char*)bytes,size,kCFAllocatorDefault,0,&error);
++    if (error) CFRelease(error);
++    if (!criteria) return nil;
++    if (CFGetTypeID(criteria) != CFDictionaryGetTypeID()) { CFRelease(criteria); return nil; }
++    return (NSDictionary*)criteria;
++}
++kern_return_t matchingServices(mach_port_t master, const void* bytes, unsigned size, mach_port_t* result, bool single) {
++    *result = MACH_PORT_NULL;
++    if (master != g_masterPort) return kIOReturnNotPrivileged;
++    NSDictionary* criteria = decodeMatching(bytes,size);
++    if (!criteria) return kIOReturnBadArgument;
++    auto matches = ServiceRegistry::instance()->matchingServices(criteria);
++    [criteria release];
++    if (single) {
++        if (!matches.empty()) *result = matches.front()->port();
++        return KERN_SUCCESS;
++    }
++    auto* iterator = new IOIterator(matches);
++    *result = iterator->port(); iterator->releaseLater();
++    return KERN_SUCCESS;
++}
++kern_return_t matchProperty(mach_port_t service, const void* bytes, unsigned size, boolean_t* result) {
++    *result = false;
++    auto* object = dynamic_cast<IOService*>(IOObject::lookup(service));
++    if (!object) return kIOReturnBadArgument;
++    NSDictionary* criteria = decodeMatching(bytes,size);
++    if (!criteria) return kIOReturnBadArgument;
++    *result = object->matches(criteria);
++    [criteria release];
++    return KERN_SUCCESS;
++}
++unsigned xmlSize(const char* bytes) {
++    auto size = strnlen(bytes,sizeof(io_string_t));
++    return size == sizeof(io_string_t) ? 0 : size + 1;
++}
++}
++kern_return_t is_io_service_get_matching_services_bin(mach_port_t master, io_struct_inband_t bytes,
++    mach_msg_type_number_t size, mach_port_t* result) { return matchingServices(master,bytes,size,result,false); }
++kern_return_t is_io_service_get_matching_service_bin(mach_port_t master, io_struct_inband_t bytes,
++    mach_msg_type_number_t size, mach_port_t* result) { return matchingServices(master,bytes,size,result,true); }
++kern_return_t is_io_service_get_matching_services(mach_port_t master, io_string_t bytes,
++    mach_port_t* result) { return matchingServices(master,bytes,xmlSize(bytes),result,false); }
++kern_return_t is_io_service_get_matching_service(mach_port_t master, io_string_t bytes,
++    mach_port_t* result) { return matchingServices(master,bytes,xmlSize(bytes),result,true); }
++kern_return_t is_io_service_get_matching_services_ool(mach_port_t master, io_buf_ptr_t bytes,
++    mach_msg_type_number_t size, kern_return_t* status, mach_port_t* result) {
++    *status=matchingServices(master,bytes,size,result,false);
++    if (bytes && size) vm_deallocate(mach_task_self(),(vm_address_t)bytes,size);
++    return KERN_SUCCESS;
++}
++kern_return_t is_io_service_get_matching_service_ool(mach_port_t master, io_buf_ptr_t bytes,
++    mach_msg_type_number_t size, kern_return_t* status, mach_port_t* result) {
++    *status=matchingServices(master,bytes,size,result,true);
++    if (bytes && size) vm_deallocate(mach_task_self(),(vm_address_t)bytes,size);
++    return KERN_SUCCESS;
++}
++kern_return_t is_io_service_match_property_table_bin(mach_port_t service, io_struct_inband_t bytes,
++    mach_msg_type_number_t size, boolean_t* result) { return matchProperty(service,bytes,size,result); }
++kern_return_t is_io_service_match_property_table(mach_port_t service, io_string_t bytes,
++    boolean_t* result) { return matchProperty(service,bytes,xmlSize(bytes),result); }
++kern_return_t is_io_service_match_property_table_ool(mach_port_t service, io_buf_ptr_t bytes,
++    mach_msg_type_number_t size, kern_return_t* status, boolean_t* result) {
++    *status=matchProperty(service,bytes,size,result);
++    if (bytes && size) vm_deallocate(mach_task_self(),(vm_address_t)bytes,size);
++    return KERN_SUCCESS;
+ }
+diff --git a/src/iokitd.h b/src/iokitd.h
+index 644b71b..0c727db 100644
+--- a/src/iokitd.h
++++ b/src/iokitd.h
+@@ -30,6 +30,7 @@ extern mach_port_t g_masterPort, g_deathPort;
+ 
+ // iokitd calls only - not valid for powerd!
+ extern pid_t g_iokitCurrentCallerPID;
++boolean_t iokitSaveAuditTrail(mach_msg_header_t* message, mach_msg_header_t* reply);
+ 
+ #endif
+ 
+diff --git a/src/main.mm b/src/main.mm
+index 37ce9b8..776aa00 100644
+--- a/src/main.mm
++++ b/src/main.mm
+@@ -32,6 +32,7 @@
+ #include "IODisplayConnectX11.h"
+ #include "PowerAssertions.h"
+ #include "IOSurfaceRoot.h"
++#include "IOPowerRootDomain.h"
+ 
+ extern "C" {
+ #include "iokitmigServer.h"
+@@ -42,7 +43,7 @@ static const char* SERVICE_NAME = "org.darlinghq.iokitd";
+ mach_port_t g_masterPort, g_deathPort, g_powerManagementPort;
+ 
+ static void discoverAllDevices();
+-static boolean_t iokitSaveAuditTrail(mach_msg_header_t *message, mach_msg_header_t *reply);
++boolean_t iokitSaveAuditTrail(mach_msg_header_t *message, mach_msg_header_t *reply);
+ 
+ int main(int argc, const char** argv)
+ {
+@@ -133,10 +134,15 @@ int main(int argc, const char** argv)
+ 	return 0;
+ }
+ 
+-static boolean_t iokitSaveAuditTrail(mach_msg_header_t *message, mach_msg_header_t *reply)
++boolean_t iokitSaveAuditTrail(mach_msg_header_t *message, mach_msg_header_t *reply)
+ {
+-	const mach_msg_context_trailer_t* trailer = reinterpret_cast<mach_msg_context_trailer_t*>(reinterpret_cast<char*>(message) + message->msgh_size);
+-	audit_token_to_au32(trailer->msgh_audit, nullptr, nullptr, nullptr, nullptr, nullptr, &g_iokitCurrentCallerPID, nullptr, nullptr);
++    g_iokitCurrentCallerPID = -1;
++    const auto* trailer = reinterpret_cast<const mach_msg_audit_trailer_t*>(
++        reinterpret_cast<const char*>(message) + ((message->msgh_size + 3) & ~3U));
++    if (trailer->msgh_trailer_type == MACH_MSG_TRAILER_FORMAT_0 &&
++        trailer->msgh_trailer_size >= sizeof(*trailer))
++        audit_token_to_au32(trailer->msgh_audit, nullptr, nullptr, nullptr, nullptr, nullptr,
++            &g_iokitCurrentCallerPID, nullptr, nullptr);
+ 	return iokit_server(message, reply);
+ }
+ 
+@@ -147,4 +153,5 @@ static void discoverAllDevices()
+ 	IORegistryEntry::root();
+ 	IODisplayConnectX11::discoverDevices(registry);
+ 	IOSurfaceRoot::registerSelf(registry);
++	IOPowerRootDomain::registerSelf(registry);
+ }
+diff --git a/src/stubs.c b/src/stubs.c
+index 91d11a1..8a5bdf7 100644
+--- a/src/stubs.c
++++ b/src/stubs.c
+@@ -45,24 +45,9 @@ kern_return_t is_io_registry_entry_get_property_bytes
+     return KERN_NOT_SUPPORTED;
+ }
+ 
+-kern_return_t is_io_service_close
+-(
+-	mach_port_t connection
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
+ 
+-kern_return_t is_io_connect_get_service
+-(
+-	mach_port_t connection,
+-	mach_port_t *service
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
++
++
+ 
+ kern_return_t is_io_connect_set_notification_port
+ (
+@@ -231,16 +216,7 @@ kern_return_t is_io_service_request_probe
+     return KERN_NOT_SUPPORTED;
+ }
+ 
+-kern_return_t is_io_service_match_property_table
+-(
+-	mach_port_t service,
+-	io_string_t matching,
+-	boolean_t *matches
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
++
+ 
+ kern_return_t is_io_async_method_scalarI_scalarO
+ (
+@@ -387,18 +363,7 @@ kern_return_t is_io_registry_entry_get_property_recursively
+     return KERN_NOT_SUPPORTED;
+ }
+ 
+-kern_return_t is_io_service_match_property_table_ool
+-(
+-	mach_port_t service,
+-	io_buf_ptr_t matching,
+-	mach_msg_type_number_t matchingCnt,
+-	kern_return_t *result,
+-	boolean_t *matches
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
++
+ 
+ kern_return_t is_io_service_add_notification_ool
+ (
+@@ -439,21 +404,7 @@ kern_return_t is_io_object_get_bundle_identifier
+     return KERN_NOT_SUPPORTED;
+ }
+ 
+-kern_return_t is_io_service_open_extended
+-(
+-	mach_port_t service,
+-	task_t owningTask,
+-	uint32_t connect_type,
+-	NDR_record_t ndr,
+-	io_buf_ptr_t properties,
+-	mach_msg_type_number_t propertiesCnt,
+-	kern_return_t *result,
+-	mach_port_t *connection
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
++
+ 
+ kern_return_t is_io_connect_map_memory_into_task
+ (
+@@ -518,51 +469,11 @@ kern_return_t is_io_connect_set_notification_port_64
+     return KERN_NOT_SUPPORTED;
+ }
+ 
+-kern_return_t is_io_service_add_notification_64
+-(
+-	mach_port_t master_port,
+-	io_name_t notification_type,
+-	io_string_t matching,
+-	mach_port_t wake_port,
+-	io_async_ref64_t reference,
+-	mach_msg_type_number_t referenceCnt,
+-	mach_port_t *notification
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
+ 
+-kern_return_t is_io_service_add_interest_notification_64
+-(
+-	mach_port_t service,
+-	io_name_t type_of_interest,
+-	mach_port_t wake_port,
+-	io_async_ref64_t reference,
+-	mach_msg_type_number_t referenceCnt,
+-	mach_port_t *notification
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
+ 
+-kern_return_t is_io_service_add_notification_ool_64
+-(
+-	mach_port_t master_port,
+-	io_name_t notification_type,
+-	io_buf_ptr_t matching,
+-	mach_msg_type_number_t matchingCnt,
+-	mach_port_t wake_port,
+-	io_async_ref64_t reference,
+-	mach_msg_type_number_t referenceCnt,
+-	kern_return_t *result,
+-	mach_port_t *notification
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
++
++
++
+ 
+ kern_return_t is_io_connect_method_var_output
+ (
+@@ -586,29 +497,9 @@ kern_return_t is_io_connect_method_var_output
+     return KERN_NOT_SUPPORTED;
+ }
+ 
+-kern_return_t is_io_service_get_matching_service
+-(
+-	mach_port_t master_port,
+-	io_string_t matching,
+-	mach_port_t *service
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
+ 
+-kern_return_t is_io_service_get_matching_service_ool
+-(
+-	mach_port_t master_port,
+-	io_buf_ptr_t matching,
+-	mach_msg_type_number_t matchingCnt,
+-	kern_return_t *result,
+-	mach_port_t *service
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
++
++
+ 
+ kern_return_t is_io_service_get_authorization_id
+ (
+@@ -642,29 +533,9 @@ kern_return_t is_io_server_version
+ }
+ 
+ 
+-kern_return_t is_io_service_get_matching_service_bin
+-(
+-	mach_port_t master_port,
+-	io_struct_inband_t matching,
+-	mach_msg_type_number_t matchingCnt,
+-	mach_port_t *service
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
+ 
+-kern_return_t is_io_service_match_property_table_bin
+-(
+-	mach_port_t service,
+-	io_struct_inband_t matching,
+-	mach_msg_type_number_t matchingCnt,
+-	boolean_t *matches
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
++
++
+ 
+ kern_return_t is_io_service_add_notification_bin
+ (
+@@ -682,21 +553,7 @@ kern_return_t is_io_service_add_notification_bin
+     return KERN_NOT_SUPPORTED;
+ }
+ 
+-kern_return_t is_io_service_add_notification_bin_64
+-(
+-	mach_port_t master_port,
+-	io_name_t notification_type,
+-	io_struct_inband_t matching,
+-	mach_msg_type_number_t matchingCnt,
+-	mach_port_t wake_port,
+-	io_async_ref64_t reference,
+-	mach_msg_type_number_t referenceCnt,
+-	mach_port_t *notification
+-)
+-{
+-    STUB();
+-    return KERN_NOT_SUPPORTED;
+-}
++
+ 
+ kern_return_t is_io_registry_entry_from_path_ool
+ (
+@@ -735,32 +592,3 @@ kern_return_t is_io_device_tree_entry_exists_with_name
+ 	STUB();
+ 	return KERN_NOT_SUPPORTED;
+ }
+-
+-kern_return_t is_io_registry_entry_get_properties_bin_buf
+-(
+-	mach_port_t registry_entry,
+-	mach_vm_address_t buf,
+-	mach_vm_size_t *bufsize,
+-	io_buf_ptr_t *properties,
+-	mach_msg_type_number_t *propertiesCnt
+-)
+-{
+-	STUB();
+-	return KERN_NOT_SUPPORTED;
+-}
+-
+-kern_return_t is_io_registry_entry_get_property_bin_buf
+-(
+-	mach_port_t registry_entry,
+-	io_name_t plane,
+-	io_name_t property_name,
+-	uint32_t options,
+-	mach_vm_address_t buf,
+-	mach_vm_size_t *bufsize,
+-	io_buf_ptr_t *properties,
+-	mach_msg_type_number_t *propertiesCnt
+-)
+-{
+-	STUB();
+-	return KERN_NOT_SUPPORTED;
+-}

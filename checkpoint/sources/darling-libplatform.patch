@@ -1,0 +1,739 @@
+diff --git a/private/os/log_simple_private.h b/private/os/log_simple_private.h
+new file mode 100644
+index 0000000..9d30eae
+--- /dev/null
++++ b/private/os/log_simple_private.h
+@@ -0,0 +1,50 @@
++/*
++ * Copyright (c) 2020 Apple Inc. All rights reserved.
++ *
++ * @APPLE_LICENSE_HEADER_START@
++ *
++ * This file contains Original Code and/or Modifications of Original Code
++ * as defined in and that are subject to the Apple Public Source License
++ * Version 2.0 (the 'License'). You may not use this file except in
++ * compliance with the License. Please obtain a copy of the License at
++ * http://www.opensource.apple.com/apsl/ and read it before using this
++ * file.
++ *
++ * The Original Code and all software distributed under the License are
++ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
++ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
++ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
++ * Please see the License for the specific language governing rights and
++ * limitations under the License.
++ *
++ * @APPLE_LICENSE_HEADER_END@
++ */
++
++#ifndef _OS_LOG_SIMPLE_PRIVATE_H_
++#define _OS_LOG_SIMPLE_PRIVATE_H_
++
++#include <os/log_simple_private_impl.h>
++/**
++ * These constants have the same value as os_log_type from os/log.h
++ */
++#define OS_LOG_SIMPLE_TYPE_DEFAULT 0x00
++#define OS_LOG_SIMPLE_TYPE_INFO 0x01
++#define OS_LOG_SIMPLE_TYPE_DEBUG 0x02
++#define OS_LOG_SIMPLE_TYPE_ERROR 0x10
++
++#define os_log_simple(fmt, ...)\
++		os_log_simple_with_type(OS_LOG_SIMPLE_TYPE_DEFAULT, (fmt), ##__VA_ARGS__)
++
++#define os_log_simple_error(fmt, ...)\
++		os_log_simple_with_type(OS_LOG_SIMPLE_TYPE_ERROR, (fmt), ##__VA_ARGS__)
++
++#define os_log_simple_with_type(type, fmt, ...)\
++		os_log_simple_with_subsystem((type), NULL, (fmt), ##__VA_ARGS__)
++
++#define os_log_simple_with_subsystem(type, subsystem, fmt, ...)\
++		__os_log_simple_impl((type), (subsystem), (fmt), ##__VA_ARGS__)
++
++#define os_log_simple_available() (&_os_log_simple != 0)
++
++#endif /* _OS_LOG_SIMPLE_PRIVATE_H_ */
+diff --git a/private/os/log_simple_private_impl.h b/private/os/log_simple_private_impl.h
+new file mode 100644
+index 0000000..13e820a
+--- /dev/null
++++ b/private/os/log_simple_private_impl.h
+@@ -0,0 +1,140 @@
++/*
++ * Copyright (c) 2020 Apple Inc. All rights reserved.
++ *
++ * @APPLE_LICENSE_HEADER_START@
++ *
++ * This file contains Original Code and/or Modifications of Original Code
++ * as defined in and that are subject to the Apple Public Source License
++ * Version 2.0 (the 'License'). You may not use this file except in
++ * compliance with the License. Please obtain a copy of the License at
++ * http://www.opensource.apple.com/apsl/ and read it before using this
++ * file.
++ *
++ * The Original Code and all software distributed under the License are
++ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
++ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
++ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
++ * Please see the License for the specific language governing rights and
++ * limitations under the License.
++ *
++ * @APPLE_LICENSE_HEADER_END@
++ */
++
++#ifndef _OS_LOG_SIMPLE_PRIVATE_IMPL_H_
++#define _OS_LOG_SIMPLE_PRIVATE_IMPL_H_
++
++#include <mach-o/dyld_priv.h>
++#include <stdint.h>
++#include <_simple.h>
++#include <uuid/uuid.h>
++#include <Availability.h>
++#include <sys/cdefs.h>
++#include <string.h>
++
++__BEGIN_DECLS
++
++// Some clients of os_log_simple will also include os/log.h
++// This declaration needs to be consistent with whatever libtrace is exporting
++// in trace_base.h
++extern struct mach_header __dso_handle;
++
++
++#define LOG_SIMPLE_AVAILABILITY \
++		__API_AVAILABLE(macos(12.0), ios(15.0), tvos(15.0), watchos(8.0))
++
++LOG_SIMPLE_AVAILABILITY
++uint64_t
++os_log_simple_now(void);
++
++// Helper routine to convert between legacy syslog ASL levels to
++// os_log type constants
++LOG_SIMPLE_AVAILABILITY
++uint8_t
++os_log_simple_type_from_asl(int level);
++
++#define _OS_LOG_SIMPLE_UUID_CLEAR(uuid) memset((uuid), 0, sizeof(uuid_t))
++
++// libplatform isn't allowed to link libdyld, so clients of the os_log_simple
++// interface should link libdyld and we call into the dyld routines in a macro
++#define __os_log_simple_dyld(sender_mh, sender_uuid, dsc_uuid, dsc_load_addr_p) __extension__({\
++	if (!_dyld_get_image_uuid(sender_mh, sender_uuid)) {\
++		_OS_LOG_SIMPLE_UUID_CLEAR(sender_uuid);\
++	}\
++	if (!_dyld_get_shared_cache_uuid(dsc_uuid)) {\
++		_OS_LOG_SIMPLE_UUID_CLEAR(dsc_uuid);\
++	} else {\
++		size_t _dsc_size;\
++		*dsc_load_addr_p = (uintptr_t)_dyld_get_shared_cache_range(&_dsc_size);\
++	}\
++})
++
++#define __os_log_simple_impl(type, subsystem, fmt, ...) __extension__({\
++	uuid_t __sender_uuid;\
++	uuid_t __dsc_uuid;\
++	uintptr_t __dsc_load_addr = 0;\
++	const struct mach_header *__sender_mh = &__dso_handle;\
++	__os_log_simple_dyld(__sender_mh, __sender_uuid, __dsc_uuid, &__dsc_load_addr);\
++	_os_log_simple(__sender_mh, __sender_uuid, __dsc_uuid, __dsc_load_addr, (type), (subsystem), (fmt), ##__VA_ARGS__);\
++})
++
++__printflike(7, 8)
++LOG_SIMPLE_AVAILABILITY
++void
++_os_log_simple(const struct mach_header *sender_mh, uuid_t sender_uuid,
++		uuid_t dsc_uuid, uintptr_t dsc_load_addr, uint8_t type,
++		const char *subsystem, const char *fmt, ...);
++
++#define _os_log_simple_offset(type, subsystem, offset, message) __extension__({\
++	uuid_t __sender_uuid;\
++	uuid_t __dsc_uuid;\
++	uintptr_t __dsc_load_addr = 0;\
++	const struct mach_header *__sender_mh = dyld_image_header_containing_address((void *)(uintptr_t)(offset));\
++	__os_log_simple_dyld(__sender_mh, __sender_uuid, __dsc_uuid, &__dsc_load_addr);\
++	__os_log_simple_offset(__sender_mh, __sender_uuid, __dsc_uuid, __dsc_load_addr, (uint64_t)(uintptr_t)(offset), (type), (subsystem), message);\
++})
++
++LOG_SIMPLE_AVAILABILITY
++void
++__os_log_simple_offset(const struct mach_header *sender_mh,
++		const uuid_t sender_uuid, const uuid_t dsc_uuid,
++		uintptr_t dsc_load_addr, uint64_t absolute_offset, uint8_t type,
++		const char *subsystem, const char *message);
++
++LOG_SIMPLE_AVAILABILITY
++void
++_os_log_simple_shim(uint8_t type, const char *subsystem, const char *message);
++
++LOG_SIMPLE_AVAILABILITY
++typedef struct {
++	uint8_t type;
++	const char *subsystem;
++	const char *message;
++	uint64_t timestamp;
++	uint64_t pid;
++	uint64_t unique_pid;
++	uint64_t pid_version;
++	uint64_t tid;
++	uint64_t relative_offset;
++	uuid_t sender_uuid;
++	uuid_t process_uuid;
++	uuid_t dsc_uuid;
++} os_log_simple_payload_t;
++
++LOG_SIMPLE_AVAILABILITY
++int
++_os_log_simple_send(os_log_simple_payload_t *payload);
++
++// payload_out will contain pointers to content within buffer
++LOG_SIMPLE_AVAILABILITY
++int
++_os_log_simple_parse(const char *buffer, size_t length, os_log_simple_payload_t *payload_out);
++
++// SPI for launchd to retry connection to the socket after it sets it up
++__API_AVAILABLE(macos(13.0), ios(16.0), tvos(16.0), watchos(9.0))
++void
++_os_log_simple_reinit_4launchd(void);
++
++__END_DECLS
++
++#endif // _OS_LOG_SIMPLE_PRIVATE_IMPL_H_
+diff --git a/src/simple/log_simple.c b/src/simple/log_simple.c
+new file mode 100644
+index 0000000..00d9111
+--- /dev/null
++++ b/src/simple/log_simple.c
+@@ -0,0 +1,416 @@
++/*
++ * Copyright (c) 2020 Apple Computer, Inc. All rights reserved.
++ *
++ * @APPLE_LICENSE_HEADER_START@
++ *
++ * This file contains Original Code and/or Modifications of Original Code
++ * as defined in and that are subject to the Apple Public Source License
++ * Version 2.0 (the 'License'). You may not use this file except in
++ * compliance with the License. Please obtain a copy of the License at
++ * http://www.opensource.apple.com/apsl/ and read it before using this
++ * file.
++ *
++ * The Original Code and all software distributed under the License are
++ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
++ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
++ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
++ * Please see the License for the specific language governing rights and
++ * limitations under the License.
++ *
++ * @APPLE_LICENSE_HEADER_END@
++ */
++
++#include <os/log_simple_private.h>
++#include <_simple.h>
++#include <errno.h>
++#include <platform/string.h>
++#include <platform/compat.h>
++#include <mach/mach_time.h>
++#ifdef DARLING
++#include "log_simple_darling.h"
++#endif
++#include <sys/proc_info.h>
++#include <libproc.h>
++#ifndef DARLING
++#include <pthread/private.h>
++#endif
++#include <mach-o/loader.h>
++#include <sys/syslog.h>
++#include <os/overflow.h>
++#include <unistd.h>
++
++#if !TARGET_OS_DRIVERKIT
++
++static void
++_os_log_simple_uuid_copy(uuid_t dest, const uuid_t src) {
++	memmove(dest, src, sizeof(uuid_t));
++}
++
++uint64_t
++os_log_simple_now(void)
++{
++	// If we want to support translated processes, then we'll need to copy
++	// the rescaling logic from _os_trace_mach_continuous_time
++	return mach_continuous_time();
++}
++
++uint8_t
++os_log_simple_type_from_asl(int level)
++{
++	if (level < 0) level = 0;
++	if (level > 7) level = 7;
++
++	static uint8_t _level2ostype[] = {
++		[LOG_EMERG] = OS_LOG_SIMPLE_TYPE_ERROR,
++		[LOG_ALERT] = OS_LOG_SIMPLE_TYPE_ERROR,
++		[LOG_CRIT] = OS_LOG_SIMPLE_TYPE_ERROR,
++		[LOG_ERR] = OS_LOG_SIMPLE_TYPE_ERROR,
++		[LOG_WARNING] = OS_LOG_SIMPLE_TYPE_DEFAULT,
++		[LOG_NOTICE] = OS_LOG_SIMPLE_TYPE_DEFAULT,
++		[LOG_INFO] = OS_LOG_SIMPLE_TYPE_INFO,
++		[LOG_DEBUG] = OS_LOG_SIMPLE_TYPE_DEBUG,
++	};
++	return _level2ostype[level];
++}
++
++static void
++_os_log_simple_set_proc(os_log_simple_payload_t *payload)
++{
++	pid_t pid = getpid();
++	payload->pid = pid;
++
++	struct proc_uniqidentifierinfo pinfo;
++	if (proc_pidinfo(pid, PROC_PIDUNIQIDENTIFIERINFO, 0, &pinfo, sizeof(pinfo))
++			!= sizeof(pinfo)) {
++		// Leave fields unset on error
++		return;
++	}
++	payload->unique_pid = pinfo.p_uniqueid;
++	payload->pid_version = pinfo.p_idversion;
++
++	_os_log_simple_uuid_copy(payload->process_uuid, pinfo.p_uuid);
++}
++
++static void
++_os_log_simple_set_offset(os_log_simple_payload_t *payload,
++		uint64_t absolute_offset, const struct mach_header *sender_mh,
++		uint64_t dsc_load_addr)
++{
++	uint64_t offset = 0;
++	if (sender_mh->flags & MH_DYLIB_IN_CACHE) {
++		offset = absolute_offset - dsc_load_addr;
++	} else {
++		offset = absolute_offset - (uint64_t)(uintptr_t)sender_mh;
++	}
++
++	payload->relative_offset = offset;
++}
++
++void
++__os_log_simple_offset(const struct mach_header *sender_mh,
++		const uuid_t sender_uuid, const uuid_t dsc_uuid,
++		uintptr_t dsc_load_addr, uint64_t absolute_offset,
++		uint8_t type, const char *subsystem, const char *message)
++{
++	os_log_simple_payload_t payload = { 0 };
++	payload.type = type;
++	payload.subsystem = subsystem;
++	payload.message = message;
++
++	payload.timestamp = os_log_simple_now();
++
++	_os_log_simple_set_proc(&payload);
++
++#if ! defined(VARIANT_DYLD)
++	payload.tid = _pthread_threadid_self_np_direct();
++#endif // ! defined(VARIANT_DYLD)
++
++	// Legacy simple_asl shim does not use the dyld macro wrappers
++	// so we can't correctly resolve sender/offset
++	if (sender_mh != NULL) {
++		_os_log_simple_set_offset(&payload, absolute_offset, sender_mh,
++				dsc_load_addr);
++		_os_log_simple_uuid_copy(payload.sender_uuid, sender_uuid);
++	} else {
++		// Fallback path, use the process uuid as the sender
++		_os_log_simple_uuid_copy(payload.sender_uuid, payload.process_uuid);
++	}
++
++	_os_log_simple_uuid_copy(payload.dsc_uuid, dsc_uuid);
++	_os_log_simple_send(&payload);
++}
++
++void
++_os_log_simple(const struct mach_header *sender_mh, uuid_t sender_uuid,
++		uuid_t dsc_uuid, uintptr_t dsc_load_addr, uint8_t type,
++		const char *subsystem, const char *fmt, ...)
++{
++	_SIMPLE_STRING message = _simple_salloc();
++	if (message == NULL) {
++		return;
++	}
++	va_list ap;
++	va_start(ap, fmt);
++	_simple_vesprintf(message, NULL, fmt, ap);
++	va_end(ap);
++
++	uint64_t offset = (uint64_t)(uintptr_t)__builtin_return_address(0);
++
++	__os_log_simple_offset(sender_mh, sender_uuid, dsc_uuid, dsc_load_addr,
++			offset, type, subsystem, _simple_string(message));
++	_simple_sfree(message);
++}
++
++void
++_os_log_simple_shim(uint8_t type, const char *subsystem, const char *message)
++{
++	__os_log_simple_offset(NULL, UUID_NULL, UUID_NULL, 0, 0, type,
++			subsystem, message);
++}
++
++extern int
++_simple_asl_get_fd(void); // From asl.c
++
++extern ssize_t
++__sendto(int, const void *, size_t, int, const struct sockaddr *, socklen_t);
++
++typedef struct {
++	uint16_t message_size; // includes null terminator
++	uint16_t subsystem_size; // Set to 0 if there is no subsystem
++	uint8_t type;
++	uint64_t timestamp;
++	uint64_t pid;
++	uint64_t unique_pid;
++	uint64_t pid_version;
++	uint64_t tid;
++	uint64_t relative_offset;
++	uuid_t sender_uuid;
++	uuid_t process_uuid;
++	uuid_t dsc_uuid;
++	char data[];
++	// message = data [null-terminated]
++	// subsystem = data + message_size [null terminated]
++} os_log_simple_wire_t;
++
++#define WIRE_BUFFER_SIZE 2048
++
++static bool
++_os_log_simple_is_disabled(void)
++{
++	// launchd and other early boot clients may emit os_log_simple messages
++	// before logd comes up and sets the OS_TRACE_MODE_OFF bit. Thus we need
++	// to check if the logs are disabled for each message and cannot cache
++	// the result.
++	uint32_t atm_config = *(uint32_t *)_COMM_PAGE_ATM_DIAGNOSTIC_CONFIG;
++	if (atm_config & 0x0400) { /* OS_TRACE_MODE_OFF */
++		return true;
++	}
++	return false;
++}
++
++int
++_os_log_simple_send(os_log_simple_payload_t *payload)
++{
++#ifdef DARLING
++	_darling_os_log_simple_diagnostic(payload);
++#endif
++	int asl_fd = _simple_asl_get_fd();
++	if (asl_fd < 0) {
++		return EBADF;
++	}
++
++	if (_os_log_simple_is_disabled()) {
++		return 0;
++	}
++
++	size_t subsystem_size = 0;
++	size_t message_size = strlen(payload->message) + 1;
++
++	// Subsystem is optional
++	if (payload->subsystem) {
++		subsystem_size = strlen(payload->subsystem) + 1;
++	}
++
++	size_t send_size = 0;
++	if (os_add3_overflow(sizeof(os_log_simple_wire_t), message_size, subsystem_size, &send_size)) {
++		return EOVERFLOW;
++	}
++
++	if (send_size > WIRE_BUFFER_SIZE) {
++		return E2BIG;
++	}
++
++	char buffer[WIRE_BUFFER_SIZE];
++	os_log_simple_wire_t *wire = (os_log_simple_wire_t *)buffer;
++
++	// Since WIRE_BUFFER_SIZE << 2**16, we can safely down-cast to uint16_t
++	wire->message_size = (uint16_t)message_size;
++	wire->subsystem_size = (uint16_t)subsystem_size;
++
++	wire->type = payload->type;
++	wire->timestamp = payload->timestamp;
++	wire->pid = payload->pid;
++	wire->unique_pid = payload->unique_pid;
++	wire->pid_version = payload->pid_version;
++	wire->tid = payload->tid;
++	wire->relative_offset = payload->relative_offset;
++
++	_os_log_simple_uuid_copy(wire->sender_uuid, payload->sender_uuid);
++	_os_log_simple_uuid_copy(wire->process_uuid, payload->process_uuid);
++	_os_log_simple_uuid_copy(wire->dsc_uuid, payload->dsc_uuid);
++
++	char *wire_message = wire->data;
++	strlcpy(wire_message, payload->message, message_size);
++
++	if (subsystem_size > 0) {
++		char *wire_subsystem = wire->data + message_size;
++		strlcpy(wire_subsystem, payload->subsystem, subsystem_size);
++	}
++
++	ssize_t bytes = __sendto(asl_fd, buffer, send_size, 0, NULL, 0);
++	int error = 0;
++	if (bytes < 0) {
++		error = errno;
++	} else if (bytes < send_size) {
++		error = EMSGSIZE;
++	}
++
++	return error;
++}
++
++int
++_os_log_simple_parse_type(os_log_simple_payload_t *payload, os_log_simple_wire_t *wire)
++{
++	switch (wire->type) {
++	case OS_LOG_SIMPLE_TYPE_DEFAULT:
++	case OS_LOG_SIMPLE_TYPE_INFO:
++	case OS_LOG_SIMPLE_TYPE_DEBUG:
++	case OS_LOG_SIMPLE_TYPE_ERROR:
++		payload->type = wire->type;
++		return 0;
++	default:
++		return EINVAL;
++	}
++}
++
++int
++_os_log_simple_parse_subsystem(os_log_simple_payload_t *payload, os_log_simple_wire_t *wire)
++{
++	if (wire->subsystem_size == 0) {
++		// No subsystem
++		payload->subsystem = NULL;
++	} else {
++		char *wire_subsystem = wire->data + wire->message_size;
++		// subsystem_size includes space for the nul-terminator
++		if (wire_subsystem[wire->subsystem_size - 1] != '\0') {
++			return EINVAL;
++		}
++		// wire is an alias for the client provided buffer; return a
++		// pointer within that buffer to the client to avoid allocating memory
++		payload->subsystem = wire_subsystem;
++	}
++	return 0;
++}
++
++int
++_os_log_simple_parse_message(os_log_simple_payload_t *payload, os_log_simple_wire_t *wire)
++{
++	if (wire->message_size == 0) {
++		return EINVAL; // message is mandatory
++	}
++
++	char *wire_message = wire->data;
++	// message_size includes space for the nul-terminator
++	if (wire_message[wire->message_size - 1] != '\0') {
++		return EINVAL;
++	}
++	// wire is an alias for the client provided buffer; return a
++	// pointer within that buffer to the client to avoid allocating memory
++	payload->message = wire_message;
++	return 0;
++}
++
++int
++_os_log_simple_parse_timestamp(os_log_simple_payload_t *payload, os_log_simple_wire_t *wire)
++{
++	payload->timestamp = wire->timestamp;
++	if (payload->timestamp == 0 || payload->timestamp > os_log_simple_now()) {
++		// Forbid unset timestamps or time from the future
++		return EINVAL;
++	}
++	return 0;
++}
++
++int
++_os_log_simple_parse_identifiers(os_log_simple_payload_t *payload, os_log_simple_wire_t *wire)
++{
++	payload->pid = wire->pid;
++	payload->unique_pid = wire->unique_pid;
++	payload->pid_version = wire->pid_version;
++	payload->tid = wire->tid;
++
++	if (payload->pid == 0) {
++		return EINVAL;
++	}
++
++	// If we encounter an error trying to call proc_pidinfo, we may not have a
++	// valid unique_pid or pid_version, so we don't validate these fields
++	return 0;
++}
++
++int
++_os_log_simple_parse(const char *buffer, size_t length, os_log_simple_payload_t *payload_out)
++{
++	if (length < sizeof(os_log_simple_wire_t)) {
++		return EBADMSG;
++	}
++
++	os_log_simple_wire_t *wire = (os_log_simple_wire_t *)buffer;
++
++	size_t needed_size = 0;
++	if (os_add3_overflow(sizeof(os_log_simple_wire_t), wire->message_size,
++			wire->subsystem_size, &needed_size)) {
++		return EOVERFLOW;
++	}
++
++	if (length < needed_size) {
++		return E2BIG;
++	}
++
++	int error = _os_log_simple_parse_type(payload_out, wire);
++	if (error) {
++		return error;
++	}
++
++	error = _os_log_simple_parse_subsystem(payload_out, wire);
++	if (error) {
++		return error;
++	}
++
++	error = _os_log_simple_parse_message(payload_out, wire);
++	if (error) {
++		return error;
++	}
++
++	error = _os_log_simple_parse_timestamp(payload_out, wire);
++	if (error) {
++		return error;
++	}
++
++	error = _os_log_simple_parse_identifiers(payload_out, wire);
++	if (error) {
++		return error;
++	}
++
++	payload_out->relative_offset = wire->relative_offset;
++
++	// Nothing to validate for uuids
++	_os_log_simple_uuid_copy(payload_out->sender_uuid, wire->sender_uuid);
++	_os_log_simple_uuid_copy(payload_out->process_uuid, wire->process_uuid);
++	_os_log_simple_uuid_copy(payload_out->dsc_uuid, wire->dsc_uuid);
++
++	return 0;
++}
++
++#endif // !TARGET_OS_DRIVERKIT
+diff --git a/src/simple/log_simple_darling.h b/src/simple/log_simple_darling.h
+new file mode 100644
+index 0000000..367aaf5
+--- /dev/null
++++ b/src/simple/log_simple_darling.h
+@@ -0,0 +1,17 @@
++/* Darling backend declarations for the Apple simple-log source port. */
++#include <stdbool.h>
++#include <pthread.h>
++#include <i386/cpu_capabilities.h>
++/* The pinned Darling SDK's TCP header expects the newer Darwin endian names. */
++#ifndef __DARWIN_BYTE_ORDER
++#define __DARWIN_LITTLE_ENDIAN __ORDER_LITTLE_ENDIAN__
++#define __DARWIN_BIG_ENDIAN __ORDER_BIG_ENDIAN__
++#define __DARWIN_BYTE_ORDER __BYTE_ORDER__
++#endif
++static inline uint64_t _pthread_threadid_self_np_direct(void) {
++    uint64_t thread = 0;
++    /* Use the real public thread-ID implementation; no private pthread layout. */
++    pthread_threadid_np(NULL, &thread);
++    return thread;
++}
++void _darling_os_log_simple_diagnostic(const os_log_simple_payload_t *payload);
+diff --git a/src/simple/log_simple_transport.c b/src/simple/log_simple_transport.c
+new file mode 100644
+index 0000000..52cbf25
+--- /dev/null
++++ b/src/simple/log_simple_transport.c
+@@ -0,0 +1,86 @@
++/* The upstream simple-log encoder uses a connected Unix datagram socket.
++ * Keep that wire transport on Darling. This module does not emulate logd or
++ * report a successful send when the receiver is absent.
++ */
++#include <os/log_simple_private.h>
++#include "log_simple_darling.h"
++#include <os/lock.h>
++#include <_simple.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/socket.h>
++#include <sys/syslog.h>
++#include <sys/un.h>
++#include <unistd.h>
++static os_unfair_lock transport_lock = OS_UNFAIR_LOCK_INIT;
++static int transport_fd = -1;
++static int connection_attempted;
++static pid_t transport_pid;
++
++static void repair_child_lock(void) {
++    pid_t pid = getpid(), expected = 0;
++    if (!__atomic_compare_exchange_n(&transport_pid, &expected, pid, 0,
++            __ATOMIC_RELAXED, __ATOMIC_RELAXED) && expected != pid) {
++        /* fork leaves a single thread in the child. A parent's locked unfair
++         * lock cannot be acquired there. The inherited socket remains valid. */
++        transport_lock = (os_unfair_lock)OS_UNFAIR_LOCK_INIT;
++        if (transport_fd < 0) connection_attempted = 0;
++        __atomic_store_n(&transport_pid, pid, __ATOMIC_RELAXED);
++    }
++}
++
++static int connect_receiver(void) {
++    const char *disabled = getenv("ASL_DISABLE");
++    if (disabled && !strcmp(disabled, "1")) return -1;
++    const char *path = getenv("DARLING_SIMPLE_LOG_SOCKET");
++    if (!path) path = _PATH_LOG;
++    struct sockaddr_un address = {0};
++    if (strlen(path) >= sizeof(address.sun_path)) { errno = ENAMETOOLONG; return -1; }
++    address.sun_family = AF_UNIX;
++    address.sun_len = sizeof(address);
++    strlcpy(address.sun_path, path, sizeof(address.sun_path));
++    int fd = socket(AF_UNIX, SOCK_DGRAM, 0);
++    if (fd < 0) return -1;
++    if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1 ||
++        connect(fd, (const struct sockaddr *)&address, sizeof(address)) == -1) {
++        int error = errno; close(fd); errno = error; return -1;
++    }
++    return fd;
++}
++
++__attribute__((visibility("hidden")))
++int _simple_asl_get_fd(void) {
++    repair_child_lock();
++    os_unfair_lock_lock(&transport_lock);
++    if (!connection_attempted) {
++        connection_attempted = 1;
++        transport_fd = connect_receiver();
++    }
++    int fd = transport_fd;
++    os_unfair_lock_unlock(&transport_lock);
++    return fd;
++}
++
++void _os_log_simple_reinit_4launchd(void) {
++    repair_child_lock();
++    os_unfair_lock_lock(&transport_lock);
++    if (transport_fd >= 0) {
++        _simple_dprintf(STDERR_FILENO, "os_log_simple: launchd reconnect after successful initialization\n");
++        __builtin_trap();
++    }
++    connection_attempted = 1;
++    transport_fd = connect_receiver();
++    os_unfair_lock_unlock(&transport_lock);
++}
++
++__attribute__((visibility("hidden")))
++void _darling_os_log_simple_diagnostic(const os_log_simple_payload_t *payload) {
++    const char *enabled = getenv("DARLING_OS_LOG_STDERR");
++    if (enabled && !strcmp(enabled, "1")) {
++        _simple_dprintf(STDERR_FILENO, "os_log_simple[%llu:%llu] type=%u subsystem=%s: %s\n",
++            payload->pid, payload->tid, payload->type,
++            payload->subsystem ? payload->subsystem : "(none)", payload->message);
++    }
++}

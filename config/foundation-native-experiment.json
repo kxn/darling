@@ -1,0 +1,114 @@
+{
+  "installed": false,
+  "full_compatibility": false,
+  "framework_stage": "runtime/foundation-native-framework-stage",
+  "library_stage": "runtime/foundation-native-library-stage",
+  "targets": [
+    {
+      "target": "foundation-native",
+      "swift_relative": true
+    },
+    {
+      "target": "corefoundation-native"
+    },
+    {
+      "target": "core-services-internal"
+    },
+    {
+      "target": "reflectioninternal",
+      "swift_relative": true
+    },
+    {
+      "target": "runtimeinternal",
+      "swift_relative": true
+    },
+    {
+      "target": "swift-darwin-foundation1",
+      "swift_relative": true
+    },
+    {
+      "target": "cmark-gfm"
+    },
+    {
+      "target": "fakelink"
+    },
+    {
+      "target": "cfnetwork-native"
+    },
+    {
+      "target": "system-configuration-native"
+    },
+    {
+      "target": "swift-corefoundation-native",
+      "swift_relative": true
+    },
+    {
+      "target": "swift-xpc-native",
+      "swift_relative": true
+    },
+    {
+      "target": "network-native",
+      "swift_relative": true
+    },
+    {
+      "target": "swiftdata-native",
+      "swift_relative": true
+    },
+    {
+      "target": "internal-swift-protobuf",
+      "swift_relative": true
+    },
+    {
+      "target": "atomicsinternal",
+      "swift_relative": true
+    },
+    {
+      "target": "apple-events-native"
+    },
+    {
+      "target": "disk-arbitration-native"
+    },
+    {
+      "target": "icu-native"
+    },
+    {
+      "target": "boringssl-native"
+    },
+    {
+      "target": "usrtcp-native"
+    },
+    {
+      "target": "coredata-native",
+      "swift_relative": true
+    },
+    {
+      "target": "carboncore-native"
+    },
+    {
+      "target": "dnssd-native",
+      "stage_name": "libDarlingNativeDNS.dylib"
+    },
+    {
+      "target": "dirhelper-native",
+      "stage_name": "libDarlingNativeDirHelper.dylib"
+    },
+    {
+      "target": "containermanager-native"
+    },
+    {
+      "target": "system-collections-native"
+    },
+    {
+      "target": "quarantine-native",
+      "stage_name": "libDarlingNativeQuarantine.dylib"
+    },
+    {
+      "target": "sandbox-native",
+      "stage_name": "libDarlingNativeSandbox.dylib"
+    },
+    {
+      "target": "usermanagement-foundation-native"
+    }
+  ],
+  "scope": "Separate genuine Foundation/CoreFoundation reconstruction experiment. Never replaces the working Foundation adapters or the default Darling frameworks. Successful reconstruction does not establish ABI, initializer, Swift metadata or API compatibility."
+}

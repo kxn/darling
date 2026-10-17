@@ -1,0 +1,1338 @@
+{
+  "scope": "Exact original CFString/C-string identifiers, signed CIFormat and unsigned sandbox 32-bit constants, a self-address sandbox token and an x86_64 double hairline sentinel. No graphics, resource-property, container, sandbox, service or driver API implementations.",
+  "constants": [
+    {
+      "symbol": "_kIOSurfaceSysMemOnly",
+      "provider": "/System/Library/Frameworks/IOSurface.framework/Versions/A/IOSurface",
+      "provider_sha256": "6d39195ea5a07009c12a5bf20b7ab52b1264ddf261152302c641ca62ca761699",
+      "value": "IOSurfaceSysMemOnly",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84119ad20",
+      "slot_address": "0x7ff841199308"
+    },
+    {
+      "symbol": "_NSProgressCategoryKey",
+      "provider": "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+      "provider_sha256": "37aa85f7da365c9c81244c8dc67c95362edef4dacf495db2fa7655840a254c7d",
+      "value": "NSProgressCategoryKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff8404aa740",
+      "slot_address": "0x7ff840479620"
+    },
+    {
+      "symbol": "_NSURLFileIdentifierKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "NSURLFileIdentifierKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031a0d8",
+      "slot_address": "0x7ff8402412a8"
+    },
+    {
+      "symbol": "_NSURLVolumeTypeNameKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "NSURLVolumeTypeNameKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031a898",
+      "slot_address": "0x7ff840241498"
+    },
+    {
+      "symbol": "_NSUserActivityTypeBrowsingWeb",
+      "provider": "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+      "provider_sha256": "37aa85f7da365c9c81244c8dc67c95362edef4dacf495db2fa7655840a254c7d",
+      "value": "NSUserActivityTypeBrowsingWeb",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff8404a1600",
+      "slot_address": "0x7ff840474998"
+    },
+    {
+      "symbol": "__kCFURLApplicationArchitecturesKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationArchitecturesKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031bb78",
+      "slot_address": "0x7ff840241958"
+    },
+    {
+      "symbol": "__kCFURLApplicationDeviceManagementPolicyKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationDeviceManagementPolicyKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031bbb8",
+      "slot_address": "0x7ff840241968"
+    },
+    {
+      "symbol": "__kCFURLApplicationHasSupportedFormatKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationHasSupportedFormatKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031b278",
+      "slot_address": "0x7ff840241710"
+    },
+    {
+      "symbol": "__kCFURLApplicationIsAppletKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationIsAppletKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031b258",
+      "slot_address": "0x7ff840241708"
+    },
+    {
+      "symbol": "__kCFURLApplicationIsBetaKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationIsBetaKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031bbf8",
+      "slot_address": "0x7ff840241978"
+    },
+    {
+      "symbol": "__kCFURLApplicationIsIdentifiedGameKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationIsIdentifiedGameKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031be58",
+      "slot_address": "0x7ff840241a18"
+    },
+    {
+      "symbol": "__kCFURLApplicationIsPlaceholderKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationIsPlaceholderKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031bbd8",
+      "slot_address": "0x7ff840241970"
+    },
+    {
+      "symbol": "__kCFURLApplicationPrefersExternalGPUKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationPrefersExternalGPUKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031ba78",
+      "slot_address": "0x7ff840241918"
+    },
+    {
+      "symbol": "__kCFURLApplicationPrefersGameModeDisabledKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationPrefersGameModeDisabledKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031be18",
+      "slot_address": "0x7ff840241a08"
+    },
+    {
+      "symbol": "__kCFURLApplicationPrefersSafeApertureAppFullScreenCompatibilityKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationPrefersSafeApertureAppFullScreenCompatKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031baf8",
+      "slot_address": "0x7ff840241938"
+    },
+    {
+      "symbol": "__kCFURLApplicationPrefersSafeApertureSystemFullScreenCompatibilityKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationPrefersSafeApertureSystemFullScreenCompatKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031bad8",
+      "slot_address": "0x7ff840241930"
+    },
+    {
+      "symbol": "__kCFURLApplicationPrefersSafeApertureWindowedCompatibilityKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationPrefersSafeApertureWindowedCompatKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031bb18",
+      "slot_address": "0x7ff840241940"
+    },
+    {
+      "symbol": "__kCFURLApplicationSupportedRegionsKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLApplicationSupportedRegionsKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031bb98",
+      "slot_address": "0x7ff840241960"
+    },
+    {
+      "symbol": "__kCFURLArchitecturesValidOnCurrentSystemKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLArchitecturesValidOnCurrentSystemKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031bb58",
+      "slot_address": "0x7ff840241950"
+    },
+    {
+      "symbol": "__kCFURLCanSetApplicationIsIdentifiedGameKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLCanSetApplicationIsIdentifiedGameKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031be78",
+      "slot_address": "0x7ff840241a20"
+    },
+    {
+      "symbol": "__kCFURLCanSetApplicationPrefersExternalGPUKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLCanSetApplicationPrefersExternalGPUKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031ba98",
+      "slot_address": "0x7ff840241920"
+    },
+    {
+      "symbol": "__kCFURLCanSetApplicationPrefersGameModeDisabledKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLCanSetApplicationPrefersGameModeDisabledKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031be38",
+      "slot_address": "0x7ff840241a10"
+    },
+    {
+      "symbol": "__kCFURLCanSetApplicationPrefersSafeApertureWindowedCompatibilityKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLCanSetApplicationPrefersSafeApertureWindowedCompatKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031bb38",
+      "slot_address": "0x7ff840241948"
+    },
+    {
+      "symbol": "__kCFURLCanSetStrongBindingKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLCanSetStrongBindingKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031ba38",
+      "slot_address": "0x7ff840241908"
+    },
+    {
+      "symbol": "__kCFURLContentTypeKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "NSURLContentTypeKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840319e58",
+      "slot_address": "0x7ff840241208"
+    },
+    {
+      "symbol": "__kCFURLDeviceRefNumKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLDeviceRefNumKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031bab8",
+      "slot_address": "0x7ff840241928"
+    },
+    {
+      "symbol": "__kCFURLHFSTypeCodeKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLHFSTypeCodeKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031b078",
+      "slot_address": "0x7ff840241690"
+    },
+    {
+      "symbol": "__kCFURLLocalizedNameComponentsKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLLocalizedNameComponentsKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031bc58",
+      "slot_address": "0x7ff840241990"
+    },
+    {
+      "symbol": "__kCFURLLocalizedNameWithExtensionsHiddenDictionaryKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLLocalizedNameWithExtensionsHiddenDictionaryKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031b898",
+      "slot_address": "0x7ff8402418a0"
+    },
+    {
+      "symbol": "__kCFURLStrongBindingKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLStrongBindingKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031ba58",
+      "slot_address": "0x7ff840241910"
+    },
+    {
+      "symbol": "__kCFURLTypeBindingKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLTypeBindingKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031b3b8",
+      "slot_address": "0x7ff840241760"
+    },
+    {
+      "symbol": "__kCFURLVolumeDeviceIDKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLVolumeDeviceIDKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031b6d8",
+      "slot_address": "0x7ff840241830"
+    },
+    {
+      "symbol": "__kCFURLVolumeIsAirportKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLVolumeIsAirportKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031b718",
+      "slot_address": "0x7ff840241840"
+    },
+    {
+      "symbol": "__kCFURLVolumeIsBDVideoKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLVolumeIsBDVideoKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031b778",
+      "slot_address": "0x7ff840241858"
+    },
+    {
+      "symbol": "__kCFURLVolumeIsMobileTimeMachineKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLVolumeIsMobileTimeMachineKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031b798",
+      "slot_address": "0x7ff840241860"
+    },
+    {
+      "symbol": "__kCFURLVolumeIsNetworkOpticalKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLVolumeIsNetworkOpticalKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031b7b8",
+      "slot_address": "0x7ff840241868"
+    },
+    {
+      "symbol": "__kCFURLVolumeIsTimeMachineKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLVolumeIsTimeMachineKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031b6f8",
+      "slot_address": "0x7ff840241838"
+    },
+    {
+      "symbol": "__kCFURLVolumeQuarantinePropertiesKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "_NSURLVolumeQuarantinePropertiesKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031b998",
+      "slot_address": "0x7ff8402418e0"
+    },
+    {
+      "symbol": "_kCFURLApplicationIsScriptableKey",
+      "provider": "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+      "provider_sha256": "a8d086449ef65851a190c862ffbd57d663b2b731bac9126c35e501cfe8ecbfd8",
+      "value": "NSURLApplicationIsScriptableKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84031a318",
+      "slot_address": "0x7ff840241338"
+    },
+    {
+      "symbol": "_kMDQueryScopeComputerIndexed",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Metadata",
+      "provider_sha256": "7e83db4e0ec1b9688858d17959b7636afd387d29a949cf3b8185f040ab6efe93",
+      "value": "kMDQueryScopeComputerIndexed",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840d0f118",
+      "slot_address": "0x7ff840d081e8"
+    },
+    {
+      "symbol": "_NSMultipleUnderlyingErrorsKey",
+      "provider": "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+      "provider_sha256": "37aa85f7da365c9c81244c8dc67c95362edef4dacf495db2fa7655840a254c7d",
+      "value": "NSMultipleUnderlyingErrorsKey",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840480c00",
+      "slot_address": "0x7ff84046b8a0"
+    },
+    {
+      "symbol": "_kIOSurfaceCreationProperties",
+      "provider": "/System/Library/Frameworks/IOSurface.framework/Versions/A/IOSurface",
+      "provider_sha256": "6d39195ea5a07009c12a5bf20b7ab52b1264ddf261152302c641ca62ca761699",
+      "value": "CreationProperties",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84119abc0",
+      "slot_address": "0x7ff841199298"
+    },
+    {
+      "symbol": "_kCGImageComponentTypeRequest",
+      "provider": "/System/Library/Frameworks/ImageIO.framework/Versions/A/ImageIO",
+      "provider_sha256": "2c7f541f2ee144959cf2e7f1f55496f6e03ef9a4fdc5c0b744b2a91088fb46e4",
+      "value": "kCGImageComponentTypeRequest",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84136a1d8",
+      "slot_address": "0x7ff8412e4390"
+    },
+    {
+      "symbol": "_kCGImagePropertyIOSurface",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGImagePropertyIOSurface",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5cb00",
+      "slot_address": "0x7ff840b30c00"
+    },
+    {
+      "symbol": "_kCVPixelBufferExactBytesPerRowKey",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "ExactBytesPerRow",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc6928",
+      "slot_address": "0x7ff840fc1590"
+    },
+    {
+      "symbol": "_kCVPixelBufferNumberOfSlicesKey",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "NumberOfSlices",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc6be8",
+      "slot_address": "0x7ff840fc1640"
+    },
+    {
+      "symbol": "_kCVPixelBufferPlaneAlignmentKey",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "PlaneAlignment",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc6868",
+      "slot_address": "0x7ff840fc1520"
+    },
+    {
+      "symbol": "_kCVPixelFormatBitsPerBlock",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "BitsPerBlock",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc4f48",
+      "slot_address": "0x7ff840fc16c0"
+    },
+    {
+      "symbol": "_kCVPixelFormatPlanes",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "Planes",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5268",
+      "slot_address": "0x7ff840fc1698"
+    },
+    {
+      "symbol": "_kIOSurfaceAllocateFromSuperbuffer",
+      "provider": "/System/Library/Frameworks/IOSurface.framework/Versions/A/IOSurface",
+      "provider_sha256": "6d39195ea5a07009c12a5bf20b7ab52b1264ddf261152302c641ca62ca761699",
+      "value": "IOSurfaceAllocateFromSuperbuffer",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84119ac60",
+      "slot_address": "0x7ff8411992d8"
+    },
+    {
+      "symbol": "_kIOSurfaceClientAddress",
+      "provider": "/System/Library/Frameworks/IOSurface.framework/Versions/A/IOSurface",
+      "provider_sha256": "6d39195ea5a07009c12a5bf20b7ab52b1264ddf261152302c641ca62ca761699",
+      "value": "IOSurfaceAddress",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff841199ea0",
+      "slot_address": "0x7ff841198f08"
+    },
+    {
+      "symbol": "_kCVImageBufferChromaLocation_Bottom",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "Bottom",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc6408",
+      "slot_address": "0x7ff840fc13c0"
+    },
+    {
+      "symbol": "_kCVImageBufferChromaLocation_BottomLeft",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "BottomLeft",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc63e8",
+      "slot_address": "0x7ff840fc13b8"
+    },
+    {
+      "symbol": "_kCVImageBufferChromaLocation_Center",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "Center",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc6388",
+      "slot_address": "0x7ff840fc13a0"
+    },
+    {
+      "symbol": "_kCVImageBufferChromaLocation_DV420",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "DV 4:2:0",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc6428",
+      "slot_address": "0x7ff840fc13c8"
+    },
+    {
+      "symbol": "_kCVImageBufferChromaLocation_Top",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "Top",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc63c8",
+      "slot_address": "0x7ff840fc13b0"
+    },
+    {
+      "symbol": "_kCVImageBufferChromaLocation_TopLeft",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "TopLeft",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc63a8",
+      "slot_address": "0x7ff840fc13a8"
+    },
+    {
+      "symbol": "_kCSIdentityErrorDomain",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "CSIdentityErrorDomain",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172cef8",
+      "slot_address": "0x7ff841729d28"
+    },
+    {
+      "symbol": "_kFSIsAirportVolume",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices",
+      "provider_sha256": "ed1aa0bc67054a692dcf9173ccc5250f1017dc7471b730579568ae246e210fa8",
+      "value": "kFSIsAirportVolume",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff8406ae5c0",
+      "slot_address": "0x7ff8406a8498"
+    },
+    {
+      "symbol": "_kFSIsTimeMachineVolume",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices",
+      "provider_sha256": "ed1aa0bc67054a692dcf9173ccc5250f1017dc7471b730579568ae246e210fa8",
+      "value": "kFSIsTimeMachineVolume",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff8406ae5a0",
+      "slot_address": "0x7ff8406a8490"
+    },
+    {
+      "symbol": "_kSecAttrKeyTypeEd25519",
+      "provider": "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+      "provider_sha256": "53bad77d92bf3df5d6f50630be2dc2fcdff7321acf3563e05c3598558fe0e8f6",
+      "value": "105",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840647d60",
+      "slot_address": "0x7ff840618830"
+    },
+    {
+      "symbol": "_kSecCSRBasicConstraintsCA",
+      "provider": "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+      "provider_sha256": "53bad77d92bf3df5d6f50630be2dc2fcdff7321acf3563e05c3598558fe0e8f6",
+      "value": "basicConstraintsCA",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840649240",
+      "slot_address": "0x7ff840618230"
+    },
+    {
+      "symbol": "_kSecCertificateExtendedKeyUsage",
+      "provider": "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+      "provider_sha256": "53bad77d92bf3df5d6f50630be2dc2fcdff7321acf3563e05c3598558fe0e8f6",
+      "value": "certificateEKUs",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840649280",
+      "slot_address": "0x7ff8406184a0"
+    },
+    {
+      "symbol": "_kSecEKUServerAuth",
+      "provider": "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+      "provider_sha256": "53bad77d92bf3df5d6f50630be2dc2fcdff7321acf3563e05c3598558fe0e8f6",
+      "value": "1.3.6.1.5.5.7.3.1",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff8406493c0",
+      "slot_address": "0x7ff840618278"
+    },
+    {
+      "symbol": "_kSecKeyAlgorithmEdDSASignatureMessageCurve25519SHA512",
+      "provider": "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+      "provider_sha256": "53bad77d92bf3df5d6f50630be2dc2fcdff7321acf3563e05c3598558fe0e8f6",
+      "value": "algid:sign:EdDSA:message-Curve25519:SHA512",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff8406446e0",
+      "slot_address": "0x7ff84061b308"
+    },
+    {
+      "symbol": "_kSecKeyAlgorithmEdDSASignatureMessageCurve448SHAKE256",
+      "provider": "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+      "provider_sha256": "53bad77d92bf3df5d6f50630be2dc2fcdff7321acf3563e05c3598558fe0e8f6",
+      "value": "algid:sign:EdDSA:message-Curve448:SHAKE256",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840644700",
+      "slot_address": "0x7ff84061b310"
+    },
+    {
+      "symbol": "_kWSDebugIncomingBody",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "/WSDebugInBody",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172eb98",
+      "slot_address": "0x7ff843de0cb0"
+    },
+    {
+      "symbol": "_kWSDebugIncomingHeaders",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "/WSDebugInHeaders",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172eb78",
+      "slot_address": "0x7ff843de0ca8"
+    },
+    {
+      "symbol": "_kWSDebugOutgoingBody",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "/WSDebugOutBody",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172eb58",
+      "slot_address": "0x7ff843de0ca0"
+    },
+    {
+      "symbol": "_kWSDebugOutgoingHeaders",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "/WSDebugOutHeaders",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172eb38",
+      "slot_address": "0x7ff843de0c98"
+    },
+    {
+      "symbol": "_kWSFaultCode",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "/FaultCode",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172e938",
+      "slot_address": "0x7ff843de0c18"
+    },
+    {
+      "symbol": "_kWSFaultExtra",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "/FaultExtra",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172e958",
+      "slot_address": "0x7ff843de0c20"
+    },
+    {
+      "symbol": "_kWSFaultString",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "/FaultString",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172e918",
+      "slot_address": "0x7ff843de0c10"
+    },
+    {
+      "symbol": "_kWSHTTPExtraHeaders",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "/WSHTTPExtraHeaders",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172ea78",
+      "slot_address": "0x7ff843de0c68"
+    },
+    {
+      "symbol": "_kWSMethodInvocationResult",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "/Result",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172e8f8",
+      "slot_address": "0x7ff843de0c08"
+    },
+    {
+      "symbol": "_kWSMethodInvocationTimeoutValue",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "kWSMethodInvocationTimeoutValue",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172ed98",
+      "slot_address": "0x7ff843de0d40"
+    },
+    {
+      "symbol": "_kWSNetworkStreamFaultString",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "/CFStreamFault",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172e978",
+      "slot_address": "0x7ff843de0c28"
+    },
+    {
+      "symbol": "_kWSRecordParameterOrder",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "/WSRecordParamOrder",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172ec58",
+      "slot_address": "0x7ff843de0ce0"
+    },
+    {
+      "symbol": "_kWSSOAP1999Protocol",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "SOAP-1999",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172e8b8",
+      "slot_address": "0x7ff843de0bf8"
+    },
+    {
+      "symbol": "_kWSSOAPMethodNamespaceURI",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "/WSSOAPMethodNamespaceURI",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172ebd8",
+      "slot_address": "0x7ff843de0cc0"
+    },
+    {
+      "symbol": "_kWSStreamErrorError",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "error",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172e9d8",
+      "slot_address": "0x7ff843de0c40"
+    },
+    {
+      "symbol": "_kWSXMLRPCProtocol",
+      "provider": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices",
+      "provider_sha256": "77178fb30607b6a528c45166182d6a3a3682a07e92fc071c0c6098c120f575af",
+      "value": "XML-RPC",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84172e898",
+      "slot_address": "0x7ff843de0bf0"
+    },
+    {
+      "symbol": "_kCVImageBufferAmbientViewingEnvironmentKey",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "AmbientViewingEnvironment",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc6588",
+      "slot_address": "0x7ff840fc1420"
+    },
+    {
+      "symbol": "_kCVImageBufferCGColorSpaceKey",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "CGColorSpace",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5b48",
+      "slot_address": "0x7ff840fc1130"
+    },
+    {
+      "symbol": "_kCVImageBufferCleanApertureHeightKey",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "Height",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5bc8",
+      "slot_address": "0x7ff840fc1150"
+    },
+    {
+      "symbol": "_kCVImageBufferCleanApertureHorizontalOffsetKey",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "HorizontalOffset",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5be8",
+      "slot_address": "0x7ff840fc1158"
+    },
+    {
+      "symbol": "_kCVImageBufferCleanApertureKey",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "CVCleanAperture",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5b68",
+      "slot_address": "0x7ff840fc1138"
+    },
+    {
+      "symbol": "_kCVImageBufferCleanApertureVerticalOffsetKey",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "VerticalOffset",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5c08",
+      "slot_address": "0x7ff840fc1160"
+    },
+    {
+      "symbol": "_kCVImageBufferCleanApertureWidthKey",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "Width",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5ba8",
+      "slot_address": "0x7ff840fc1148"
+    },
+    {
+      "symbol": "_kCVImageBufferColorPrimaries_DCI_P3",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "DCI_P3",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5e48",
+      "slot_address": "0x7ff840fc1258"
+    },
+    {
+      "symbol": "_kCVImageBufferColorPrimaries_ITU_R_2020",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "ITU_R_2020",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5e88",
+      "slot_address": "0x7ff840fc1268"
+    },
+    {
+      "symbol": "_kCVImageBufferColorPrimaries_P22",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "P22",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5f68",
+      "slot_address": "0x7ff840fc1250"
+    },
+    {
+      "symbol": "_kCVImageBufferColorPrimaries_P3_D65",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "P3_D65",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5e68",
+      "slot_address": "0x7ff840fc1260"
+    },
+    {
+      "symbol": "_kCVImageBufferPreferredCleanApertureKey",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "CVPreferredCleanAperture",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5b88",
+      "slot_address": "0x7ff840fc1140"
+    },
+    {
+      "symbol": "_kCVImageBufferTransferFunction_sRGB",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "IEC_sRGB",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5fc8",
+      "slot_address": "0x7ff840fc12a0"
+    },
+    {
+      "symbol": "_kCVImageBufferYCbCrMatrix_IPT",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "IPT",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5ea8",
+      "slot_address": "0x7ff840fc1218"
+    },
+    {
+      "symbol": "_kCVImageBufferYCbCrMatrix_ITU_R_2020",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "ITU_R_2020",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5e88",
+      "slot_address": "0x7ff840fc1210"
+    },
+    {
+      "symbol": "_kCVImageBufferYCbCrMatrix_ITU_R_2100_ICtCp",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "ITU_R_2100_ICtCp",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5ec8",
+      "slot_address": "0x7ff840fc1220"
+    },
+    {
+      "symbol": "_kCVImageBufferYCbCrMatrix_Identity",
+      "provider": "/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo",
+      "provider_sha256": "675a42d831ec0b1f3439a985ff6f35d1426e22ec2a183e70c275a0dac9ec0692",
+      "value": "Identity",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840fc5dc8",
+      "slot_address": "0x7ff840fc11e0"
+    },
+    {
+      "symbol": "_kCGApplyFlexLumaScaling",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGApplyFlexLumaScaling",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5c240",
+      "slot_address": "0x7ff840b53258"
+    },
+    {
+      "symbol": "_kCGApplyReferenceWhiteToneMapping",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGApplyReferenceWhiteToneMapping",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5b4e0",
+      "slot_address": "0x7ff840b531f8"
+    },
+    {
+      "symbol": "_kCGColorSpaceDisplayP3_HLG",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceDisplayP3_HLG",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d4c0",
+      "slot_address": "0x7ff840b344e0"
+    },
+    {
+      "symbol": "_kCGColorSpaceDisplayP3_PQ",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceDisplayP3_PQ",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d4a0",
+      "slot_address": "0x7ff840b344d8"
+    },
+    {
+      "symbol": "_kCGColorSpaceExtendedDisplayP3",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceExtendedDisplayP3",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d460",
+      "slot_address": "0x7ff840b31b70"
+    },
+    {
+      "symbol": "_kCGColorSpaceExtendedITUR_2020",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceExtendedITUR_2020",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d680",
+      "slot_address": "0x7ff840b31ba0"
+    },
+    {
+      "symbol": "_kCGColorSpaceExtendedLinearDisplayP3",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceExtendedLinearDisplayP3",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d480",
+      "slot_address": "0x7ff840b31b78"
+    },
+    {
+      "symbol": "_kCGColorSpaceExtendedLinearITUR_2020",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceExtendedLinearITUR_2020",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d6a0",
+      "slot_address": "0x7ff840b31ba8"
+    },
+    {
+      "symbol": "_kCGColorSpaceITUR_2020_sRGBGamma",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceITUR_2020_sRGBGamma",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d640",
+      "slot_address": "0x7ff840b344b0"
+    },
+    {
+      "symbol": "_kCGColorSpaceITUR_2100_HLG",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceITUR_2100_HLG",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d6e0",
+      "slot_address": "0x7ff840b344c8"
+    },
+    {
+      "symbol": "_kCGColorSpaceITUR_2100_PQ",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceITUR_2100_PQ",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d6c0",
+      "slot_address": "0x7ff840b344c0"
+    },
+    {
+      "symbol": "_kCGColorSpaceITUR_709_PQ",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceITUR_709_PQ",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d5e0",
+      "slot_address": "0x7ff840b34498"
+    },
+    {
+      "symbol": "_kCGColorSpaceLinearDisplayP3",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceLinearDisplayP3",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d440",
+      "slot_address": "0x7ff840b344d0"
+    },
+    {
+      "symbol": "_kCGColorSpaceLinearITUR_2020",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceLinearITUR_2020",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d660",
+      "slot_address": "0x7ff840b344a8"
+    },
+    {
+      "symbol": "_kCGColorSpaceUncalibratedGray",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceUncalibratedGray",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d220",
+      "slot_address": "0x7ff840b31d50"
+    },
+    {
+      "symbol": "_kCGColorSpaceUncalibratedRGB",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGColorSpaceUncalibratedRGB",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5d240",
+      "slot_address": "0x7ff840b31d58"
+    },
+    {
+      "symbol": "_kCGContentEDRStrength",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGContentEDRStrength",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b662a0",
+      "slot_address": "0x7ff840b59440"
+    },
+    {
+      "symbol": "_kCGContextClear",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGContextClear",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b628c0",
+      "slot_address": "0x7ff840b53e50"
+    },
+    {
+      "symbol": "_kCGFlexGTCTargetHeadroom",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGFlexGTCTargetHeadroom",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5c260",
+      "slot_address": "0x7ff840b53248"
+    },
+    {
+      "symbol": "_kCGGradientInterpolatesPremultiplied",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGGradientInterpolatesPremultiplied",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b60be0",
+      "slot_address": "0x7ff840b4f870"
+    },
+    {
+      "symbol": "_kCGImageBlockBaseAddressAlignmentRequest",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGImageBlockBaseAddressAlignmentRequest",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5bb80",
+      "slot_address": "0x7ff840b2f3d0"
+    },
+    {
+      "symbol": "_kCGImageBlockBytesPerRowAlignmentRequest",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGImageBlockBytesPerRowAlignmentRequest",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5bba0",
+      "slot_address": "0x7ff840b2f3d8"
+    },
+    {
+      "symbol": "_kCGImageBlockFormatBGRx8",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGImageBlockFormatBGRx8",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5bc00",
+      "slot_address": "0x7ff840b4a3f0"
+    },
+    {
+      "symbol": "_kCGImageBlockFormatRequest",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGImageBlockFormatRequest",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5bb60",
+      "slot_address": "0x7ff840b4a3e0"
+    },
+    {
+      "symbol": "_kCGImageBlockMarkAsReadOnlyRequest",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGImageBlockMarkAsReadOnlyRequest",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5bc20",
+      "slot_address": "0x7ff840b2f3e8"
+    },
+    {
+      "symbol": "_kCGImageBlockSingletonRequest",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGImageBlockSingletonRequest",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5bbc0",
+      "slot_address": "0x7ff840b4a3e8"
+    },
+    {
+      "symbol": "_kCGImageProviderAlphaIsPremultiplied",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGImageProviderAlphaIsPremultiplied",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5bb20",
+      "slot_address": "0x7ff840b313e0"
+    },
+    {
+      "symbol": "_kCGImageWillDeallocate",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGImageWillDeallocate",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5cca0",
+      "slot_address": "0x7ff840b30c28"
+    },
+    {
+      "symbol": "_kCGPatternWillDeallocate",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGPatternWillDeallocate",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b636a0",
+      "slot_address": "0x7ff840b53930"
+    },
+    {
+      "symbol": "_kCGRWTMEDRHeadroom",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGRWTMEDRHeadroom",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5b540",
+      "slot_address": "0x7ff840b594d0"
+    },
+    {
+      "symbol": "_kCGRWTMSourcePeak",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGRWTMSourcePeak",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5b500",
+      "slot_address": "0x7ff840b594d8"
+    },
+    {
+      "symbol": "_kCGRWTMVersion",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "value": "kCGRWTMVersion",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff840b5b5a0",
+      "slot_address": "0x7ff840b53210"
+    },
+    {
+      "symbol": "_kCIAttributeSliderMax",
+      "provider": "/System/Library/Frameworks/CoreImage.framework/Versions/A/CoreImage",
+      "provider_sha256": "ffd3476e46fbc7b4eb05bb35fb26fe5e4346762103ad38762e26d61559ced563",
+      "value": "CIAttributeSliderMax",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff8413ba0b8",
+      "slot_address": "0x7ff84139f6e0"
+    },
+    {
+      "symbol": "_kCIAttributeSliderMin",
+      "provider": "/System/Library/Frameworks/CoreImage.framework/Versions/A/CoreImage",
+      "provider_sha256": "ffd3476e46fbc7b4eb05bb35fb26fe5e4346762103ad38762e26d61559ced563",
+      "value": "CIAttributeSliderMin",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff8413ba098",
+      "slot_address": "0x7ff84139f6d8"
+    },
+    {
+      "symbol": "_kCIContextWorkingFormat",
+      "provider": "/System/Library/Frameworks/CoreImage.framework/Versions/A/CoreImage",
+      "provider_sha256": "ffd3476e46fbc7b4eb05bb35fb26fe5e4346762103ad38762e26d61559ced563",
+      "value": "working_format",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff8413b3cd8",
+      "slot_address": "0x7ff84139e750"
+    },
+    {
+      "symbol": "_kCIImageColorSpace",
+      "provider": "/System/Library/Frameworks/CoreImage.framework/Versions/A/CoreImage",
+      "provider_sha256": "ffd3476e46fbc7b4eb05bb35fb26fe5e4346762103ad38762e26d61559ced563",
+      "value": "CIImageColorSpace",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff8413be2b8",
+      "slot_address": "0x7ff84139ff20"
+    },
+    {
+      "symbol": "_kCIInputTargetImageKey",
+      "provider": "/System/Library/Frameworks/CoreImage.framework/Versions/A/CoreImage",
+      "provider_sha256": "ffd3476e46fbc7b4eb05bb35fb26fe5e4346762103ad38762e26d61559ced563",
+      "value": "inputTargetImage",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff8413ba558",
+      "slot_address": "0x7ff84139f9a0"
+    },
+    {
+      "symbol": "_kCIInputTimeKey",
+      "provider": "/System/Library/Frameworks/CoreImage.framework/Versions/A/CoreImage",
+      "provider_sha256": "ffd3476e46fbc7b4eb05bb35fb26fe5e4346762103ad38762e26d61559ced563",
+      "value": "inputTime",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff8413b2058",
+      "slot_address": "0x7ff84139f8a0"
+    },
+    {
+      "symbol": "_kCGImagePreferGPUForColorConversion",
+      "provider": "/System/Library/Frameworks/ImageIO.framework/Versions/A/ImageIO",
+      "provider_sha256": "2c7f541f2ee144959cf2e7f1f55496f6e03ef9a4fdc5c0b744b2a91088fb46e4",
+      "value": "kCGImagePreferGPUForColorConversion",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff84136a218",
+      "slot_address": "0x7ff8412e43a0"
+    },
+    {
+      "symbol": "_kCGImageSourceDecodeRequest",
+      "provider": "/System/Library/Frameworks/ImageIO.framework/Versions/A/ImageIO",
+      "provider_sha256": "2c7f541f2ee144959cf2e7f1f55496f6e03ef9a4fdc5c0b744b2a91088fb46e4",
+      "value": "kCGImageSourceDecodeRequest",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff841369938",
+      "slot_address": "0x7ff8412e4168"
+    },
+    {
+      "symbol": "_kCGImageSourceDecodeToHDR",
+      "provider": "/System/Library/Frameworks/ImageIO.framework/Versions/A/ImageIO",
+      "provider_sha256": "2c7f541f2ee144959cf2e7f1f55496f6e03ef9a4fdc5c0b744b2a91088fb46e4",
+      "value": "kCGImageSourceDecodeToHDR",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff841369958",
+      "slot_address": "0x7ff8412e4170"
+    },
+    {
+      "symbol": "_kCGImageSourceMemoryMapAsShared",
+      "provider": "/System/Library/Frameworks/ImageIO.framework/Versions/A/ImageIO",
+      "provider_sha256": "2c7f541f2ee144959cf2e7f1f55496f6e03ef9a4fdc5c0b744b2a91088fb46e4",
+      "value": "kCGImageSourceMemoryMapAsShared",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff841368878",
+      "slot_address": "0x7ff8412e3d38"
+    },
+    {
+      "symbol": "_kCGImageSourceShouldPreferRGB32",
+      "provider": "/System/Library/Frameworks/ImageIO.framework/Versions/A/ImageIO",
+      "provider_sha256": "2c7f541f2ee144959cf2e7f1f55496f6e03ef9a4fdc5c0b744b2a91088fb46e4",
+      "value": "kCGImageSourceShouldPreferRGB32",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff841368ad8",
+      "slot_address": "0x7ff8412e3dd0"
+    },
+    {
+      "symbol": "_kCGImageSourceSkipMetadata",
+      "provider": "/System/Library/Frameworks/ImageIO.framework/Versions/A/ImageIO",
+      "provider_sha256": "2c7f541f2ee144959cf2e7f1f55496f6e03ef9a4fdc5c0b744b2a91088fb46e4",
+      "value": "kCGImageSourceSkipMetadata",
+      "object_flags": "0x7c8",
+      "object_address": "0x7ff841368e58",
+      "slot_address": "0x7ff8412e3eb0"
+    }
+  ],
+  "extra_identifiers": [
+    {
+      "symbol": "_CONTAINER_PERSONA_PRIMARY",
+      "provider": "/usr/lib/system/libsystem_containermanager.dylib",
+      "kind": "cstring",
+      "slot_address": "0x7ff841197b60",
+      "provider_sha256": "59373f14dfc02d9c0729f9a7cb61f98e4627450045d766a0937821720f6b21b3",
+      "value": "com.apple.containermanager.primary-persona"
+    },
+    {
+      "symbol": "_SANDBOX_CHECK_CANONICAL",
+      "provider": "/usr/lib/system/libsystem_sandbox.dylib",
+      "kind": "uint32",
+      "slot_address": "0x7ff81089ad48",
+      "provider_sha256": "5479ea6ce0b6c08ce9ea80db6004a9e9a6592a4e8015f05e2a22e02752d680b1",
+      "bytes": "00000020"
+    },
+    {
+      "symbol": "_kSandboxAppBundlePlatformTeamId",
+      "provider": "/usr/lib/system/libsystem_sandbox.dylib",
+      "kind": "self_pointer_token",
+      "slot_address": "0x7ff84141c6c0",
+      "provider_sha256": "5479ea6ce0b6c08ce9ea80db6004a9e9a6592a4e8015f05e2a22e02752d680b1"
+    },
+    {
+      "symbol": "_kCGLineWidthHairline",
+      "provider": "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics",
+      "provider_sha256": "0d0af817945ce26823a7653c1e29a0444b124b78565666e37c5b7dcedf5cd039",
+      "bytes": "00e522263c5f43c3",
+      "kind": "double"
+    },
+    {
+      "symbol": "_kCIFormatBGRA8",
+      "provider": "/System/Library/Frameworks/CoreImage.framework/Versions/A/CoreImage",
+      "provider_sha256": "ffd3476e46fbc7b4eb05bb35fb26fe5e4346762103ad38762e26d61559ced563",
+      "kind": "int32",
+      "bytes": "0a010000"
+    },
+    {
+      "symbol": "_kCIFormatRGBA8",
+      "provider": "/System/Library/Frameworks/CoreImage.framework/Versions/A/CoreImage",
+      "provider_sha256": "ffd3476e46fbc7b4eb05bb35fb26fe5e4346762103ad38762e26d61559ced563",
+      "kind": "int32",
+      "bytes": "08010000"
+    }
+  ]
+}

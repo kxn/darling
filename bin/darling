@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+project=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+if [[ ! -x "$project/runtime/rootfs/usr/bin/darling" ]]; then
+    echo "Darling runtime is not installed in $project/runtime/rootfs" >&2
+    exit 1
+fi
+exec 9>"$project/runtime/session.lock"
+flock 9
+if [[ -f "$project/runtime/state/host-cpu-haswell.json" ]]; then
+    if [[ ! -x "$project/runtime/tools/check-haswell-host" ]]; then
+        echo "The project x86_64h runtime requires its CPU/OS launch guard." >&2
+        exit 1
+    fi
+    "$project/runtime/tools/check-haswell-host" --require
+fi
+if [[ ${1:-} == shell ]]; then
+    shift
+fi
+exec unshare --user --map-root-user --mount --pid --fork --kill-child \
+    "$project/scripts/runtime-ns.sh" "$project" "$@"

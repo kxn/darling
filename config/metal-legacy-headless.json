@@ -1,0 +1,11 @@
+{
+  "commit": "ae20248dc144beab899e38752f5a530f28a0ea56",
+  "files": {
+    "src/Metal/MTLTexture.mm": "3b9bf8977fce3153db960e5cf398b7305498ab2a6307bae538d5277211cbaa79",
+    "private-include/Metal/MTLTextureInternal.h": "25d7b0244aa503b4b61802d0024b129b102cd87f6ef3afd99e2bf1714a0a9d20",
+    "private-include/Metal/MTLPixelFormatInternal.h": "f237678dbe5e5a90f656288c346dfb211726ecd96f19ea8e0d68ebec1c572dfc",
+    "private-include/Metal/MTLTypesInternal.h": "f4d2bdfa138265224eb8433612497b079e77091759d9676622f892a6e82b2c84",
+    "private-include/Metal/stubs.h": "ca327ade11622f923868a0e1143ab7cddab108bccd013a6a48ed907b5ca78a81"
+  },
+  "scope": "Existing Darling MTLTextureInternal compiled with its upstream unsupported backend branch. For legacy QuartzCore linkage only; unsupported texture operations abort explicitly. No GPU execution."
+}

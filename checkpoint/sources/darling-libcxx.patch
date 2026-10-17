@@ -1,0 +1,114 @@
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 496429f..9f70a42 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -12,6 +12,7 @@ set(LIBCXX_SOURCES
+   condition_variable.cpp
+   condition_variable_destructor.cpp
+   exception.cpp
++  expected_exception.cpp
+   functional.cpp
+   future.cpp
+   hash.cpp
+@@ -23,6 +24,7 @@ set(LIBCXX_SOURCES
+   mutex.cpp
+   mutex_destructor.cpp
+   new.cpp
++  typed_new_delete.cpp
+   optional.cpp
+   random_shuffle.cpp
+   shared_mutex.cpp
+diff --git a/src/expected_exception.cpp b/src/expected_exception.cpp
+new file mode 100644
+index 0000000..e9d1611
+--- /dev/null
++++ b/src/expected_exception.cpp
+@@ -0,0 +1,11 @@
++//===----------------------------------------------------------------------===//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//===----------------------------------------------------------------------===//
++
++#include "include/expected_exception.h"
++
++_LIBCPP_BEGIN_NAMESPACE_STD
++const char* bad_expected_access<void>::what() const noexcept { return "bad access to std::expected"; }
++_LIBCPP_END_NAMESPACE_STD
+diff --git a/src/include/expected_exception.h b/src/include/expected_exception.h
+new file mode 100644
+index 0000000..3a907a8
+--- /dev/null
++++ b/src/include/expected_exception.h
+@@ -0,0 +1,32 @@
++//===----------------------------------------------------------------------===//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//===----------------------------------------------------------------------===//
++
++#ifndef DARLING_LIBCPP_EXPECTED_EXCEPTION_H
++#define DARLING_LIBCPP_EXPECTED_EXCEPTION_H
++#include <exception>
++
++// Only the runtime base class is needed here. Clients use their SDK's complete
++// expected<T,E> header. Keep the upstream class layout and key function, while
++// supporting the older libc++ build headers and their visibility macros.
++#ifndef _LIBCPP_HIDE_FROM_ABI_VIRTUAL
++#define _LIBCPP_HIDE_FROM_ABI_VIRTUAL _LIBCPP_HIDDEN
++#endif
++_LIBCPP_BEGIN_NAMESPACE_STD
++template <class _Err> class bad_expected_access;
++template <>
++class _LIBCPP_EXPORTED_FROM_ABI bad_expected_access<void> : public exception {
++protected:
++  _LIBCPP_HIDE_FROM_ABI bad_expected_access() noexcept                                      = default;
++  _LIBCPP_HIDE_FROM_ABI bad_expected_access(const bad_expected_access&) noexcept            = default;
++  _LIBCPP_HIDE_FROM_ABI bad_expected_access(bad_expected_access&&) noexcept                 = default;
++  _LIBCPP_HIDE_FROM_ABI bad_expected_access& operator=(const bad_expected_access&) noexcept = default;
++  _LIBCPP_HIDE_FROM_ABI bad_expected_access& operator=(bad_expected_access&&) noexcept      = default;
++  _LIBCPP_HIDE_FROM_ABI_VIRTUAL ~bad_expected_access() override                             = default;
++public:
++  const char* what() const noexcept override;
++};
++_LIBCPP_END_NAMESPACE_STD
++#endif
+diff --git a/src/typed_new_delete.cpp b/src/typed_new_delete.cpp
+new file mode 100644
+index 0000000..aed423b
+--- /dev/null
++++ b/src/typed_new_delete.cpp
+@@ -0,0 +1,33 @@
++//===----------------------------------------------------------------------===//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//===----------------------------------------------------------------------===//
++
++#include <new>
++#include <cstddef>
++
++namespace std { enum class __type_descriptor_t : unsigned long long; }
++
++// The legacy allocator has no type partitions. Preserve its replacement
++// operators, new_handler, exception, zero-size and array allocation semantics.
++// Do not claim the descriptor enforces allocation isolation on this backend.
++__attribute__((weak, visibility("default")))
++void* operator new(std::size_t size, std::__type_descriptor_t) {
++    return ::operator new(size);
++}
++
++__attribute__((weak, visibility("default")))
++void* operator new[](std::size_t size, std::__type_descriptor_t) {
++    return ::operator new[](size);
++}
++
++__attribute__((weak, visibility("default")))
++void operator delete(void* pointer, std::__type_descriptor_t) noexcept {
++    ::operator delete(pointer);
++}
++
++__attribute__((weak, visibility("default")))
++void operator delete[](void* pointer, std::__type_descriptor_t) noexcept {
++    ::operator delete[](pointer);
++}

@@ -1,0 +1,47 @@
+{
+  "backend_library": "runtime/rootfs/usr/libexec/darling/usr/lib/system/libxpc.dylib",
+  "backend_sha256": "955cd32cb3cc5292506bc1200233b843d537d924fd48eda91e4f4155555d196d",
+  "backend_source_commit": "394e033333d3c253a12f08a99090c113b0917d00",
+  "backend_files": {
+    "src/error.m": "880ebdbf4a84a3c9db5b485428f2f668d3bc03259f1546396cb6e4e16c0aa7ce",
+    "internal-include/xpc/objects/base.h": "784ad3a4be10cdd8e8d1468151fa5e210d967a93ebb36bbaa4ea80a4425c6b26",
+    "internal-include/xpc/objects/dictionary.h": "631a9204af2c1953bbffef74bea0eedab888584ba0299388095de73a7a56c9fe",
+    "internal-include/xpc/objects/string.h": "c4dc591965ceb2f199b0d29a5b8cefcb894f92b3e7346bbb1ab2fbbfafc73b18",
+    "src/connection.m": "9eebad2f8edf41a5c21f65afce0b09ff609cbf196c24ab9372678af73f0355f8",
+    "internal-include/xpc/objects/connection.h": "93d4595676efa03d2e738cec839c4d37c2dd479cd74d49811424fbc0d4bb8404",
+    "internal-include/xpc/generic_array.h": "91f3e5f6d5869d23141da4e4c767715174a1c97ff7856b28e86b0ff22f7223e6"
+  },
+  "native_reference": {
+    "path": "/usr/lib/system/libxpc.dylib",
+    "sha256": "9fd39e678c12bf9d82f8245459ab15f15acd3f4e8e0399f6d986838661bd43dc",
+    "routines": {
+      "_xpc_rich_error_copy_description": {
+        "address": "0x7ff802b76e88",
+        "bytes": "488b7f28e989b3feff"
+      },
+      "_xpc_rich_error_can_retry": {
+        "address": "0x7ff802b76e91",
+        "bytes": "8a4718c3"
+      }
+    },
+    "peer_error": {
+      "export_address": "0x7ff840066e30",
+      "entry_pointer_offset": 32,
+      "entry_string_offset": 16,
+      "string_text_offset": 32,
+      "text_address": "0x7ff802ba13d7",
+      "text": "Peer Forbidden"
+    }
+  },
+  "sdk_files": {
+    "usr/include/xpc/rich_error.h": "fd08fc80d479ca47bfb5d47772df281fc326ce0bdd09f3386ae491470c45f0c1",
+    "usr/include/xpc/connection.h": "fee99c719a44ff57f5f3bd9e3e2d2b5518d093a476c0df9d4fbcc6a358750d51"
+  },
+  "connection_backend": {
+    "uuid": "3973ebca6f783eb5b2d56abb8b842e97",
+    "instance_size": 776,
+    "cancelled_offset": 768,
+    "cancel_event_code_address": "0x7bea",
+    "cancel_event_code_bytes": "488b8550ffffffc6800003000001"
+  }
+}

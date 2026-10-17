@@ -1,0 +1,4 @@
+module LinuxcodeArchiveC {
+    header "bridge.h"
+    export *
+}

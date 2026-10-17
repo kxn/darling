@@ -1,0 +1,11 @@
+{
+  "checked_at": "2026-10-17T10:17:19.409894+00:00",
+  "source_repositories": 17,
+  "source_files_verified_against_live_published_and_independently_applied_patch": 242,
+  "fork_submodule_pointers_verified": 15,
+  "existing_source_heads_unchanged": true,
+  "source_restore_clone_apply_verify_and_idempotence_passed": true,
+  "source_restore_refuses_unexpected_base": true,
+  "fresh_machine_full_runtime_reproduction_tested": false,
+  "full_xcodebuild_or_signing_complete": false
+}

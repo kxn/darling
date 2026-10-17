@@ -1,0 +1,1025 @@
+diff --git a/OSX/CMakeLists.txt b/OSX/CMakeLists.txt
+index 6d257de..dd6c52b 100644
+--- a/OSX/CMakeLists.txt
++++ b/OSX/CMakeLists.txt
+@@ -152,6 +152,7 @@ add_separated_framework(Security
+ 		# sec/Security/SecSharedCredential.m
+ 		sec/ipc/client.c
+ 		sec/ipc/client_endpoint.m
++		sec/Security/SecItemCloudRPC.m
+ 		utilities/SecCoreAnalytics.m
+ 		utilities/SecKnownFilePaths.m
+ 		utilities/SecPaddingConfigurations.c
+@@ -356,3 +357,6 @@ set_target_properties(csparser PROPERTIES
+ 	PREFIX ""
+ 	SUFFIX ".bundle"
+ )
++
++# The modern RPC client functions retain and bridge Objective-C block values.
++set_source_files_properties(sec/Security/SecItemCloudRPC.m PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+diff --git a/OSX/sec/Security/CMakeLists.txt b/OSX/sec/Security/CMakeLists.txt
+index af5d490..ee3f442 100644
+--- a/OSX/sec/Security/CMakeLists.txt
++++ b/OSX/sec/Security/CMakeLists.txt
+@@ -83,6 +83,7 @@ add_lib_ios_shim(SecTrustOSX
+ 		SecKey.m
+ 		SecKeyAdaptors.m
+ 		SecPolicy.c
++		SecPolicyExternalDeveloper.c
+ 		SecPolicyLeafCallbacks.c
+ 		SecRSAKey.c
+ 		SecServerEncryptionSupport.c
+@@ -110,8 +111,10 @@ add_lib_ios_shim(SecItemShimOSX
+ 		SecImportExport.c
+ 		SecItem.c
+ 		SecItem.m
++		SecItemFetchOutOfBandValues.m
+ 		SecItemBackup.c
+ 		SecItemConstants.c
++		SecCryptoKitConstants.c
+ 		# SecItemRateLimit.m
+ 		SecKey.m
+ 		SecKeyAdaptors.m
+@@ -123,6 +126,8 @@ add_lib_ios_shim(SecItemShimOSX
+ 		$<TARGET_OBJECTS:SecItemShimOSX_64bit_only>
+ )
+ 
++set_source_files_properties(SecItemFetchOutOfBandValues.m PROPERTIES COMPILE_FLAGS "-fobjc-arc")
++
+ add_lib_ios(logging
+ 	SOURCES
+ 		SecLogging.c
+diff --git a/OSX/sec/Security/SecCryptoKitConstants.c b/OSX/sec/Security/SecCryptoKitConstants.c
+new file mode 100644
+index 0000000..470add0
+--- /dev/null
++++ b/OSX/sec/Security/SecCryptoKitConstants.c
+@@ -0,0 +1,17 @@
++#define __CONSTANT_CFSTRINGS__ 1
++#include <CoreFoundation/CFString.h>
++const CFStringRef kSecAttrKeySizeMLDSA65 = CFSTR("65");
++const CFStringRef kSecAttrKeySizeMLDSA87 = CFSTR("87");
++const CFStringRef kSecAttrKeyTypeEd25519 = CFSTR("105");
++const CFStringRef kSecAttrKeyTypeKyber = CFSTR("109");
++const CFStringRef kSecAttrKeyTypeMLDSA = CFSTR("111");
++const CFStringRef kSecAttrKeyTypeMLKEM = CFSTR("110");
++const CFStringRef kSecAttrKeyTypeX25519 = CFSTR("106");
++const CFStringRef kSecKeyAlgorithmEdDSASignatureMessageCurve25519SHA512 = CFSTR("algid:sign:EdDSA:message-Curve25519:SHA512");
++const CFStringRef kSecKeyAlgorithmEdDSASignatureMessageCurve448SHAKE256 = CFSTR("algid:sign:EdDSA:message-Curve448:SHAKE256");
++const CFStringRef kSecKeyAlgorithmKEMKyber = CFSTR("algid:kem:kyber");
++const CFStringRef kSecKeyAlgorithmKEMMLKEM = CFSTR("algid:kem:ML-KEM");
++const CFStringRef kSecKeyAlgorithmMLDSASignatureMessage = CFSTR("algid:sign:ML-DSA:message");
++const CFStringRef kSecKeyOSBound = CFSTR("osbound");
++const CFStringRef kSecKeySealedHashesBound = CFSTR("sealedhashesbound");
++const CFStringRef kSecKeySignatureParameterContext = CFSTR("signatureContext");
+diff --git a/OSX/sec/Security/SecExports.exp-in b/OSX/sec/Security/SecExports.exp-in
+index 116367d..bb98a6d 100644
+--- a/OSX/sec/Security/SecExports.exp-in
++++ b/OSX/sec/Security/SecExports.exp-in
+@@ -1382,6 +1382,7 @@ _kSecAttrWasAlwaysSensitive
+ _kSecAttrWasNeverExtractable
+ _kSecAttrKeyTypeECSECPrimeRandomPKA
+ _kSecAttrKeyTypeSecureEnclaveAttestation
++_kSecAttrKeyTypeSecureEnclaveAnonymousAttestation
+ _kSecAttrSecureEnclaveKeyBlob
+ #elif TARGET_OS_OSX
+ 
+@@ -1535,6 +1536,7 @@ _kSecAttrWasAlwaysSensitive
+ _kSecAttrWasNeverExtractable
+ _kSecAttrKeyTypeECSECPrimeRandomPKA
+ _kSecAttrKeyTypeSecureEnclaveAttestation
++_kSecAttrKeyTypeSecureEnclaveAnonymousAttestation
+ _kSecAttrSecureEnclaveKeyBlob
+ _kSecUseCertificatesWithMatchIssuers
+ #endif // TARGET_OS_OSX
+diff --git a/OSX/sec/Security/SecItem.m b/OSX/sec/Security/SecItem.m
+index f1ac3ad..f870d8f 100644
+--- a/OSX/sec/Security/SecItem.m
++++ b/OSX/sec/Security/SecItem.m
+@@ -137,7 +137,7 @@ void SecItemFetchCurrentItemAcrossAllDevices(CFStringRef accessGroup,
+                                           identifier:(__bridge NSString*)identifier
+                                             viewHint:(__bridge NSString*)viewHint
+                                      fetchCloudValue:fetchCloudValue
+-                                            complete: ^(NSData* persistentRef, NSError* operror) {
++                                            complete: ^(NSData* persistentRef, NSDate* modificationTime, NSError* operror) {
+                                                 complete((__bridge CFDataRef) persistentRef, (__bridge CFErrorRef) operror);
+                                             }];
+     }
+diff --git a/OSX/sec/Security/SecItemCloudRPC.h b/OSX/sec/Security/SecItemCloudRPC.h
+new file mode 100644
+index 0000000..9eebfe1
+--- /dev/null
++++ b/OSX/sec/Security/SecItemCloudRPC.h
+@@ -0,0 +1,46 @@
++/*
++ * Copyright (c) 2006-2014 Apple Inc. All Rights Reserved.
++ *
++ * @APPLE_LICENSE_HEADER_START@
++ *
++ * This file contains Original Code and/or Modifications of Original Code
++ * as defined in and that are subject to the Apple Public Source License
++ * Version 2.0 (the 'License'). You may not use this file except in
++ * compliance with the License. Please obtain a copy of the License at
++ * http://www.opensource.apple.com/apsl/ and read it before using this
++ * file.
++ *
++ * The Original Code and all software distributed under the License are
++ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
++ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
++ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
++ * Please see the License for the specific language governing rights and
++ * limitations under the License.
++ *
++ * @APPLE_LICENSE_HEADER_END@
++ */
++
++#pragma once
++#import <CoreFoundation/CoreFoundation.h>
++#import "SecItemFetchOutOfBandValues.h"
++
++void SecItemUnsetCurrentItemsAcrossAllDevices(CFStringRef accessGroup,
++                                              CFArrayRef identifiers,
++                                              CFStringRef viewHint,
++                                              void (^complete)(CFErrorRef error));
++void SecItemFetchCurrentItemOutOfBand(NSArray<CKKSCurrentItemQuery*>* currentItemQueries, bool forceFetch, void (^complete)(NSArray<CKKSCurrentItemQueryResult*>* currentItems, NSError* error));
++void SecItemFetchPCSIdentityOutOfBand(NSArray<CKKSPCSIdentityQuery*>* pcsIdentityQueries, bool forceFetch, void (^complete)(NSArray<CKKSPCSIdentityQueryResult*>* pcsIdentities, NSError* error));
++
++@interface SecItemCurrentItemData: NSObject
++- (instancetype)init NS_UNAVAILABLE;
++@property (strong, readonly, nonnull) NSData *persistentRef;
++@property (strong, readonly, nullable) NSDate *currentItemPointerModificationTime;
++@end
++
++void
++SecItemFetchCurrentItemDataAcrossAllDevices(NSString *accessGroup,
++                                            NSString *identifier,
++                                            NSString *viewHint,
++                                            BOOL fetchCloudValue,
++                                            void (^complete)(SecItemCurrentItemData * _Nullable persistentRef, NSError * _Nullable error));
+diff --git a/OSX/sec/Security/SecItemCloudRPC.m b/OSX/sec/Security/SecItemCloudRPC.m
+new file mode 100644
+index 0000000..9bb4aa7
+--- /dev/null
++++ b/OSX/sec/Security/SecItemCloudRPC.m
+@@ -0,0 +1,127 @@
++/*
++ * Copyright (c) 2006-2014 Apple Inc. All Rights Reserved.
++ *
++ * @APPLE_LICENSE_HEADER_START@
++ *
++ * This file contains Original Code and/or Modifications of Original Code
++ * as defined in and that are subject to the Apple Public Source License
++ * Version 2.0 (the 'License'). You may not use this file except in
++ * compliance with the License. Please obtain a copy of the License at
++ * http://www.opensource.apple.com/apsl/ and read it before using this
++ * file.
++ *
++ * The Original Code and all software distributed under the License are
++ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
++ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
++ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
++ * Please see the License for the specific language governing rights and
++ * limitations under the License.
++ *
++ * @APPLE_LICENSE_HEADER_END@
++ */
++
++// Client functions from Apple Security db15acbe; server operations remain in securityd.
++#import "SecItemCloudRPC.h"
++#import <ipc/securityd_client.h>
++#import <os/activity.h>
++
++void SecItemUnsetCurrentItemsAcrossAllDevices(CFStringRef accessGroup,
++                                              CFArrayRef identifiers,
++                                              CFStringRef viewHint,
++                                              void (^complete)(CFErrorRef error))
++{
++    os_activity_t activity = os_activity_create("SecItemUnsetCurrentItemsAcrossAllDevices", OS_ACTIVITY_CURRENT, OS_ACTIVITY_FLAG_DEFAULT);
++    os_activity_scope(activity);
++
++    @autoreleasepool {
++        id<SecuritydXPCProtocol> rpc = SecuritydXPCProxyObject(false, ^(NSError *error) {
++            complete((__bridge CFErrorRef) error);
++        });
++        [rpc secItemUnsetCurrentItemsAcrossAllDevices:(__bridge NSString*)accessGroup
++                                          identifiers:(__bridge NSArray<NSString*>*)identifiers
++                                             viewHint:(__bridge NSString*)viewHint
++                                             complete:^(NSError* operror) {
++            complete((__bridge CFErrorRef) operror);
++        }];
++    }
++}
++
++void SecItemFetchCurrentItemOutOfBand(NSArray<CKKSCurrentItemQuery*>* currentItemQueries, bool forceFetch, void (^complete)(NSArray<CKKSCurrentItemQueryResult*>* currentItems, NSError* error)) {
++    os_activity_t activity = os_activity_create("fetchCurrentItemOutOfBand", OS_ACTIVITY_CURRENT, OS_ACTIVITY_FLAG_DEFAULT);
++    os_activity_scope(activity);
++
++    @autoreleasepool {
++        id<SecuritydXPCProtocol> rpc = SecuritydXPCProxyObject(false, ^(NSError *error) {
++            complete(nil, error);
++        });
++
++        [rpc secItemFetchCurrentItemOutOfBand:currentItemQueries
++                                   forceFetch:forceFetch
++                                     complete:^(NSArray* currentItems, NSError* operror) {
++            complete(currentItems, operror);
++        }];
++    }
++}
++
++void SecItemFetchPCSIdentityOutOfBand(NSArray<CKKSPCSIdentityQuery*>* pcsIdentityQueries, bool forceFetch, void (^complete)(NSArray<CKKSPCSIdentityQueryResult*>* pcsIdentities, NSError* error)) {
++    os_activity_t activity = os_activity_create("fetchPCSIdentityOutOfBand", OS_ACTIVITY_CURRENT, OS_ACTIVITY_FLAG_DEFAULT);
++    os_activity_scope(activity);
++
++    @autoreleasepool {
++        id<SecuritydXPCProtocol> rpc = SecuritydXPCProxyObject(false, ^(NSError *error) {
++            complete(nil, error);
++        });
++        
++        [rpc secItemFetchPCSIdentityByKeyOutOfBand:pcsIdentityQueries
++                                        forceFetch:forceFetch
++                                          complete:^(NSArray* pcsIdentities, NSError* operror) {
++            complete(pcsIdentities, operror);
++        }];
++    }
++}
++
++@interface SecItemCurrentItemData ()
++- (instancetype)initWithPersistentRef:(NSData *)persistentRef;
++@property (strong, readwrite, nonnull) NSData *persistentRef;
++@property (strong, readwrite, nullable) NSDate *currentItemPointerModificationTime;
++@end
++
++@implementation SecItemCurrentItemData
++- (instancetype)initWithPersistentRef:(NSData *)persistentRef {
++    if ((self = [super init]) == nil) {
++        return nil;
++    }
++    self.persistentRef = persistentRef;
++    return self;
++}
++@end
++
++void
++SecItemFetchCurrentItemDataAcrossAllDevices(NSString *accessGroup,
++                                            NSString *identifier,
++                                            NSString *viewHint,
++                                            BOOL fetchCloudValue,
++                                            void (^complete)(SecItemCurrentItemData * _Nullable persistentRef, NSError * _Nullable error))
++{
++    os_activity_t activity = os_activity_create("SecItemFetchCurrentItemDataAcrossAllDevices", OS_ACTIVITY_CURRENT, OS_ACTIVITY_FLAG_DEFAULT);
++    os_activity_scope(activity);
++
++    @autoreleasepool {
++        id<SecuritydXPCProtocol> rpc = SecuritydXPCProxyObject(false, ^(NSError *error) {
++            complete(nil, error);
++        });
++        [rpc secItemFetchCurrentItemAcrossAllDevices:accessGroup
++                                          identifier:identifier
++                                            viewHint:viewHint
++                                     fetchCloudValue:fetchCloudValue
++                                            complete: ^(NSData* persistentRef, NSDate * _Nullable cipModificationTime, NSError* operror) {
++            SecItemCurrentItemData *cip = nil;
++            if (persistentRef) {
++                cip = [[SecItemCurrentItemData alloc] initWithPersistentRef:persistentRef];
++                cip.currentItemPointerModificationTime = cipModificationTime;
++            }
++            complete(cip, operror);
++        }];
++    }
++}
+diff --git a/OSX/sec/Security/SecItemConstants.c b/OSX/sec/Security/SecItemConstants.c
+index a5fd1aa..1be46df 100644
+--- a/OSX/sec/Security/SecItemConstants.c
++++ b/OSX/sec/Security/SecItemConstants.c
+@@ -242,6 +242,7 @@ SEC_CONST_DECL (kSecAttrKeyTypeEC, "73");  /* rdar://10755886 */
+ SEC_CONST_DECL (kSecAttrKeyTypeECSECPrimeRandom, "73");
+ SEC_CONST_DECL (kSecAttrKeyTypeECSECPrimeRandomPKA, "2147483678");  /* <Security/cssmapple.h> CSSM_ALGID__FIRST_UNUSED */
+ SEC_CONST_DECL (kSecAttrKeyTypeSecureEnclaveAttestation, "2147483679"); /* <Security/cssmapple.h> CSSM_ALGID__FIRST_UNUSED + 1 */
++SEC_CONST_DECL (kSecAttrKeyTypeSecureEnclaveAnonymousAttestation, "2147483680");
+ 
+ /* kSecAttrSynchronizable Value Constants. */
+ SEC_CONST_DECL (kSecAttrSynchronizableAny, "syna");
+diff --git a/OSX/sec/Security/SecItemFetchOutOfBandValues.h b/OSX/sec/Security/SecItemFetchOutOfBandValues.h
+new file mode 100644
+index 0000000..3afbf9e
+--- /dev/null
++++ b/OSX/sec/Security/SecItemFetchOutOfBandValues.h
+@@ -0,0 +1,59 @@
++/*
++ * Copyright (c) 2006-2014 Apple Inc. All Rights Reserved.
++ *
++ * @APPLE_LICENSE_HEADER_START@
++ *
++ * This file contains Original Code and/or Modifications of Original Code
++ * as defined in and that are subject to the Apple Public Source License
++ * Version 2.0 (the 'License'). You may not use this file except in
++ * compliance with the License. Please obtain a copy of the License at
++ * http://www.opensource.apple.com/apsl/ and read it before using this
++ * file.
++ *
++ * The Original Code and all software distributed under the License are
++ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
++ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
++ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
++ * Please see the License for the specific language governing rights and
++ * limitations under the License.
++ *
++ * @APPLE_LICENSE_HEADER_END@
++ */
++#import <Foundation/Foundation.h>
++NS_ASSUME_NONNULL_BEGIN
++@interface CKKSCurrentItemQuery : NSObject <NSSecureCoding>
++@property (nullable, strong) NSString* identifier;
++@property (nullable, strong) NSString* accessGroup;
++@property (nullable, strong) NSString* zoneID;
++
++- (instancetype)initWithIdentifier:(NSString*)identifier accessGroup:(NSString*)accessGroup zoneID:(NSString*)zoneID;
++@end
++
++@interface CKKSCurrentItemQueryResult : NSObject <NSSecureCoding>
++@property (nullable, strong) NSString* identifier;
++@property (nullable, strong) NSString* accessGroup;
++@property (nullable, strong) NSString* zoneID;
++@property (nullable, strong) NSDictionary* decryptedRecord;
++
++- (instancetype)initWithIdentifier:(NSString*)identifier accessGroup:(NSString*)accessGroup zoneID:(NSString*)zoneID decryptedRecord:(NSDictionary*)decryptedRecord;
++@end
++
++@interface CKKSPCSIdentityQuery : NSObject <NSSecureCoding>
++@property (nullable, strong) NSNumber* serviceNumber;
++@property (nullable, strong) NSString* accessGroup;
++@property (nullable, strong) NSString* publicKey; // public key as a base-64 encoded string
++@property (nullable, strong) NSString* zoneID;
++
++- (instancetype)initWithServiceNumber:(NSNumber*)serviceNumber accessGroup:(NSString*)accessGroup publicKey:(NSString*)publicKey zoneID:(NSString*)zoneID;
++@end
++
++@interface CKKSPCSIdentityQueryResult : NSObject <NSSecureCoding>
++@property (nullable, strong) NSNumber* serviceNumber;
++@property (nullable, strong) NSString* publicKey; // public key as a base-64 encoded string
++@property (nullable, strong) NSString* zoneID;
++@property (nullable, strong) NSDictionary* decryptedRecord;
++
++- (instancetype)initWithServiceNumber:(NSNumber*)serviceNumber publicKey:(NSString*)publicKey zoneID:(NSString*)zoneID decryptedRecord:(NSDictionary*)decryptedRecord;
++@end
++NS_ASSUME_NONNULL_END
+diff --git a/OSX/sec/Security/SecItemFetchOutOfBandValues.m b/OSX/sec/Security/SecItemFetchOutOfBandValues.m
+new file mode 100644
+index 0000000..841be34
+--- /dev/null
++++ b/OSX/sec/Security/SecItemFetchOutOfBandValues.m
+@@ -0,0 +1,208 @@
++/*
++ * Copyright (c) 2006-2014 Apple Inc. All Rights Reserved.
++ *
++ * @APPLE_LICENSE_HEADER_START@
++ *
++ * This file contains Original Code and/or Modifications of Original Code
++ * as defined in and that are subject to the Apple Public Source License
++ * Version 2.0 (the 'License'). You may not use this file except in
++ * compliance with the License. Please obtain a copy of the License at
++ * http://www.opensource.apple.com/apsl/ and read it before using this
++ * file.
++ *
++ * The Original Code and all software distributed under the License are
++ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
++ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
++ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
++ * Please see the License for the specific language governing rights and
++ * limitations under the License.
++ *
++ * @APPLE_LICENSE_HEADER_END@
++ */
++// Unchanged Apple value-class bodies from db15acbe6a7f257a859ad9a3bb86097bfe0679d9; RPC entry points are separate.
++#import "SecItemFetchOutOfBandValues.h"
++@implementation CKKSCurrentItemQuery
++- (instancetype)initWithIdentifier:(NSString*)identifier
++                       accessGroup:(NSString*)accessGroup
++                            zoneID:(NSString*)zoneID
++{
++    if (self = [super init]) {
++        _identifier = identifier;
++        _accessGroup = accessGroup;
++        _zoneID = zoneID;
++    }
++    return self;
++}
++
+++ (BOOL)supportsSecureCoding {
++    return YES;
++}
++
++- (NSString*)description {
++    return [NSString stringWithFormat:@"<CKKSCurrentItemQuery(%@-%@): %@>",
++            self.zoneID,
++            self.accessGroup,
++            self.identifier];
++}
++
++- (void)encodeWithCoder:(nonnull NSCoder *)coder {
++    [coder encodeObject:self.identifier forKey:@"identifier"];
++    [coder encodeObject:self.accessGroup forKey:@"accessGroup"];
++    [coder encodeObject:self.zoneID forKey:@"zoneID"];
++}
++
++- (nullable instancetype)initWithCoder:(nonnull NSCoder *)coder {
++
++    if ((self = [super init])) {
++        _identifier = [coder decodeObjectOfClass:[NSString class] forKey:@"identifier"];
++        _accessGroup = [coder decodeObjectOfClass:[NSString class] forKey:@"accessGroup"];
++        _zoneID = [coder decodeObjectOfClass:[NSString class] forKey:@"zoneID"];
++    }
++    return self;
++}
++
++@end
++
++@implementation CKKSCurrentItemQueryResult
++- (instancetype)initWithIdentifier:(NSString*)identifier
++                       accessGroup:(NSString*)accessGroup
++                            zoneID:(NSString*)zoneID
++                   decryptedRecord:(NSDictionary*)decryptedRecord
++{
++    if (self = [super init]) {
++        _identifier = identifier;
++        _accessGroup = accessGroup;
++        _zoneID = zoneID;
++        _decryptedRecord = decryptedRecord;
++    }
++    return self;
++}
++
+++ (BOOL)supportsSecureCoding {
++    return YES;
++}
++
++- (NSString*)description {
++    return [NSString stringWithFormat:@"<CKKSCurrentItemQueryResult(%@-%@): %@>",
++            self.zoneID,
++            self.accessGroup,
++            self.identifier];
++}
++
++- (void)encodeWithCoder:(nonnull NSCoder *)coder {
++    [coder encodeObject:self.identifier forKey:@"identifier"];
++    [coder encodeObject:self.accessGroup forKey:@"accessGroup"];
++    [coder encodeObject:self.zoneID forKey:@"zoneID"];
++    [coder encodeObject:self.decryptedRecord forKey:@"decryptedRecord"];
++}
++
++- (nullable instancetype)initWithCoder:(nonnull NSCoder *)coder {
++
++    if ((self = [super init])) {
++        _identifier = [coder decodeObjectOfClass:[NSString class] forKey:@"identifier"];
++        _accessGroup = [coder decodeObjectOfClass:[NSString class] forKey:@"accessGroup"];
++        _zoneID = [coder decodeObjectOfClass:[NSString class] forKey:@"zoneID"];
++
++        NSSet *allowedClasses = [NSSet setWithArray:@[[NSString class], [NSNumber class], [NSData class], [NSDate class], [NSDictionary class]]];
++        _decryptedRecord = [coder decodeObjectOfClasses:allowedClasses forKey:@"decryptedRecord"];
++
++    }
++    return self;
++}
++
++@end
++
++@implementation CKKSPCSIdentityQuery
++- (instancetype)initWithServiceNumber:(NSNumber*)serviceNumber
++                          accessGroup:(NSString*)accessGroup
++                            publicKey:(NSString*)publicKey
++                               zoneID:(NSString*)zoneID
++{
++    if (self = [super init]) {
++        _serviceNumber = serviceNumber;
++        _accessGroup = accessGroup;
++        _publicKey = publicKey;
++        _zoneID = zoneID;
++    }
++    return self;
++}
++
+++ (BOOL)supportsSecureCoding {
++    return YES;
++}
++
++- (NSString*)description {
++    return [NSString stringWithFormat:@"<CKKSPCSIdentityQuery(%@): %@>",
++            self.zoneID,
++            self.serviceNumber];
++}
++
++- (void)encodeWithCoder:(nonnull NSCoder *)coder {
++    [coder encodeObject:self.serviceNumber forKey:@"serviceNumber"];
++    [coder encodeObject:self.accessGroup forKey:@"accessGroup"];
++    [coder encodeObject:self.zoneID forKey:@"zoneID"];
++    [coder encodeObject:self.publicKey forKey:@"publicKey"];
++}
++
++- (nullable instancetype)initWithCoder:(nonnull NSCoder *)coder {
++
++    if ((self = [super init])) {
++        _serviceNumber = [coder decodeObjectOfClass:[NSNumber class] forKey:@"serviceNumber"];
++        _accessGroup = [coder decodeObjectOfClass:[NSString class] forKey:@"accessGroup"];
++        _zoneID = [coder decodeObjectOfClass:[NSString class] forKey:@"zoneID"];
++        _publicKey = [coder decodeObjectOfClass:[NSString class] forKey:@"publicKey"];
++    }
++    return self;
++}
++
++@end
++
++@implementation CKKSPCSIdentityQueryResult
++- (instancetype)initWithServiceNumber:(NSNumber*)serviceNumber
++                            publicKey:(NSString*)publicKey
++                               zoneID:(NSString*)zoneID
++                      decryptedRecord:(NSDictionary*)decryptedRecord
++{
++    if (self = [super init]) {
++        _serviceNumber = serviceNumber;
++        _publicKey = publicKey;
++        _zoneID = zoneID;
++        _decryptedRecord = decryptedRecord;
++    }
++    return self;
++}
++
+++ (BOOL)supportsSecureCoding {
++    return YES;
++}
++
++- (NSString*)description {
++    return [NSString stringWithFormat:@"<CKKSPCSIdentityQueryResult(%@): %@>",
++            self.zoneID,
++            self.serviceNumber];
++}
++
++- (void)encodeWithCoder:(nonnull NSCoder *)coder {
++    [coder encodeObject:self.serviceNumber forKey:@"serviceNumber"];
++    [coder encodeObject:self.zoneID forKey:@"zoneID"];
++    [coder encodeObject:self.publicKey forKey:@"publicKey"];
++    [coder encodeObject:self.decryptedRecord forKey:@"decryptedRecord"];
++    
++}
++
++- (nullable instancetype)initWithCoder:(nonnull NSCoder *)coder {
++
++    if ((self = [super init])) {
++        _serviceNumber = [coder decodeObjectOfClass:[NSNumber class] forKey:@"serviceNumber"];
++        _zoneID = [coder decodeObjectOfClass:[NSString class] forKey:@"zoneID"];
++        _publicKey = [coder decodeObjectOfClass:[NSString class] forKey:@"publicKey"];
++
++        NSSet *allowedClasses = [NSSet setWithArray:@[[NSString class], [NSNumber class], [NSData class], [NSDate class], [NSDictionary class]]];
++        _decryptedRecord = [coder decodeObjectOfClasses:allowedClasses forKey:@"decryptedRecord"];
++
++    }
++    return self;
++}
++
++@end
+diff --git a/OSX/sec/Security/SecPolicyExternalDeveloper.c b/OSX/sec/Security/SecPolicyExternalDeveloper.c
+new file mode 100644
+index 0000000..1babc03
+--- /dev/null
++++ b/OSX/sec/Security/SecPolicyExternalDeveloper.c
+@@ -0,0 +1,266 @@
++/*
++ * Copyright (c) 2007-2024 Apple Inc. All Rights Reserved.
++ *
++ * @APPLE_LICENSE_HEADER_START@
++ *
++ * This file contains Original Code and/or Modifications of Original Code
++ * as defined in and that are subject to the Apple Public Source License
++ * Version 2.0 (the 'License'). You may not use this file except in
++ * compliance with the License. Please obtain a copy of the License at
++ * http://www.opensource.apple.com/apsl/ and read it before using this
++ * file.
++ *
++ * The Original Code and all software distributed under the License are
++ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
++ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
++ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
++ * Please see the License for the specific language governing rights and
++ * limitations under the License.
++ *
++ * @APPLE_LICENSE_HEADER_END@
++ */
++
++/*
++ * SecPolicy.c - Implementation of various X.509 certificate trust policies
++ */
++
++
++/* Selected upstream function bodies from Apple Security db15acbe6a7f257a859ad9a3bb86097bfe0679d9.
++ * Uses the existing SecPolicyCreate object factory; no private object layout.
++ */
++#include <CoreFoundation/CoreFoundation.h>
++#include <Security/SecPolicy.h>
++#include <stdbool.h>
++#include <sys/cdefs.h>
++
++extern SecPolicyRef SecPolicyCreate(CFStringRef, CFStringRef, CFDictionaryRef);
++CF_EXPORT __attribute__((visibility("default")))
++SecPolicyRef SecPolicyCreateAppleExternalDeveloperOptionalExpiry(bool checkExpiry) CF_RETURNS_RETAINED;
++extern const CFStringRef kSecAttrKeyTypeEC;
++extern const CFStringRef kSecAttrKeyTypeRSA;
++extern const CFStringRef kSecPolicyAppleExternalDeveloper;
++extern const CFStringRef kSecPolicyCheckAnchorApple;
++extern const CFStringRef kSecPolicyCheckBasicCertificateProcessing;
++extern const CFStringRef kSecPolicyCheckBasicConstraints;
++extern const CFStringRef kSecPolicyCheckBlackListedLeaf;
++extern const CFStringRef kSecPolicyCheckChainLength;
++extern const CFStringRef kSecPolicyCheckCriticalExtensions;
++extern const CFStringRef kSecPolicyCheckExtendedKeyUsage;
++extern const CFStringRef kSecPolicyCheckGrayListedLeaf;
++extern const CFStringRef kSecPolicyCheckIdLinkage;
++extern const CFStringRef kSecPolicyCheckIntermediateMarkerOid;
++extern const CFStringRef kSecPolicyCheckKeySize;
++extern const CFStringRef kSecPolicyCheckLeafMarkerOid;
++extern const CFStringRef kSecPolicyCheckNonEmptySubject;
++extern const CFStringRef kSecPolicyCheckRevocation;
++extern const CFStringRef kSecPolicyCheckRevocationAny;
++extern const CFStringRef kSecPolicyCheckTemporalValidity;
++extern const CFStringRef kSecPolicyCheckUnparseableExtension;
++extern const CFStringRef kSecPolicyCheckWeakKeySize;
++extern const CFStringRef kSecPolicyCheckWeakSignature;
++static const CFStringRef kSecPolicyCheckDuplicateExtension = CFSTR("DuplicateExtension");
++static CFStringRef kSecPolicyNameExternalDeveloper = CFSTR("Developer");
++
++#ifndef require
++#define require(test, label) do { if (!(test)) goto label; } while (0)
++#endif
++#ifndef CFReleaseSafe
++#define CFReleaseSafe(value) do { if (value) CFRelease(value); } while (0)
++#endif
++#ifndef CFReleaseNull
++#define CFReleaseNull(value) do { CFReleaseSafe(value); (value) = NULL; } while (0)
++#endif
++
++static inline CFNumberRef CFNumberCreateWithCFIndex(CFAllocatorRef allocator, CFIndex value)
++{
++    return CFNumberCreate(allocator, kCFNumberCFIndexType, &value);
++}
++
++static inline CFMutableDictionaryRef CFDictionaryCreateMutableForCFTypes(CFAllocatorRef allocator)
++{
++    return CFDictionaryCreateMutable(allocator, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
++}
++
++static void add_element(CFMutableDictionaryRef options, CFStringRef key,
++    CFTypeRef value) {
++    CFTypeRef old_value = CFDictionaryGetValue(options, key);
++    if (old_value) {
++        CFMutableArrayRef array;
++        if (CFGetTypeID(old_value) == CFArrayGetTypeID()) {
++            array = (CFMutableArrayRef)old_value;
++        } else {
++            array = CFArrayCreateMutable(kCFAllocatorDefault, 0,
++                                       &kCFTypeArrayCallBacks);
++            CFArrayAppendValue(array, old_value);
++            CFDictionarySetValue(options, key, array);
++            CFRelease(array);
++        }
++        CFArrayAppendValue(array, value);
++    } else {
++        CFDictionaryAddValue(options, key, value);
++    }
++}
++
++static void add_eku_string(CFMutableDictionaryRef options, CFStringRef ekuOid) {
++    if (ekuOid) {
++        add_element(options, kSecPolicyCheckExtendedKeyUsage, ekuOid);
++    }
++}
++
++static void add_leaf_marker_value_string(CFMutableDictionaryRef options, CFStringRef markerOid, CFStringRef string_value) {
++    if (NULL == string_value) {
++        add_element(options, kSecPolicyCheckLeafMarkerOid, markerOid);
++    } else {
++        CFDictionaryRef policyData = NULL;
++        const void *key[1]   = { markerOid };
++        const void *value[1] = { string_value };
++        policyData = CFDictionaryCreate(kCFAllocatorDefault,
++                                        key, value, 1,
++                                        &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
++        add_element(options, kSecPolicyCheckLeafMarkerOid, policyData);
++
++        CFReleaseNull(policyData);
++    }
++}
++
++static void add_leaf_marker_string(CFMutableDictionaryRef options, CFStringRef markerOid) {
++    add_leaf_marker_value_string(options, markerOid, NULL);
++}
++
++static void SecPolicyAddBasicCertOptions(CFMutableDictionaryRef options)
++{
++    //CFDictionaryAddValue(options, kSecPolicyCheckBasicCertificateProcessing, kCFBooleanTrue);
++        // Happens automatically in SecPVCPathChecks
++    CFDictionaryAddValue(options, kSecPolicyCheckCriticalExtensions, kCFBooleanTrue);
++    CFDictionaryAddValue(options, kSecPolicyCheckUnparseableExtension, kCFBooleanTrue);
++    CFDictionaryAddValue(options, kSecPolicyCheckDuplicateExtension, kCFBooleanTrue);
++    CFDictionaryAddValue(options, kSecPolicyCheckIdLinkage, kCFBooleanTrue);
++    CFDictionaryAddValue(options, kSecPolicyCheckBasicConstraints, kCFBooleanTrue);
++    CFDictionaryAddValue(options, kSecPolicyCheckNonEmptySubject, kCFBooleanTrue);
++    CFDictionaryAddValue(options, kSecPolicyCheckWeakKeySize, kCFBooleanTrue);
++    CFDictionaryAddValue(options, kSecPolicyCheckWeakSignature, kCFBooleanTrue);
++}
++
++static void SecPolicyAddBasicX509Options(CFMutableDictionaryRef options)
++{
++    SecPolicyAddBasicCertOptions(options);
++    CFDictionaryAddValue(options, kSecPolicyCheckTemporalValidity, kCFBooleanTrue);
++
++	// Make sure that black and gray leaf checks are performed for basic X509 chain building
++    CFDictionaryAddValue(options, kSecPolicyCheckBlackListedLeaf,  kCFBooleanTrue);
++    CFDictionaryAddValue(options, kSecPolicyCheckGrayListedLeaf,   kCFBooleanTrue);
++}
++
++static bool SecPolicyAddChainLengthOptions(CFMutableDictionaryRef options, CFIndex length)
++{
++    bool result = false;
++    CFNumberRef lengthAsCF = NULL;
++
++    require(lengthAsCF = CFNumberCreate(kCFAllocatorDefault,
++                                         kCFNumberCFIndexType, &length), errOut);
++    CFDictionaryAddValue(options, kSecPolicyCheckChainLength, lengthAsCF);
++
++    result = true;
++
++errOut:
++	CFReleaseSafe(lengthAsCF);
++    return result;
++}
++
++static bool SecPolicyAddStrongKeySizeOptions(CFMutableDictionaryRef options) {
++    bool success = false;
++    CFDictionaryRef keySizes = NULL;
++    CFNumberRef rsaSize = NULL, ecSize = NULL;
++
++    /* RSA key sizes are 2048-bit or larger. EC key sizes are P-256 or larger. */
++    require(rsaSize = CFNumberCreateWithCFIndex(NULL, 2048), errOut);
++    require(ecSize = CFNumberCreateWithCFIndex(NULL, 256), errOut);
++    const void *keys[] = { kSecAttrKeyTypeRSA, kSecAttrKeyTypeEC };
++    const void *values[] = { rsaSize, ecSize };
++    require(keySizes = CFDictionaryCreate(NULL, keys, values, 2,
++                                          &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks), errOut);
++    add_element(options, kSecPolicyCheckKeySize, keySizes);
++
++    success = true;
++
++errOut:
++    CFReleaseSafe(keySizes);
++    CFReleaseSafe(rsaSize);
++    CFReleaseSafe(ecSize);
++    return success;
++}
++
++static bool SecPolicyAddAppleAnchorOptions(CFMutableDictionaryRef options, CFStringRef __unused policyName)
++{
++    CFMutableDictionaryRef appleAnchorOptions = NULL;
++    appleAnchorOptions = CFDictionaryCreateMutableForCFTypes(NULL);
++    if (!appleAnchorOptions) {
++        return false;
++    }
++
++    /* Currently no Apple Anchor options */
++    add_element(options, kSecPolicyCheckAnchorApple, appleAnchorOptions);
++    CFReleaseSafe(appleAnchorOptions);
++    return true;
++}
++
++SecPolicyRef SecPolicyCreateAppleExternalDeveloperOptionalExpiry(bool checkExpiry) {
++    CFMutableDictionaryRef options = NULL;
++    SecPolicyRef result = NULL;
++
++    require(options = CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
++                                                &kCFTypeDictionaryKeyCallBacks,
++                                                &kCFTypeDictionaryValueCallBacks), errOut);
++
++    if (checkExpiry) {
++        SecPolicyAddBasicX509Options(options);
++    } else {
++        SecPolicyAddBasicCertOptions(options);
++    }
++
++    /* Anchored to the Apple Roots */
++    require(SecPolicyAddAppleAnchorOptions(options, kSecPolicyNameExternalDeveloper), errOut);
++
++    /* Exactly 3 certs in the chain */
++    require(SecPolicyAddChainLengthOptions(options, 3), errOut);
++
++    /* Intermediate marker OIDs */
++    add_element(options, kSecPolicyCheckIntermediateMarkerOid,
++                CFSTR("1.2.840.113635.100.6.2.1")); // WWDR Intermediate OID
++    add_element(options, kSecPolicyCheckIntermediateMarkerOid,
++                CFSTR("1.2.840.113635.100.6.2.6")); // "Developer ID" Intermediate OID
++
++    /* Leaf marker OIDs */
++    add_leaf_marker_string(options, CFSTR("1.2.840.113635.100.6.1.2"));  // "iPhone Developer" leaf OID
++    add_leaf_marker_string(options, CFSTR("1.2.840.113635.100.6.1.4"));  // "iPhone Distribution" leaf OID
++    add_leaf_marker_string(options, CFSTR("1.2.840.113635.100.6.1.5"));  // "Safari Developer" leaf OID
++    add_leaf_marker_string(options, CFSTR("1.2.840.113635.100.6.1.7"));  // "3rd Party Mac Developer Application" leaf OID
++    add_leaf_marker_string(options, CFSTR("1.2.840.113635.100.6.1.8"));  // "3rd Party Mac Developer Installer" leaf OID
++    add_leaf_marker_string(options, CFSTR("1.2.840.113635.100.6.1.12")); // "Mac Developer" leaf OID
++    add_leaf_marker_string(options, CFSTR("1.2.840.113635.100.6.1.13")); // "Developer ID Application" leaf OID
++    add_leaf_marker_string(options, CFSTR("1.2.840.113635.100.6.1.14")); // "Developer ID Installer" leaf OID
++    add_leaf_marker_string(options, CFSTR("1.2.840.113635.100.6.1.35")); // "Swift Package Registry" leaf OID
++
++    /* Restrict EKUs */
++    add_eku_string(options, CFSTR("1.3.6.1.5.5.7.3.3"));       // CodeSigning EKU
++    add_eku_string(options, CFSTR("1.2.840.113635.100.4.8"));  // "Safari Developer" EKU
++    add_eku_string(options, CFSTR("1.2.840.113635.100.4.9"));  // "3rd Party Mac Developer Installer" EKU
++    add_eku_string(options, CFSTR("1.2.840.113635.100.4.13")); // "Developer ID Installer" EKU
++
++    /* Check revocation using any available method */
++    add_element(options, kSecPolicyCheckRevocation, kSecPolicyCheckRevocationAny);
++
++    /* RSA key sizes are 2048-bit or larger. EC key sizes are P-256 or larger. */
++    require(SecPolicyAddStrongKeySizeOptions(options), errOut);
++
++    /* Check for weak hashes */
++    // require(SecPolicyRemoveWeakHashOptions(options), errOut); // the current WWDR CA cert is signed with SHA1
++    require(result = SecPolicyCreate(kSecPolicyAppleExternalDeveloper,
++                                     kSecPolicyNameExternalDeveloper,
++                                     options), errOut);
++
++errOut:
++    CFReleaseSafe(options);
++    return result;
++}
+diff --git a/OSX/sec/ipc/client_endpoint.m b/OSX/sec/ipc/client_endpoint.m
+index e9d8975..2cef985 100644
+--- a/OSX/sec/ipc/client_endpoint.m
++++ b/OSX/sec/ipc/client_endpoint.m
+@@ -27,6 +27,7 @@
+ #import <objc/runtime.h>
+ #import <utilities/debugging.h>
+ #import <Security/SecXPCHelper.h>
++#import "../Security/SecItemFetchOutOfBandValues.h"
+ 
+ #include <ipc/securityd_client.h>
+ 
+@@ -59,10 +60,15 @@
+               argumentIndex:1
+                     ofReply:0];
+ 
+-#if OCTAGON
++// Wire protocol class validation is needed even without the Octagon backend.
+     NSSet<Class> *errClasses = [SecXPCHelper safeErrorClasses];
+ 
+     @try {
++        NSSet* arrayOfCKKSCurrentItemQueries = [NSSet setWithArray:@[[NSArray class], [CKKSCurrentItemQuery class]]];
++        NSSet* arrayOfCKKSCurrentItemQueryResults = [NSSet setWithArray:@[[NSArray class], [CKKSCurrentItemQueryResult class]]];
++        NSSet* arrayOfCKKSPCSIdentityQueries = [NSSet setWithArray:@[[NSArray class], [CKKSPCSIdentityQuery class]]];
++        NSSet* arrayOfCKKSPCSIdentityQueryResults = [NSSet setWithArray:@[[NSArray class], [CKKSPCSIdentityQueryResult class]]];
++
+         [rpcCallbackInterface setClasses:errClasses forSelector:@selector(callCallback:error:) argumentIndex:1 ofReply:NO];
+ 
+         [interface setClasses:errClasses forSelector:@selector(SecItemAddAndNotifyOnSync:
+@@ -80,7 +86,19 @@
+                                                                identifier:
+                                                                viewHint:
+                                                                fetchCloudValue:
+-                                                               complete:) argumentIndex:1 ofReply:YES];
++                                                               complete:) argumentIndex:2 ofReply:YES];
++        [interface setClasses:errClasses forSelector:@selector(secItemUnsetCurrentItemsAcrossAllDevices:
++                                                               identifiers:
++                                                               viewHint:
++                                                               complete:) argumentIndex:0 ofReply:YES];
++        [interface setClasses:arrayOfCKKSCurrentItemQueries forSelector:@selector(secItemFetchCurrentItemOutOfBand:forceFetch:complete:) argumentIndex:0 ofReply:NO];
++        [interface setClasses:arrayOfCKKSCurrentItemQueryResults forSelector:@selector(secItemFetchCurrentItemOutOfBand:forceFetch:complete:) argumentIndex:0 ofReply:YES];
++        [interface setClasses:errClasses forSelector:@selector(secItemFetchCurrentItemOutOfBand:forceFetch:complete:) argumentIndex:1 ofReply:YES];
++
++        [interface setClasses:arrayOfCKKSPCSIdentityQueries forSelector:@selector(secItemFetchPCSIdentityByKeyOutOfBand:forceFetch:complete:) argumentIndex:0 ofReply:NO];
++        [interface setClasses:arrayOfCKKSPCSIdentityQueryResults forSelector:@selector(secItemFetchPCSIdentityByKeyOutOfBand:forceFetch:complete:) argumentIndex:0 ofReply:YES];
++        [interface setClasses:errClasses forSelector:@selector(secItemFetchPCSIdentityByKeyOutOfBand:forceFetch:complete:) argumentIndex:1 ofReply:YES];
++
+         [interface setClasses:errClasses forSelector:@selector(secItemDigest:
+                                                                accessGroup:
+                                                                complete:) argumentIndex:1 ofReply:YES];
+@@ -92,7 +110,6 @@
+         secerror("Could not configure SecuritydXPCProtocol: %@", e);
+         @throw e;
+     }
+-#endif // OCTAGON
+ }
+ @end
+ 
+diff --git a/OSX/sec/ipc/securityd_client.h b/OSX/sec/ipc/securityd_client.h
+index acab23a..9c883fd 100644
+--- a/OSX/sec/ipc/securityd_client.h
++++ b/OSX/sec/ipc/securityd_client.h
+@@ -477,6 +477,8 @@ XPC_RETURNS_RETAINED xpc_endpoint_t _SecSecuritydCopyEndpoint(enum SecXPCOperati
+ #import <Foundation/NSXPCConnection.h>
+ typedef void (^SecBoolNSErrorCallback) (bool, NSError*);
+ 
++@class CKKSCurrentItemQuery, CKKSCurrentItemQueryResult, CKKSPCSIdentityQuery, CKKSPCSIdentityQueryResult;
++
+ @protocol SecuritydXPCCallbackProtocol <NSObject>
+ - (void)callCallback: (bool) result error:(NSError*) error;
+ @end
+@@ -506,8 +508,20 @@ typedef void (^SecBoolNSErrorCallback) (bool, NSError*);
+                                     identifier:(NSString*)identifier
+                                       viewHint:(NSString*)viewHint
+                                fetchCloudValue:(bool)fetchCloudValue
+-                                      complete:(void (^) (NSData* persistentref, NSError* operror)) complete;
+-
++                                      complete:(void (^) (NSData* persistentref, NSDate* cipModificationTime, NSError* operror)) complete;
++
++
++// Modern cloud item RPCs; declarations from Apple Security db15acbe.
++- (void)secItemUnsetCurrentItemsAcrossAllDevices:(NSString*)accessGroup
++                                     identifiers:(NSArray<NSString*>*)identifiers
++                                        viewHint:(NSString*)viewHint
++                                        complete:(void (^)(NSError* operror))complete;
++- (void)secItemFetchCurrentItemOutOfBand:(NSArray<CKKSCurrentItemQuery*>*)currentItemQueries
++                              forceFetch:(bool)forceFetch
++                                complete:(void (^)(NSArray<CKKSCurrentItemQueryResult*>* currentItems, NSError* operror)) complete;
++- (void)secItemFetchPCSIdentityByKeyOutOfBand:(NSArray<CKKSPCSIdentityQuery*>*)pcsIdentityQueries
++                                   forceFetch:(bool)forceFetch
++                                     complete:(void (^)(NSArray<CKKSPCSIdentityQueryResult*>* pcsIdentities, NSError* operror))complete;
+ 
+ // For each item in the keychainClass, return a persistant reference and the digest of the value
+ // The digest is not stable, and can change any time, the only promise is that if the digest
+diff --git a/OSX/sec/ipc/server_xpc.m b/OSX/sec/ipc/server_xpc.m
+index 5c83e2c..02e953b 100644
+--- a/OSX/sec/ipc/server_xpc.m
++++ b/OSX/sec/ipc/server_xpc.m
+@@ -222,12 +222,13 @@
+                                     identifier:(NSString*)identifier
+                                       viewHint:(NSString*)viewHint
+                                fetchCloudValue:(bool)fetchCloudValue
+-                                      complete:(void (^) (NSData* persistentref, NSError* operror))xpcComplete
++                                      complete:(void (^) (NSData* persistentref, NSDate* cipModificationTime, NSError* operror))xpcComplete
+ {
+ #if OCTAGON
+     // The calling client might not handle CK types well. Sanitize!
++    // This legacy CKKS backend does not report a modification time.
+     void (^complete)(NSData*, NSError*) = ^(NSData* persistentref, NSError* error){
+-        xpcComplete(persistentref, XPCSanitizeError(error));
++        xpcComplete(persistentref, nil, XPCSanitizeError(error));
+     };
+ 
+     CFErrorRef cferror = NULL;
+@@ -277,7 +278,7 @@
+                                                                                 complete:complete];
+                                                    }];
+ #else // ! OCTAGON
+-    xpcComplete(NULL, [NSError errorWithDomain:@"securityd" code:errSecParam userInfo:@{NSLocalizedDescriptionKey: @"SecItemFetchCurrentItemAcrossAllDevices not implemented on this platform"}]);
++    xpcComplete(NULL, nil, [NSError errorWithDomain:@"securityd" code:errSecParam userInfo:@{NSLocalizedDescriptionKey: @"SecItemFetchCurrentItemAcrossAllDevices not implemented on this platform"}]);
+ #endif // OCTAGON
+ }
+ 
+diff --git a/Security.exp-in b/Security.exp-in
+index 802a72a..1f088fd 100644
+--- a/Security.exp-in
++++ b/Security.exp-in
+@@ -2194,4 +2194,12 @@ _SecSetCustomHomeURLString
+ // but we still need them for our CFNetwork
+ _cuDec64
+ _cuEnc64
+-#endif
+\ No newline at end of file
++#endif
++// Modern cloud item client RPCs (backend errors are preserved).
++_SecItemUnsetCurrentItemsAcrossAllDevices
++_SecItemFetchCurrentItemOutOfBand
++_SecItemFetchPCSIdentityOutOfBand
++
++_SecItemFetchCurrentItemDataAcrossAllDevices
++_OBJC_CLASS_$_SecItemCurrentItemData
++_OBJC_METACLASS_$_SecItemCurrentItemData
+diff --git a/keychain/headers/SecItemPriv.h b/keychain/headers/SecItemPriv.h
+index e72636f..1985f57 100644
+--- a/keychain/headers/SecItemPriv.h
++++ b/keychain/headers/SecItemPriv.h
+@@ -337,6 +337,7 @@ extern const CFStringRef kSecAttrKeyTypeECSECPrimeRandomPKA
+      __OSX_AVAILABLE(10.13) __IOS_AVAILABLE(11.0) __TVOS_AVAILABLE(11.0) __WATCHOS_AVAILABLE(4.0);
+ extern const CFStringRef kSecAttrKeyTypeSecureEnclaveAttestation
+      __OSX_AVAILABLE(10.13) __IOS_AVAILABLE(11.0) __TVOS_AVAILABLE(11.0) __WATCHOS_AVAILABLE(4.0);
++extern const CFStringRef kSecAttrKeyTypeSecureEnclaveAnonymousAttestation;
+ 
+ // Should not be used, use kSecAttrTokenOID instead.
+ extern const CFStringRef kSecAttrSecureEnclaveKeyBlob
+diff --git a/trust/headers/SecPolicyPriv.h b/trust/headers/SecPolicyPriv.h
+index 432e18c..2881ad4 100644
+--- a/trust/headers/SecPolicyPriv.h
++++ b/trust/headers/SecPolicyPriv.h
+@@ -1393,6 +1393,11 @@ __nullable CF_RETURNS_RETAINED
+ SecPolicyRef SecPolicyCreateAppleExternalDeveloper(void)
+     __OSX_AVAILABLE(10.12) __IOS_AVAILABLE(10.0) __TVOS_AVAILABLE(10.0) __WATCHOS_AVAILABLE(3.0);
+ 
++/* Constructs the same developer policy while allowing the caller to choose
++ * temporal-validity checking. Other anchor/chain/OID/EKU/key checks remain. */
++CF_EXPORT __nullable CF_RETURNS_RETAINED
++SecPolicyRef SecPolicyCreateAppleExternalDeveloperOptionalExpiry(bool checkExpiry);
++
+ /*!
+  @function SecPolicyCreateAppleSoftwareSigning
+  @abstract Returns a policy object for verifying the Apple Software Signing certificate.

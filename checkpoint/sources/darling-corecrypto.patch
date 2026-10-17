@@ -1,0 +1,487 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 364bc17..7d3f0ae 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,5 +1,17 @@
+ project(darling-corecrypto)
+ 
++# Optional constant-time Curve25519/Ed25519 backend. The caller supplies the
++# reviewed Swift Crypto CCryptoBoringSSL source tree; other builds retain an
++# explicit unsupported error for these operations.
++set(DARLING_CORECRYPTO_BORINGSSL_ROOT "" CACHE PATH "CCryptoBoringSSL source root")
++if (DARLING_CORECRYPTO_BORINGSSL_ROOT)
++	if (NOT TARGET CCryptoBoringSSL)
++		add_subdirectory(${DARLING_CORECRYPTO_BORINGSSL_ROOT} ${CMAKE_CURRENT_BINARY_DIR}/boring)
++	endif()
++	include_directories(${DARLING_CORECRYPTO_BORINGSSL_ROOT}/include)
++	add_definitions(-DDARLING_CORECRYPTO_BORINGSSL=1)
++endif()
++
+ add_compile_options(
+ 	-Wno-return-type
+ )
+@@ -26,6 +38,7 @@ set(corecrypto_sources
+ 		src/ccaes.c
+ 		src/ccsha2xx.c
+ 		src/ccsha3xx.c
++		src/ccsha3.c
+ 		src/cczp.c
+ 		src/ccsha1.c
+ 		src/ccrsa.c
+@@ -110,6 +123,13 @@ else()
+ 	# so it doesn't matter that much if we have some unwanted exported symbols
+ endif()
+ 
++if (DARLING_CORECRYPTO_BORINGSSL_ROOT)
++	target_link_libraries(corecrypto PRIVATE CCryptoBoringSSL)
++	if (TARGET corecrypto_static)
++		target_link_libraries(corecrypto_static PUBLIC CCryptoBoringSSL)
++	endif()
++endif()
++
+ if (ENABLE_TESTS)
+ 	add_subdirectory(tests)
+ endif (ENABLE_TESTS)
+diff --git a/include/corecrypto/ccec25519.h b/include/corecrypto/ccec25519.h
+index f009643..83286e3 100644
+--- a/include/corecrypto/ccec25519.h
++++ b/include/corecrypto/ccec25519.h
+@@ -24,5 +24,14 @@ int cccurve25519(ccec25519key shared_secret, ccec25519secretkey private_key, cce
+ // private_key: OUT parameter
+ int cccurve25519_make_key_pair(struct ccrng_state* rng, ccec25519pubkey public_key, ccec25519secretkey private_key);
+ 
++int cccurve25519_make_priv(struct ccrng_state *rng, ccec25519secretkey sk);
++int cccurve25519_make_pub(ccec25519pubkey pk, const ccec25519secretkey sk);
++int cccurve25519_make_pub_with_rng(struct ccrng_state *rng, ccec25519pubkey pk, const ccec25519secretkey sk);
++int cccurve25519_with_rng(struct ccrng_state *rng, ccec25519key out, const ccec25519secretkey sk, const ccec25519base base);
++int cced25519_make_key_pair(const struct ccdigest_info *di, struct ccrng_state *rng, ccec25519pubkey pk, ccec25519secretkey sk);
++int cced25519_make_pub(const struct ccdigest_info *di, ccec25519pubkey pk, const ccec25519secretkey sk);
++int cced25519_sign(const struct ccdigest_info *di, ccec25519signature sig, size_t len, const void *msg, const ccec25519pubkey pk, const ccec25519secretkey sk);
++int cced25519_verify(const struct ccdigest_info *di, size_t len, const void *msg, const ccec25519signature sig, const ccec25519pubkey pk);
++
+ #endif
+ 
+diff --git a/include/corecrypto/ccmode_factory.h b/include/corecrypto/ccmode_factory.h
+index a43d124..26279ff 100644
+--- a/include/corecrypto/ccmode_factory.h
++++ b/include/corecrypto/ccmode_factory.h
+@@ -265,7 +265,7 @@ struct _ccmode_ctr_key {
+ #define CCMODE_FACTORY_CTR_CRYPT(ECB_ENCRYPT) { \
+ .size = ccn_sizeof_size(sizeof(struct _ccmode_ctr_key)) + 2 * ccn_sizeof_size((ECB_ENCRYPT)->block_size) + ccn_sizeof_size((ECB_ENCRYPT)->size), \
+ .block_size = 1, \
+-.ecb_block_size = 1, \
++.ecb_block_size = (ECB_ENCRYPT)->block_size, \
+ .init = ccmode_ctr_init, \
+ .ctr = ccmode_ctr_crypt, \
+ .setctr = ccmode_ctr_setctr, \
+diff --git a/include/corecrypto/ccsha3.h b/include/corecrypto/ccsha3.h
+new file mode 100644
+index 0000000..714f925
+--- /dev/null
++++ b/include/corecrypto/ccsha3.h
+@@ -0,0 +1,8 @@
++#ifndef _CORECRYPTO_CCSHA3_H_
++#define _CORECRYPTO_CCSHA3_H_
++#include <corecrypto/ccdigest.h>
++const struct ccdigest_info *ccsha3_224_di(void);
++const struct ccdigest_info *ccsha3_256_di(void);
++const struct ccdigest_info *ccsha3_384_di(void);
++const struct ccdigest_info *ccsha3_512_di(void);
++#endif
+diff --git a/scripts/exported-symbols.exp b/scripts/exported-symbols.exp
+index 12428cf..fa4ea94 100644
+--- a/scripts/exported-symbols.exp
++++ b/scripts/exported-symbols.exp
+@@ -99,6 +99,10 @@ _cccmac_one_shot_generate
+ _cccmac_update
+ _cccurve25519
+ _cccurve25519_make_key_pair
++_cccurve25519_make_priv
++_cccurve25519_make_pub
++_cccurve25519_make_pub_with_rng
++_cccurve25519_with_rng
+ _ccder_decode_bitstring
+ _ccder_decode_constructed_tl
+ #_ccder_decode_constructed_tl_strict
+@@ -294,16 +298,18 @@ _ccecies_encrypt_gcm_setup
+ #_ccecies_import_eph_pub
+ #_ccecies_pub_key_size
+ #_ccecies_pub_key_size_cp
+-#_cced25519_make_key_pair
+-#_cced25519_make_pub
+-#_cced25519_sign
+-#_cced25519_verify
++_cced25519_make_key_pair
++_cced25519_make_pub
++_cced25519_sign
++_cced25519_verify
+ _ccgcm_inc_iv
+ _ccgcm_init_with_iv
+ _ccgcm_one_shot
+ _ccgcm_one_shot_legacy
+ _ccgcm_set_iv_legacy
+ _cchkdf
++_cchkdf_extract
++_cchkdf_expand
+ #_cchkdf_expand
+ #_cchkdf_extract
+ _cchmac
+@@ -462,6 +468,10 @@ _ccsha256_di
+ _ccsha256_ltc_di
+ #_ccsha256_vng_intel_SupplementalSSE3_di
+ _ccsha384_di
++_ccsha3_224_di
++_ccsha3_256_di
++_ccsha3_384_di
++_ccsha3_512_di
+ _ccsha384_ltc_di
+ _ccsha512_di
+ _ccsha512_ltc_di
+diff --git a/src/ccctr.c b/src/ccctr.c
+index c583c7f..19cf51f 100644
+--- a/src/ccctr.c
++++ b/src/ccctr.c
+@@ -1,14 +1,59 @@
+ #include <corecrypto/ccmode_factory.h>
+-#include <corecrypto/private/ccstubs.h>
++#include <corecrypto/cc_error.h>
++
++/* Opaque context: header, counter, unused keystream, aligned ECB key. */
++static unsigned char *ctr_counter(struct _ccmode_ctr_key *key) {
++    return (unsigned char *)key->u;
++}
++static unsigned char *ctr_pad(struct _ccmode_ctr_key *key) {
++    return ctr_counter(key) + ccn_sizeof_size(key->ecb->block_size);
++}
++static ccecb_ctx *ctr_ecb_key(struct _ccmode_ctr_key *key) {
++    return (ccecb_ctx *)(ctr_pad(key) + ccn_sizeof_size(key->ecb->block_size));
++}
+ 
+ int ccmode_ctr_init(const struct ccmode_ctr* ctr, ccctr_ctx* _ctx, size_t rawkey_len, const void* rawkey, const void* iv) {
+-	CC_STUB_ERR();
++    if (!ctr || !_ctx || !rawkey || !iv || !ctr->custom) return CCERR_PARAMETER;
++    const struct ccmode_ecb *ecb = ctr->custom;
++    if (!ecb->block_size || !ecb->init || !ecb->ecb) return CCERR_PARAMETER;
++    struct _ccmode_ctr_key *key = (void *)_ctx;
++    key->ecb = ecb;
++    int status = ecb->init(ecb, ctr_ecb_key(key), rawkey_len, rawkey);
++    if (status) { cc_clear(ctr->size, _ctx); return status; }
++    return ccmode_ctr_setctr(ctr, _ctx, iv);
+ };
+ 
+ int ccmode_ctr_crypt(ccctr_ctx* ctx, size_t nbytes, const void* in, void* out) {
+-	CC_STUB_ERR();
++    if (!ctx || (nbytes && (!in || !out))) return CCERR_PARAMETER;
++    struct _ccmode_ctr_key *key = (void *)ctx;
++    const struct ccmode_ecb *ecb = key->ecb;
++    if (!ecb || !ecb->block_size || key->pad_len > ecb->block_size) return CCERR_PARAMETER;
++    const unsigned char *src = in; unsigned char *dst = out;
++    unsigned char *counter = ctr_counter(key), *pad = ctr_pad(key);
++    while (nbytes) {
++        if (!key->pad_len) {
++            int status = ecb->ecb(ctr_ecb_key(key), 1, counter, pad);
++            if (status) return status;
++            /* Apple CTR uses a big-endian counter of at most 64 bits. */
++            size_t width = ecb->block_size < 8 ? ecb->block_size : 8;
++            for (size_t i = 0; i < width; i++)
++                if (++counter[ecb->block_size - 1 - i]) break;
++            key->pad_len = ecb->block_size;
++        }
++        size_t n = nbytes < key->pad_len ? nbytes : key->pad_len;
++        size_t offset = ecb->block_size - key->pad_len;
++        for (size_t i = 0; i < n; i++) dst[i] = src[i] ^ pad[offset + i];
++        key->pad_len -= n; nbytes -= n; src += n; dst += n;
++    }
++    return CCERR_OK;
+ };
+ 
+ int ccmode_ctr_setctr(const struct ccmode_ctr* ctr, ccctr_ctx* ctx, const void* iv) {
+-	CC_STUB_ERR();
++    if (!ctr || !ctx || !iv) return CCERR_PARAMETER;
++    struct _ccmode_ctr_key *key = (void *)ctx;
++    if (!key->ecb || key->ecb != ctr->custom) return CCERR_PARAMETER;
++    memcpy(ctr_counter(key), iv, key->ecb->block_size);
++    cc_clear(key->ecb->block_size, ctr_pad(key));
++    key->pad_len = 0;
++    return CCERR_OK;
+ };
+diff --git a/src/ccec25519.c b/src/ccec25519.c
+index 92415aa..ec0ce87 100644
+--- a/src/ccec25519.c
++++ b/src/ccec25519.c
+@@ -1,12 +1,93 @@
+ #include <corecrypto/ccec25519.h>
+-#include <stdio.h>
++#include <corecrypto/ccsha2.h>
++#include <corecrypto/cc_error.h>
++#if DARLING_CORECRYPTO_BORINGSSL
++#include <CCryptoBoringSSL_curve25519.h>
++#endif
+ 
+ int cccurve25519(ccec25519key shared_secret, ccec25519secretkey private_key, ccec25519pubkey public_key) {
+-	printf("DARLING CRYPTO STUB: %s\n", __PRETTY_FUNCTION__);
+-	return -1;
++    if (!shared_secret || !private_key || !public_key) return CCERR_PARAMETER;
++#if DARLING_CORECRYPTO_BORINGSSL
++    if (X25519(shared_secret, private_key, public_key)) return CCERR_OK;
++    cc_clear(32, shared_secret); return CCERR_INTEGRITY;
++#else
++    return CCERR_CRYPTO_CONFIG;
++#endif
+ };
+ 
+ int cccurve25519_make_key_pair(struct ccrng_state* rng, ccec25519pubkey public_key, ccec25519secretkey private_key) {
+-	printf("DARLING CRYPTO STUB: %s\n", __PRETTY_FUNCTION__);
+-	return -1;
++    if (!public_key || !private_key) return CCERR_PARAMETER;
++    int status = cccurve25519_make_priv(rng, private_key);
++    if (!status) status = cccurve25519_make_pub(public_key, private_key);
++    if (status) { cc_clear(32, private_key); cc_clear(32, public_key); }
++    return status;
+ };
++
++int cccurve25519_make_priv(struct ccrng_state *rng, ccec25519secretkey sk) {
++    if (!rng || !rng->generate || !sk) return CCERR_PARAMETER;
++    int status = ccrng_generate(rng, 32, sk);
++    if (status) { cc_clear(32, sk); return status; }
++    sk[0] &= 248; sk[31] = (sk[31] & 127) | 64;
++    return CCERR_OK;
++}
++
++int cccurve25519_make_pub(ccec25519pubkey pk, const ccec25519secretkey sk) {
++    if (!pk || !sk) return CCERR_PARAMETER;
++#if DARLING_CORECRYPTO_BORINGSSL
++    X25519_public_from_private(pk, sk); return CCERR_OK;
++#else
++    return CCERR_CRYPTO_CONFIG;
++#endif
++}
++
++/* This backend uses BoringSSL's constant-time ladder, without randomized
++ * coordinate blinding. The RNG parameter is needed only for key generation. */
++int cccurve25519_make_pub_with_rng(struct ccrng_state *rng, ccec25519pubkey pk, const ccec25519secretkey sk) {
++    if (!rng || !rng->generate) return CCERR_PARAMETER;
++    return cccurve25519_make_pub(pk, sk);
++}
++int cccurve25519_with_rng(struct ccrng_state *rng, ccec25519key out, const ccec25519secretkey sk, const ccec25519base base) {
++    if (!rng || !rng->generate) return CCERR_PARAMETER;
++    return cccurve25519(out, (unsigned char *)sk, (unsigned char *)base);
++}
++
++/* Ed25519 here supports the SHA-512 descriptor supplied by this library.
++ * Refuse other digests rather than silently substituting a different hash. */
++int cced25519_make_pub(const struct ccdigest_info *di, ccec25519pubkey pk, const ccec25519secretkey sk) {
++    if (di != ccsha512_di() || !pk || !sk) return CCERR_PARAMETER;
++#if DARLING_CORECRYPTO_BORINGSSL
++    unsigned char expanded[64]; ED25519_keypair_from_seed(pk, expanded, sk);
++    cc_clear(sizeof(expanded), expanded); return CCERR_OK;
++#else
++    return CCERR_CRYPTO_CONFIG;
++#endif
++}
++int cced25519_make_key_pair(const struct ccdigest_info *di, struct ccrng_state *rng, ccec25519pubkey pk, ccec25519secretkey sk) {
++    if (di != ccsha512_di() || !rng || !rng->generate || !pk || !sk) return CCERR_PARAMETER;
++    int status = ccrng_generate(rng, 32, sk);
++    if (!status) status = cced25519_make_pub(di, pk, sk);
++    if (status) { cc_clear(32, sk); cc_clear(32, pk); }
++    return status;
++}
++int cced25519_sign(const struct ccdigest_info *di, ccec25519signature sig, size_t len, const void *msg, const ccec25519pubkey pk, const ccec25519secretkey sk) {
++    if (di != ccsha512_di() || !sig || (len && !msg) || !pk || !sk) return CCERR_PARAMETER;
++#if DARLING_CORECRYPTO_BORINGSSL
++    unsigned char derived[32], expanded[64];
++    ED25519_keypair_from_seed(derived, expanded, sk);
++    int status = cc_cmp_safe(32, derived, pk) ? CCERR_PARAMETER :
++        (ED25519_sign(sig, msg, len, expanded) ? CCERR_OK : CCERR_INTERNAL);
++    cc_clear(sizeof(expanded), expanded); cc_clear(sizeof(derived), derived);
++    if (status) cc_clear(64, sig);
++    return status;
++#else
++    return CCERR_CRYPTO_CONFIG;
++#endif
++}
++int cced25519_verify(const struct ccdigest_info *di, size_t len, const void *msg, const ccec25519signature sig, const ccec25519pubkey pk) {
++    if (di != ccsha512_di() || (len && !msg) || !sig || !pk) return CCERR_PARAMETER;
++#if DARLING_CORECRYPTO_BORINGSSL
++    return ED25519_verify(msg, len, sig, pk) ? CCERR_OK : CCERR_INTEGRITY;
++#else
++    return CCERR_CRYPTO_CONFIG;
++#endif
++}
+diff --git a/src/cchkdf.c b/src/cchkdf.c
+index 2f2f687..2782e78 100644
+--- a/src/cchkdf.c
++++ b/src/cchkdf.c
+@@ -1,21 +1,58 @@
+ #include <corecrypto/cchkdf.h>
+-#include <stdio.h>
++#include <corecrypto/cchmac.h>
++#include <corecrypto/cc_error.h>
++
++/* RFC 5869, using the caller's digest implementation. */
++static int hkdf_valid_digest(const struct ccdigest_info *di) {
++    return di && di->output_size && di->output_size <= di->block_size &&
++        di->block_size <= 1024 && di->state_size <= 1024 &&
++        di->initial_state && di->compress && di->final;
++}
+ 
+ int cchkdf(const struct ccdigest_info *di, size_t ikmLen, const void *ikm,
+ 	size_t saltLen, const void *salt, size_t infoLen, const void *info,
+ 	size_t dkLen, void *dk) {
+-	printf("DARLING CRYPTO STUB: %s\n", __PRETTY_FUNCTION__);
+-	return -1;
++    if (!hkdf_valid_digest(di) || (ikmLen && !ikm) || (saltLen && !salt) ||
++        (infoLen && !info) || (dkLen && !dk) || dkLen > 255 * di->output_size)
++        return CCERR_PARAMETER;
++    unsigned char prk[di->output_size];
++    int result = cchkdf_extract(di, saltLen, salt, ikmLen, ikm, prk);
++    if (!result) result = cchkdf_expand(di, sizeof(prk), prk, infoLen, info, dkLen, dk);
++    cc_clear(sizeof(prk), prk);
++    return result;
+ }
+ 
+ int cchkdf_extract(const struct ccdigest_info *di, size_t saltLen, const void *salt,
+ 	size_t keyDerivationKeyLen, const void *keyDerivationKey, void *prk) {
+-	printf("DARLING CRYPTO STUB: %s\n", __PRETTY_FUNCTION__);
+-	return -1;
++    if (!hkdf_valid_digest(di) || !prk || (saltLen && !salt) ||
++        (keyDerivationKeyLen && !keyDerivationKey)) return CCERR_PARAMETER;
++    /* Empty HMAC key and HashLen zero bytes have identical padded values. */
++    cchmac(di, saltLen, salt, keyDerivationKeyLen, keyDerivationKey, prk);
++    return CCERR_OK;
+ }
+ 
+ int cchkdf_expand(const struct ccdigest_info *di, size_t prkLen, const void *prk,
+ 	size_t contextLen, const void *context, size_t derivedKeyLen, void *derivedKey) {
+-	printf("DARLING CRYPTO STUB: %s\n", __PRETTY_FUNCTION__);
+-	return -1;
+-}
+\ No newline at end of file
++    if (!hkdf_valid_digest(di) || (prkLen && !prk) || (contextLen && !context) ||
++        (derivedKeyLen && !derivedKey) || derivedKeyLen > 255 * di->output_size)
++        return CCERR_PARAMETER;
++    unsigned char previous[di->output_size];
++    unsigned char *output = derivedKey;
++    size_t previousLen = 0, remaining = derivedKeyLen;
++    for (unsigned counter = 1; remaining; counter++) {
++        unsigned char octet = counter;
++        cchmac_di_decl(di, ctx);
++        cchmac_init(di, ctx, prkLen, prk);
++        if (previousLen) cchmac_update(di, ctx, previousLen, previous);
++        if (contextLen) cchmac_update(di, ctx, contextLen, context);
++        cchmac_update(di, ctx, 1, &octet);
++        cchmac_final(di, ctx, previous);
++        cchmac_di_clear(di, ctx);
++        previousLen = di->output_size;
++        size_t n = remaining < previousLen ? remaining : previousLen;
++        memcpy(output, previous, n);
++        output += n; remaining -= n;
++    }
++    cc_clear(sizeof(previous), previous);
++    return CCERR_OK;
++}
+diff --git a/src/cchmac.c b/src/cchmac.c
+index 524d4bc..6087853 100644
+--- a/src/cchmac.c
++++ b/src/cchmac.c
+@@ -9,11 +9,12 @@ void cchmac_init(const struct ccdigest_info *di, cchmac_ctx_t ctx,
+ 	{
+ 		// "keys longer than blocksize are shortened"
+ 		ccdigest(di, key_len, key, cchmac_data(di, ctx));
+-		key_len = di->block_size;
++		key_len = di->output_size;
++		memset(cchmac_data(di, ctx) + key_len, 0, di->block_size - key_len);
+ 	}
+ 	else
+ 	{
+-		memcpy(cchmac_data(di, ctx), key, key_len);
++		if (key_len) memcpy(cchmac_data(di, ctx), key, key_len);
+ 
+ 		// "keys shorter than blocksize are zero-padded"
+ 		if (key_len < di->block_size)
+diff --git a/src/ccsha3.c b/src/ccsha3.c
+new file mode 100644
+index 0000000..bf7a55e
+--- /dev/null
++++ b/src/ccsha3.c
+@@ -0,0 +1,80 @@
++/* SHA-3 fixed-output hashes, FIPS 202, implemented for the digest ABI. */
++#include <corecrypto/ccsha3.h>
++
++static uint64_t rotate(uint64_t x, unsigned n) {
++    return n ? (x << n) | (x >> (64 - n)) : x;
++}
++
++static void keccak_f1600(uint64_t a[25]) {
++    static const unsigned rotation[25] = {
++        0, 1, 62, 28, 27, 36, 44, 6, 55, 20, 3, 10, 43,
++        25, 39, 41, 45, 15, 21, 8, 18, 2, 61, 56, 14
++    };
++    static const uint64_t rc[24] = {
++        0x0000000000000001ULL, 0x0000000000008082ULL,
++        0x800000000000808aULL, 0x8000000080008000ULL,
++        0x000000000000808bULL, 0x0000000080000001ULL,
++        0x8000000080008081ULL, 0x8000000000008009ULL,
++        0x000000000000008aULL, 0x0000000000000088ULL,
++        0x0000000080008009ULL, 0x000000008000000aULL,
++        0x000000008000808bULL, 0x800000000000008bULL,
++        0x8000000000008089ULL, 0x8000000000008003ULL,
++        0x8000000000008002ULL, 0x8000000000000080ULL,
++        0x000000000000800aULL, 0x800000008000000aULL,
++        0x8000000080008081ULL, 0x8000000000008080ULL,
++        0x0000000080000001ULL, 0x8000000080008008ULL
++    };
++    for (unsigned round = 0; round < 24; round++) {
++        uint64_t c[5], d[5], b[25];
++        for (unsigned x = 0; x < 5; x++)
++            c[x] = a[x] ^ a[x+5] ^ a[x+10] ^ a[x+15] ^ a[x+20];
++        for (unsigned x = 0; x < 5; x++)
++            d[x] = c[(x+4)%5] ^ rotate(c[(x+1)%5], 1);
++        for (unsigned y = 0; y < 5; y++) for (unsigned x = 0; x < 5; x++)
++            b[y + 5*((2*x+3*y)%5)] = rotate(a[x+5*y] ^ d[x], rotation[x+5*y]);
++        for (unsigned y = 0; y < 5; y++) for (unsigned x = 0; x < 5; x++)
++            a[x+5*y] = b[x+5*y] ^ (~b[(x+1)%5+5*y] & b[(x+2)%5+5*y]);
++        a[0] ^= rc[round];
++        cc_clear(sizeof(c), c); cc_clear(sizeof(d), d); cc_clear(sizeof(b), b);
++    }
++}
++
++static void absorb(ccdigest_state_t state, size_t blocks, const void *input, size_t rate) {
++    uint64_t *lanes = ccdigest_u64(state);
++    const unsigned char *bytes = input;
++    while (blocks--) {
++        for (size_t i = 0; i < rate; i++)
++            lanes[i/8] ^= (uint64_t)bytes[i] << (8*(i%8));
++        keccak_f1600(lanes); bytes += rate;
++    }
++}
++
++static void sha3_final(const struct ccdigest_info *di, ccdigest_ctx_t ctx, unsigned char *out) {
++    unsigned char *buffer = ccdigest_data(di, ctx);
++    size_t n = ccdigest_num(di, ctx);
++    memset(buffer+n, 0, di->block_size-n);
++    buffer[n] = 0x06; buffer[di->block_size-1] |= 0x80;
++    di->compress(ccdigest_state(di, ctx), 1, buffer);
++    const uint64_t *lanes = ccdigest_state_u64(di, ctx);
++    /* HMAC may put its intermediate digest in this same data buffer. */
++    cc_clear(di->block_size, buffer);
++    for (size_t i = 0; i < di->output_size; i++) out[i] = lanes[i/8] >> (8*(i%8));
++    ccdigest_num(di, ctx) = 0;
++}
++
++static const uint64_t initial_state[25] = {0};
++#define SHA3(BITS, RATE, OID) \
++static void sha3_##BITS##_compress(ccdigest_state_t state, size_t blocks, const void *input) { \
++    absorb(state, blocks, input, RATE); \
++} \
++static const unsigned char sha3_##BITS##_oid[] = {0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,OID}; \
++static const struct ccdigest_info sha3_##BITS##_info = { \
++    .output_size = BITS/8, .state_size = sizeof(initial_state), .block_size = RATE, \
++    .oid_size = sizeof(sha3_##BITS##_oid), .oid = sha3_##BITS##_oid, \
++    .initial_state = initial_state, .compress = sha3_##BITS##_compress, .final = sha3_final \
++}; \
++const struct ccdigest_info *ccsha3_##BITS##_di(void) { return &sha3_##BITS##_info; }
++SHA3(224, 144, 7)
++SHA3(256, 136, 8)
++SHA3(384, 104, 9)
++SHA3(512, 72, 10)
