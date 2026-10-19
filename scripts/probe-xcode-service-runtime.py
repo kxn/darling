@@ -2,7 +2,7 @@
 """Trace the original Xcode process or load the genuine per-user distnoted job."""
 from pathlib import Path
 from datetime import datetime, timezone
-import argparse, fcntl, hashlib, json, plistlib, runpy, subprocess, time
+import argparse, fcntl, hashlib, json, plistlib, runpy, shlex, subprocess, time
 
 root = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser(description=__doc__)
@@ -54,11 +54,21 @@ parser.add_argument('--swb-logging', action='store_true')
 parser.add_argument('--swb-swift-logging', action='store_true')
 parser.add_argument('--fsevents-history', action='store_true')
 parser.add_argument('--corpse-map', action='store_true')
+parser.add_argument('--global-fsevents', action='store_true')
+parser.add_argument('--vchroot-links', action='store_true')
+parser.add_argument('--metadata-root-name', action='store_true')
+parser.add_argument('--tool-dispatch', action='store_true')
 parser.add_argument('--filecoordination', action='store_true')
 parser.add_argument('--timeout-seconds', type=int, default=60)
+parser.add_argument('--xcode-arguments-file', type=Path)
+parser.add_argument('--prebuild-command-file', type=Path)
 parser.add_argument('--skip-uti-diagnostic', action='store_true')
 parser.add_argument('--trace-sandbox', action='store_true')
 args = parser.parse_args()
+if args.tool_dispatch:args.metadata_root_name=True
+if args.metadata_root_name:args.vchroot_links=True
+if args.vchroot_links:args.global_fsevents=True
+if args.global_fsevents:args.corpse_map=True
 if args.corpse_map:args.fsevents_history=True
 if args.fsevents_history:args.swb_swift_logging=True
 if args.swb_swift_logging:args.swb_logging=True
@@ -100,7 +110,7 @@ if args.typed_new_delete:args.security_cloud_rpc=True
 if args.security_cloud_rpc:args.mdns=True
 if args.mdns_library_only:args.mdns=True
 digest = lambda path: hashlib.sha256((root / path).read_bytes()).hexdigest()
-m = runpy.run_path(str(root / ('scripts/corpse-map-runtime-profile.py' if args.corpse_map else 'scripts/fsevents-history-profile.py' if args.fsevents_history else 'scripts/swb-swift-logging-runtime-profile.py' if args.swb_swift_logging else 'scripts/swb-logging-runtime-profile.py' if args.swb_logging else 'scripts/system-version-runtime-profile.py' if args.system_version else 'scripts/fatal-signal-runtime-profile.py' if args.fatal_signal else 'scripts/icu-data-runtime-profile.py' if args.icu_data else 'scripts/mobileasset-query-runtime-profile.py' if args.mobileasset_query else 'scripts/materialize-runtime-profile.py' if args.materialize_policy else 'scripts/xpc-activation-runtime-profile.py' if args.xpc_activation else 'scripts/s2c-lifecycle-runtime-profile.py' if args.s2c_lifecycle else 'scripts/mount-volumes-diagnostic-profile.py' if args.core_volume_diagnostic else 'scripts/mount-flags-runtime-profile.py' if args.mount_flags else 'scripts/iokitd-matching-runtime-profile.py' if args.iokitd_matching else 'scripts/iokitd-power-runtime-profile.py' if args.iokitd_power else 'scripts/log-compose-runtime-profile.py' if args.log_compose else 'scripts/fsevents-device-runtime-profile.py' if args.fsevents_device else 'scripts/sandbox-fs-runtime-profile.py' if args.sandbox_fs else 'scripts/launchd-sandbox-source-profile.py' if args.launchd_sandbox else 'scripts/commoncrypto-original-profile.py' if args.native_crypto else 'scripts/argument-parser-native-profile.py' if args.argument_parser else 'scripts/corecrypto-hkdf-profile.py' if args.corecrypto_hkdf else 'scripts/applearchive-native-profile.py' if args.applearchive else 'scripts/xpc-sent-message-runtime-profile.py' if args.sent_messages else 'scripts/diskmanagement-nserror-runtime-profile.py' if args.diskmanagement else 'scripts/dispatch-workloop-runtime-profile.py' if args.dispatch_workloop else 'scripts/workqueue-stack-runtime-profile.py' if args.workqueue_stack else 'scripts/cryptex-native-profile.py' if args.cryptex else 'scripts/device-identity-native-profile.py' if args.device_identity else 'scripts/quarantine-vfs-runtime-profile.py' if args.quarantine_vfs else 'scripts/crypto-quarantine-runtime-profile.py' if args.crypto_quarantine else 'scripts/mobile-device-native-profile.py' if args.mobile_device else 'scripts/pid-generation-source-profile.py' if args.pid_generation else 'scripts/sandbox-policy-source-profile.py' if args.sandbox_policy else 'scripts/expected-access-source-profile.py' if args.expected_access else 'scripts/sandbox-check-source-profile.py' if args.sandbox_checks else 'scripts/typed-new-delete-profile.py' if args.typed_new_delete else 'scripts/security-cloud-rpc-profile.py' if args.security_cloud_rpc else 'scripts/mdns-native-profile.py' if args.mdns else 'scripts/xcode-system-resources-profile.py' if args.system_resources else 'scripts/log-pack-profile.py' if args.log_pack else 'scripts/foundation-coherent-profile.py')))
+m = runpy.run_path(str(root / ('scripts/xcode-tool-dispatch-runtime-profile.py' if args.tool_dispatch else 'scripts/metadata-root-name-runtime-profile.py' if args.metadata_root_name else 'scripts/vchroot-links-runtime-profile.py' if args.vchroot_links else 'scripts/global-fsevents-runtime-profile.py' if args.global_fsevents else 'scripts/corpse-map-runtime-profile.py' if args.corpse_map else 'scripts/fsevents-history-profile.py' if args.fsevents_history else 'scripts/swb-swift-logging-runtime-profile.py' if args.swb_swift_logging else 'scripts/swb-logging-runtime-profile.py' if args.swb_logging else 'scripts/system-version-runtime-profile.py' if args.system_version else 'scripts/fatal-signal-runtime-profile.py' if args.fatal_signal else 'scripts/icu-data-runtime-profile.py' if args.icu_data else 'scripts/mobileasset-query-runtime-profile.py' if args.mobileasset_query else 'scripts/materialize-runtime-profile.py' if args.materialize_policy else 'scripts/xpc-activation-runtime-profile.py' if args.xpc_activation else 'scripts/s2c-lifecycle-runtime-profile.py' if args.s2c_lifecycle else 'scripts/mount-volumes-diagnostic-profile.py' if args.core_volume_diagnostic else 'scripts/mount-flags-runtime-profile.py' if args.mount_flags else 'scripts/iokitd-matching-runtime-profile.py' if args.iokitd_matching else 'scripts/iokitd-power-runtime-profile.py' if args.iokitd_power else 'scripts/log-compose-runtime-profile.py' if args.log_compose else 'scripts/fsevents-device-runtime-profile.py' if args.fsevents_device else 'scripts/sandbox-fs-runtime-profile.py' if args.sandbox_fs else 'scripts/launchd-sandbox-source-profile.py' if args.launchd_sandbox else 'scripts/commoncrypto-original-profile.py' if args.native_crypto else 'scripts/argument-parser-native-profile.py' if args.argument_parser else 'scripts/corecrypto-hkdf-profile.py' if args.corecrypto_hkdf else 'scripts/applearchive-native-profile.py' if args.applearchive else 'scripts/xpc-sent-message-runtime-profile.py' if args.sent_messages else 'scripts/diskmanagement-nserror-runtime-profile.py' if args.diskmanagement else 'scripts/dispatch-workloop-runtime-profile.py' if args.dispatch_workloop else 'scripts/workqueue-stack-runtime-profile.py' if args.workqueue_stack else 'scripts/cryptex-native-profile.py' if args.cryptex else 'scripts/device-identity-native-profile.py' if args.device_identity else 'scripts/quarantine-vfs-runtime-profile.py' if args.quarantine_vfs else 'scripts/crypto-quarantine-runtime-profile.py' if args.crypto_quarantine else 'scripts/mobile-device-native-profile.py' if args.mobile_device else 'scripts/pid-generation-source-profile.py' if args.pid_generation else 'scripts/sandbox-policy-source-profile.py' if args.sandbox_policy else 'scripts/expected-access-source-profile.py' if args.expected_access else 'scripts/sandbox-check-source-profile.py' if args.sandbox_checks else 'scripts/typed-new-delete-profile.py' if args.typed_new_delete else 'scripts/security-cloud-rpc-profile.py' if args.security_cloud_rpc else 'scripts/mdns-native-profile.py' if args.mdns else 'scripts/xcode-system-resources-profile.py' if args.system_resources else 'scripts/log-pack-profile.py' if args.log_pack else 'scripts/foundation-coherent-profile.py')))
 p = m['profile'](diagnostic=args.core_volume_diagnostic) if args.s2c_lifecycle else m['profile'](include_system_resources=False) if args.mdns_library_only else m['profile']()
 verified = json.loads((root / 'artifacts/native-lsd-foundation-coherent-probe.json').read_text())
 assert verified['UTI_functional_execution_verified'] and verified['exit_status'] == 0
@@ -117,7 +127,7 @@ build = root / 'runtime/xcode-service-runtime'
 build.mkdir(parents=True, exist_ok=True)
 stem = 'xcode-service-runtime-' + ('fsevents-device-' if args.fsevents_device else '') + ('sandbox-fs-' if args.sandbox_fs else '') + ('launchd-sandbox-' if args.launchd_sandbox else '') + ('coordination-' if args.filecoordination else '') + ('nativecrypto-' if args.native_crypto else '') + ('parser-' if args.argument_parser else '') + ('hkdf-' if args.corecrypto_hkdf else '') + ('archive-' if args.applearchive else '') + ('sent-' if args.sent_messages else '') + ('diskmanagement-' if args.diskmanagement else '') + ('dispatch-' if args.dispatch_workloop else '') + ('workqueue-' if args.workqueue_stack else '') + ('cryptex-' if args.cryptex else '') + ('device-' if args.device_identity else '') + ('vfs-' if args.quarantine_vfs else '') + ('crypto-' if args.crypto_quarantine else '') + ('extended-' if args.timeout_seconds!=60 else '') + ('mobile-' if args.mobile_device else '') + ('generation-' if args.pid_generation else '') + ('policy-' if args.sandbox_policy else '') + ('expected-' if args.expected_access else '') + ('sandbox-' if args.sandbox_checks else '') + ('typed-' if args.typed_new_delete else '') + ('cloud-base-' if args.security_cloud_rpc and args.mdns_library_only else 'cloud-' if args.security_cloud_rpc else 'mdns-base-' if args.mdns_library_only else 'mdns-' if args.mdns else 'resources-' if args.system_resources else 'pack-' if args.log_pack else '') + ('prefs-daemon-' if args.cfprefsd_daemon else '') + ('prefs-agent-' if args.cfprefsd_agent else '') + ('agent-' if args.distnoted_agent else '') + ('daemon-' if args.distnoted_daemon else '') + ('trace-' if args.trace_processes else '') + ('diagnostic-' if args.skip_uti_diagnostic else '') + args.mode
 if args.fsevents_device:
-    stem='xcode-service-runtime-'+('corpse-map-diagnostic-' if args.corpse_map and args.core_volume_diagnostic else 'corpse-map-' if args.corpse_map else 'fsevents-history-diagnostic-' if args.fsevents_history and args.core_volume_diagnostic else 'fsevents-history-' if args.fsevents_history else 'swb-swift-logging-diagnostic-' if args.swb_swift_logging and args.core_volume_diagnostic else 'swb-swift-logging-' if args.swb_swift_logging else 'swb-logging-diagnostic-' if args.swb_logging and args.core_volume_diagnostic else 'swb-logging-' if args.swb_logging else 'system-version-diagnostic-' if args.system_version and args.core_volume_diagnostic else 'system-version-' if args.system_version else 'fatal-signal-diagnostic-' if args.fatal_signal and args.core_volume_diagnostic else 'fatal-signal-' if args.fatal_signal else 'icu-data-diagnostic-' if args.icu_data and args.core_volume_diagnostic else 'icu-data-' if args.icu_data else 'mobileasset-query-diagnostic-' if args.mobileasset_query and args.core_volume_diagnostic else 'mobileasset-query-' if args.mobileasset_query else 'materialize-policy-diagnostic-' if args.materialize_policy and args.core_volume_diagnostic else 'materialize-policy-' if args.materialize_policy else 'xpc-activation-diagnostic-' if args.xpc_activation and args.core_volume_diagnostic else 'xpc-activation-' if args.xpc_activation else 's2c-lifecycle-diagnostic-' if args.s2c_lifecycle and args.core_volume_diagnostic else 's2c-lifecycle-' if args.s2c_lifecycle else 'core-volumes-diagnostic-' if args.core_volume_diagnostic else 'mount-flags-' if args.mount_flags else 'iokitd-matching-' if args.iokitd_matching else 'iokitd-power-' if args.iokitd_power else 'log-compose-' if args.log_compose else 'fsevents-device-')+args.mode+'-'+hashlib.sha256(json.dumps(vars(args),sort_keys=True).encode()).hexdigest()[:12]
+    stem='xcode-service-runtime-'+('tool-dispatch-diagnostic-' if args.tool_dispatch and args.core_volume_diagnostic else 'tool-dispatch-' if args.tool_dispatch else 'metadata-root-name-diagnostic-' if args.metadata_root_name and args.core_volume_diagnostic else 'metadata-root-name-' if args.metadata_root_name else 'vchroot-links-diagnostic-' if args.vchroot_links and args.core_volume_diagnostic else 'vchroot-links-' if args.vchroot_links else 'global-fsevents-diagnostic-' if args.global_fsevents and args.core_volume_diagnostic else 'global-fsevents-' if args.global_fsevents else 'corpse-map-diagnostic-' if args.corpse_map and args.core_volume_diagnostic else 'corpse-map-' if args.corpse_map else 'fsevents-history-diagnostic-' if args.fsevents_history and args.core_volume_diagnostic else 'fsevents-history-' if args.fsevents_history else 'swb-swift-logging-diagnostic-' if args.swb_swift_logging and args.core_volume_diagnostic else 'swb-swift-logging-' if args.swb_swift_logging else 'swb-logging-diagnostic-' if args.swb_logging and args.core_volume_diagnostic else 'swb-logging-' if args.swb_logging else 'system-version-diagnostic-' if args.system_version and args.core_volume_diagnostic else 'system-version-' if args.system_version else 'fatal-signal-diagnostic-' if args.fatal_signal and args.core_volume_diagnostic else 'fatal-signal-' if args.fatal_signal else 'icu-data-diagnostic-' if args.icu_data and args.core_volume_diagnostic else 'icu-data-' if args.icu_data else 'mobileasset-query-diagnostic-' if args.mobileasset_query and args.core_volume_diagnostic else 'mobileasset-query-' if args.mobileasset_query else 'materialize-policy-diagnostic-' if args.materialize_policy and args.core_volume_diagnostic else 'materialize-policy-' if args.materialize_policy else 'xpc-activation-diagnostic-' if args.xpc_activation and args.core_volume_diagnostic else 'xpc-activation-' if args.xpc_activation else 's2c-lifecycle-diagnostic-' if args.s2c_lifecycle and args.core_volume_diagnostic else 's2c-lifecycle-' if args.s2c_lifecycle else 'core-volumes-diagnostic-' if args.core_volume_diagnostic else 'mount-flags-' if args.mount_flags else 'iokitd-matching-' if args.iokitd_matching else 'iokitd-power-' if args.iokitd_power else 'log-compose-' if args.log_compose else 'fsevents-device-')+args.mode+'-'+hashlib.sha256(json.dumps(vars(args),sort_keys=True,default=str).encode()).hexdigest()[:12]
 # Preserve the preceding attempt before reusing its log/job/script names.
 previous_report=root/('artifacts/'+stem+'.json')
 if previous_report.exists():
@@ -229,18 +239,26 @@ if args.skip_uti_diagnostic:
     uti_command="printf 'SERVICE_RUNTIME_UTI_PREFLIGHT_SKIPPED_DIAGNOSTIC_ONLY\\n'\n"
 else:
     uti_command+="printf 'SERVICE_RUNTIME_UTI_PREFLIGHT_OK\\n'\n"
+prebuild_command=''
+if args.prebuild_command_file:
+    prebuild_argv=json.loads(args.prebuild_command_file.read_text())
+    assert isinstance(prebuild_argv,list) and prebuild_argv and all(isinstance(v,str) for v in prebuild_argv)
+    prebuild_command=shlex.join(prebuild_argv)+"\nprintf 'SERVICE_RUNTIME_PREBUILD_COMMAND_OK\\n'\n"
 script.write_text('#!/bin/bash\nset -x\nset -e\n' +
                   ('launchctl remove com.apple.FileCoordination || true\n' if args.filecoordination else '') +
                   ('/usr/bin/id _distnote\n' if args.distnoted_daemon else '') +
                   '\n'.join('launchctl load ' + ('-S Background ' if j['name'] in ['distnoted-agent','cfprefsd-agent'] else '') + guest + j['path'] for j in jobs) + '\n' +
                   "trap '" + '; '.join('launchctl remove ' + j['job']['Label'] + ' >/dev/null 2>&1' for j in reversed(jobs)) + "' EXIT\n" +
                   '\n'.join('launchctl list ' + j['job']['Label'] for j in jobs) + '\n' +
-                  uti_command + 'set +e\n' +
+                  uti_command + prebuild_command + 'set +e\n' +
                   "printf 'SERVICE_RUNTIME_XCODE_INVOCATION_BEGIN\\n'\n" +
                   '/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild "$@"\n' +
                   'status=$?\nprintf "SERVICE_RUNTIME_XCODE_STATUS %s\\n" "$status"\n' +
                   '\n'.join('launchctl list ' + j['job']['Label'] for j in jobs) + '\nexit "$status"\n')
 xcode_args = ['-project', guest + 'fixtures/XcodeSmoke/XcodeSmoke.xcodeproj', '-scheme', 'XcodeSmoke', '-sdk', 'macosx', '-configuration', 'Debug', '-derivedDataPath', guest + 'runtime/xcode-service-runtime/DerivedData', 'CODE_SIGNING_ALLOWED=NO', 'build'] if args.mode == 'build' else ['-' + args.mode]
+if args.xcode_arguments_file:
+    xcode_args=json.loads(args.xcode_arguments_file.read_text())
+    assert isinstance(xcode_args,list) and xcode_args and all(isinstance(v,str) for v in xcode_args)
 command = p['command'][:-2] + ['/bin/bash', guest + str(script.relative_to(root)), *xcode_args]
 assert 1 <= args.timeout_seconds <= 600
 command[3]=str(args.timeout_seconds)
@@ -279,6 +297,8 @@ record = {**p, 'checked_at': datetime.now(timezone.utc).isoformat(), 'command': 
           'exit_status': result.returncode, 'log': log, 'log_sha256': digest(log), 'jobs': jobs,
           'script': str(script.relative_to(root)), 'script_sha256': digest(str(script.relative_to(root))),
           'original_xcodebuild_sha256': digest(original_xcode), 'xcode_arguments': xcode_args,
+          'xcode_arguments_file':str(args.xcode_arguments_file) if args.xcode_arguments_file else None,
+          'xcode_arguments_file_sha256':digest(args.xcode_arguments_file) if args.xcode_arguments_file else None,
           'UTI_preflight_verified': 'SERVICE_RUNTIME_UTI_PREFLIGHT_OK' in text,
           'diagnostic_without_UTI_preflight':args.skip_uti_diagnostic,
           'xcode_process_started':bool(xcode_observations) or 'SERVICE_RUNTIME_XCODE_STATUS ' in text,
@@ -295,6 +315,12 @@ record = {**p, 'checked_at': datetime.now(timezone.utc).isoformat(), 'command': 
           'core_volumes_diagnostic':p.get('mount_volumes_diagnostic'),
           'source_s2c_lifecycle':p.get('source_s2c_lifecycle'),
           'source_xpc_activation':p.get('source_xpc_activation'),
+          'source_tool_dispatch':p.get('source_tool_dispatch'),
+          'prebuild_command_verified':'SERVICE_RUNTIME_PREBUILD_COMMAND_OK' in text,
+          'source_metadata_root_name':p.get('source_metadata_root_name'),
+          'source_vchroot_links':p.get('source_vchroot_links'),
+          'source_global_fsevents':p.get('source_global_fsevents'),
+          'source_global_fsevents_framework':p.get('source_global_fsevents_framework'),
           'source_corpse_map_errors':p.get('source_corpse_map_errors'),
           'corpse_map_selected_runtime':p.get('corpse_map_selected_runtime'),
           'source_recursive_history_fsevents':p.get('source_recursive_history_fsevents'),
@@ -324,6 +350,6 @@ if args.mount_flags:record['source_mount_flags']=p['source_mount_flags']
 if args.iokitd_matching:record['source_iokitd_matching']=p['source_iokitd_matching']
 if args.iokitd_power:record['source_iokitd_power']=p['source_iokitd_power']
 if args.log_compose:record['source_log_compose']=p['source_log_compose']
-if args.fsevents_device:record.update(source_fsevents_device=p['source_fsevents_device'],probe_configuration=vars(args))
+if args.fsevents_device:record.update(source_fsevents_device=p['source_fsevents_device'],probe_configuration=json.loads(json.dumps(vars(args),default=str)))
 (root / ('artifacts/' + stem + '.json')).write_text(json.dumps(record, indent=2) + '\n')
 raise SystemExit(result.returncode)

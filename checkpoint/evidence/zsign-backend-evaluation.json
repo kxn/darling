@@ -1,0 +1,44 @@
+{
+  "checked_at": "2026-10-19T04:19:58.938648+00:00",
+  "candidate_only": true,
+  "user_preference": "Optional zsign backend; preserving original codesign frontend is a preference, not a hard requirement or a reason to delay other engine/build work.",
+  "original_frontend": {
+    "imports": "logs/codesign-signing-imports.log",
+    "imports_sha256": "20c902eba0cecc1e7c6fea91eee4fcd65c7c4057eb999f08d6f646cd79b369b0",
+    "actual_entrypoints": [
+      "SecCodeSignerCreate",
+      "SecCodeSignerAddSignatureWithErrors",
+      "SecStaticCodeCreateWithPathAndAttributes",
+      "SecStaticCodeCheckValidityWithErrors",
+      "SecItemCopyMatching",
+      "SecIdentityCopyCertificate",
+      "SecIdentityCopyPrivateKey"
+    ],
+    "sources": {
+      "vendor/darling/src/external/security/OSX/libsecurity_codesigning/lib/SecCodeSigner.cpp": "1fa9a061d8f68c2b5dd844cde3328105ba410959ecbeaf118ef437e2dc59ae57",
+      "vendor/darling/src/external/security/OSX/libsecurity_codesigning/lib/SecCodeSigner.h": "94a9e6bab32d170afa0e2c329d441940685af10c6297c94e03a8f60b95431caa"
+    },
+    "adhoc_identity_parameter": "kSecCodeSignerIdentity = kCFNull",
+    "not_a_public_backend_switch": true,
+    "loader_dependency_still_missing": "AppleMobileFileIntegrity.framework"
+  },
+  "zsign_test": "artifacts/zsign-adhoc-test.json",
+  "zsign_test_sha256": "f5929961e9802686dcc6c222508de212d4840b1e1fcb32d1a47b24ece1fe38e1",
+  "verified_scope": "Linux zsign signed the actual Xcode-produced iOS app; independent page, Info.plist, requirement, resource-directory and file seals verified. Code/Info/resource/addition tampering rejected.",
+  "not_verified": [
+    "Original codesign frontend with zsign backend",
+    "Darling-to-Linux signing dispatch",
+    "Xcode signing task compatibility",
+    "Certificates/provisioning/device trust",
+    "Nested Unity/UE framework signatures",
+    "Archive/export"
+  ],
+  "possible_integration": [
+    "Darling Security signing API provider to zsign, retaining original frontend; also needs identity lookup and honest verify/error reporting.",
+    "A codesign command adapter for the concrete Xcode argv set if retaining the original frontend costs too much."
+  ],
+  "next_work": [
+    "Continue actual Unity/UE-related build resource and archive paths.",
+    "Keep zsign as a tested candidate; select the integration boundary based on actual missing modules."
+  ]
+}

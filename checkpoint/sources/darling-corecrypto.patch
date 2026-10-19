@@ -1,3 +1,12 @@
+diff --git a/.gitmodules b/.gitmodules
+index 327ab11..e6e9f4a 100644
+--- a/.gitmodules
++++ b/.gitmodules
+@@ -1,3 +1,3 @@
+ [submodule "tests/ctest"]
+ 	path = tests/ctest
+-	url = ../ctest.git
++	url = https://github.com/darlinghq/ctest.git
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 364bc17..7d3f0ae 100644
 --- a/CMakeLists.txt

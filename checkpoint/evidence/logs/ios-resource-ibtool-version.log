@@ -1,0 +1,9 @@
+Warning: failed to increase FD rlimit: Operation not permitted
+notifyd: XPC matching publisher unavailable; direct Mach notification transport active
+dyld: Library not loaded: /System/Library/PrivateFrameworks/CoreSVG.framework/Versions/A/CoreSVG
+  Referenced from: /Applications/Xcode.app/Contents/Frameworks/AssetCatalogFoundation.framework/Versions/A/AssetCatalogFoundation
+  Reason: image not found
+abort_with_payload: reason: dyld: No shared cache present
+Library not loaded: /System/Library/PrivateFrameworks/CoreSVG.framework/Versions/A/CoreSVG
+  Referenced from: /Applications/Xcode.app/Contents/Frameworks/AssetCatalogFoundation.framework/Versions/A/AssetCatalogFoundation
+  Reason: image not found; code: 1

@@ -3,6 +3,7 @@ from pathlib import Path
 import hashlib,json
 root=Path(__file__).resolve().parent.parent
 histories=[
+    'artifacts/global-fsevents-initial-history/manifest.json',
     'artifacts/fsevents-history-initial-history/manifest.json',
     'artifacts/xcode-initialization-initial-history/manifest.json',
     'artifacts/mobileasset-query-initial-history/manifest.json',

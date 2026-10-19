@@ -1,0 +1,19 @@
+{
+  "name": "LocalMath",
+  "version": "0.1.0",
+  "summary": "Local dependency for Linux Darling integration checks.",
+  "homepage": "https://example.invalid/LocalMath",
+  "license": {
+    "type": "MIT",
+    "text": "Copyright 2026. Permission is granted to use, copy, modify and distribute this test fixture without warranty."
+  },
+  "authors": "Linuxcode",
+  "source": {
+    "git": "https://example.invalid/LocalMath.git",
+    "tag": "0.1.0"
+  },
+  "platforms": {
+    "ios": "15.0"
+  },
+  "source_files": "*.{c,h}"
+}

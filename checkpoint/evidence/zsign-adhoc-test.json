@@ -1,0 +1,55 @@
+{
+  "checked_at": "2026-10-19T04:18:59.895221+00:00",
+  "command": [
+    "/home/dl/linuxcode/runtime/zsign-linux/zsign",
+    "-a",
+    "-f",
+    "/home/dl/linuxcode/runtime/zsign-adhoc-g1qsvsmg/iOSCocoaPodsSmoke.app"
+  ],
+  "build": {
+    "checked_at": "2026-10-19T04:18:59.851116+00:00",
+    "source": {
+      "repository": "https://github.com/zhlynn/zsign.git",
+      "revision": "614caa8d1ca949e260e5746144aa52d27a4b08d6",
+      "license": "MIT",
+      "purpose": "Evaluate a real signing backend while retaining original xcodebuild CI commands"
+    },
+    "command": [
+      "make",
+      "-C",
+      "/home/dl/linuxcode/vendor/zsign/build/linux",
+      "-j8",
+      "BINDIR=/home/dl/linuxcode/runtime/zsign-linux"
+    ],
+    "binary": "runtime/zsign-linux/zsign",
+    "binary_sha256": "feef67619579ef73d03ec1daa84640131b312f76eab6728dddf3cd746f958afd",
+    "log": "logs/zsign-linux-source-build.log",
+    "log_sha256": "37edbfe75a948dbf391b7e1de7d10f785e00ab00079e8f01c770b04df1a9c56b",
+    "version": "version: 1.1.2",
+    "installed": false,
+    "Darwin_frontend_integration_verified": false
+  },
+  "log": "runtime/zsign-adhoc-g1qsvsmg/sign.log",
+  "log_sha256": "0b5aceb5aced11fe33341ac8039e930b482452f10402e5aef65c4169dbb815c5",
+  "application": "runtime/zsign-adhoc-g1qsvsmg/iOSCocoaPodsSmoke.app",
+  "signature_checks": {
+    "verified": true,
+    "code_pages": 18,
+    "special_slots": 3,
+    "sealed_resources": 3,
+    "identifier": "org.linuxcode.iOSCocoaPodsSmoke",
+    "hash_algorithm": "sha256",
+    "certificate_or_device_trust_verified": false
+  },
+  "rejected_tampering": [
+    "code-page",
+    "valid-modified-Info.plist",
+    "sealed-resource",
+    "unsigned-added-resource"
+  ],
+  "verified": true,
+  "original_codesign_verify_executed": false,
+  "provisioned_device_signing_verified": false,
+  "xcodebuild_signing_step_integrated": false,
+  "native_original_frontend_preserved": false
+}

@@ -1,0 +1,14 @@
+{
+  "primary_source": "https://raw.githubusercontent.com/ruby/ruby/v2_6_3/dir.c",
+  "source": "runtime/global-fsevents-tests/ruby-2.6.3-dir.c",
+  "source_sha256": "de5f0db36542408fd57a6cd82ddd133998c9c5dc934049c17d880dcd83d962b5",
+  "observation": "Ruby absolute glob canonicalizes literal components via getattrlist NAME and OBJTYPE. Darwin virtual SystemRoot NAME incorrectly returned the entire trailing-slash path; relative globs and directory listing worked.",
+  "logs": {
+    "logs/ios-cocoapods-source-glob.log": "ce00cd7a8192def20bf5a7cd5112f09d8cdbfe93817c7e1f40f4a872fc316b72",
+    "logs/ios-cocoapods-path-list.log": "d58df0ae256eb0e1fe9b24f7ed24cb5102d5f9d82e167be500a8fcff9ae01982",
+    "logs/ios-cocoapods-absolute-glob-components.log": "b8d138629a24258b885bdc8ac0d9b16f08958d4beee1fbb320a6a88423c9b032"
+  },
+  "native_baseline": "artifacts/metadata-root-name-baseline.json",
+  "native_fixed": "artifacts/metadata-root-name-fixed.json",
+  "verified_root_cause": true
+}

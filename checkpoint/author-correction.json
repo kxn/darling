@@ -1,0 +1,97 @@
+{
+  "corrected_at": "2026-10-19T04:48:27.032881+00:00",
+  "identity": "Comman Kang <kangxn@gmail.com>",
+  "github_account": "kxn",
+  "component_commits": [
+    {
+      "repository": "vendor/darling/src/external/corecrypto",
+      "old": "b087c6dfd4ad186f2a098a56d42543728fd1a8a1",
+      "new": "d3a7b2fa1512faac3fab3b84f67cbc41e1e41807",
+      "code_tree_unchanged": true,
+      "gitlink_updates": []
+    },
+    {
+      "repository": "vendor/darling/src/external/corecrypto",
+      "old": "075b00c4aa006245bc25e15c792d10de7a273d0c",
+      "new": "a38dc4eaf72b52828adba9f6ac9bd2b6ed456328",
+      "code_tree_unchanged": true,
+      "gitlink_updates": []
+    },
+    {
+      "repository": "vendor/darling/src/external/IOKitUser",
+      "old": "7cb8b75f09d585d81dc8ed8562188c2c1d12405f",
+      "new": "f79fcc99da0e72f4f696932db2433023f563f54e",
+      "code_tree_unchanged": true,
+      "gitlink_updates": []
+    },
+    {
+      "repository": "vendor/darling/src/external/IOKitUser",
+      "old": "9a713f1826f749ef795df4cc0b3c72132a458d1e",
+      "new": "f9f511006d51695dfc451d02d02065f2839bae9d",
+      "code_tree_unchanged": true,
+      "gitlink_updates": []
+    },
+    {
+      "repository": "vendor/darling/src/external/xnu",
+      "old": "7269c1eec89862bca7903c1ca4c35d2f1b4794b2",
+      "new": "75eabd3bedadac9873f26002421787d685084d42",
+      "code_tree_unchanged": true,
+      "gitlink_updates": []
+    },
+    {
+      "repository": "vendor/darlingserver",
+      "old": "e23c9bd7ee5305a672b235e8f2bf3e0814898872",
+      "new": "f882ba62ce8efcd5769a7b874beeab4d59b11e19",
+      "code_tree_unchanged": true,
+      "gitlink_updates": []
+    },
+    {
+      "repository": "vendor/darling",
+      "old": "05449a09ac8be0a0833cde642d9d26372a0c0fe8",
+      "new": "1e20cfc20c20ef1ff83a5a7b93f1c0271c07c732",
+      "code_tree_unchanged": false,
+      "gitlink_updates": [
+        [
+          "src/external/IOKitUser",
+          "7cb8b75f09d585d81dc8ed8562188c2c1d12405f",
+          "f79fcc99da0e72f4f696932db2433023f563f54e"
+        ],
+        [
+          "src/external/corecrypto",
+          "b087c6dfd4ad186f2a098a56d42543728fd1a8a1",
+          "d3a7b2fa1512faac3fab3b84f67cbc41e1e41807"
+        ],
+        [
+          "src/external/xnu",
+          "7269c1eec89862bca7903c1ca4c35d2f1b4794b2",
+          "75eabd3bedadac9873f26002421787d685084d42"
+        ]
+      ]
+    },
+    {
+      "repository": "vendor/darling",
+      "old": "d6fbf9116729aa9ef94a68d1b117e91aba7f8309",
+      "new": "6193e62314080949debb215e1b329906a8e8d2b4",
+      "code_tree_unchanged": false,
+      "gitlink_updates": [
+        [
+          "src/external/IOKitUser",
+          "9a713f1826f749ef795df4cc0b3c72132a458d1e",
+          "f9f511006d51695dfc451d02d02065f2839bae9d"
+        ],
+        [
+          "src/external/corecrypto",
+          "075b00c4aa006245bc25e15c792d10de7a273d0c",
+          "a38dc4eaf72b52828adba9f6ac9bd2b6ed456328"
+        ],
+        [
+          "src/external/xnu",
+          "7269c1eec89862bca7903c1ca4c35d2f1b4794b2",
+          "75eabd3bedadac9873f26002421787d685084d42"
+        ]
+      ]
+    }
+  ],
+  "all_247_modified_source_file_hashes_unchanged": true,
+  "reason": "Replace the agent placeholder Git author and committer with the repository owner identity. Fixed snapshots are tags; the integration repository uses main."
+}

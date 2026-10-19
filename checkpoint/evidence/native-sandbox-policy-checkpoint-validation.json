@@ -1,9 +1,9 @@
 {
-  "checked_at": "2026-10-19T01:41:31.682388+00:00",
+  "checked_at": "2026-10-19T04:15:28.756203+00:00",
   "primary_report": "artifacts/native-crypto-progress.json",
-  "primary_report_sha256": "03060881cad0bddaa0af197085c31f05ee4cb0b2c48d44d3cf629a96c7a1c5f6",
+  "primary_report_sha256": "9315434babac12becb8c3a30747a0d749590b6986d2955178371eec3d38712b4",
   "policy_report_sha256": "fb1ba9f6b4556cc97fe61132da65f6a59553ab1728872837c6092cd6ddec51a0",
-  "current_file_hashes_verified": 8399,
+  "current_file_hashes_verified": 8766,
   "policy_file_hashes_verified": 700,
   "prior_native_crypto_evidence_verified": 2268,
   "prior_policy_checkpoint_evidence_verified": 2391,
@@ -29,7 +29,7 @@
   "diskarbitration_file_hashes_verified": 3906,
   "supplemental_unrestricted_fsevents_recorder_preserved": true,
   "supplemental_filesystem_recorder_preserved": true,
-  "scripts_syntax_verified": 205,
+  "scripts_syntax_verified": 224,
   "historical_recorders_verified": 33,
   "supplemental_policy_recorder_preserved": true,
   "supplemental_launchd_recorder_preserved": true,
@@ -40,6 +40,5 @@
   "shared_baseline_server_unchanged": true,
   "original_xcode_unchanged": true,
   "goal_complete": false,
-  "verifier_sha256": "6264f13d73ed406f47564b11dba1f8df846da185971e67506219fc04fb61225c",
-  "checkpoint_note": "Selected fields from the local report, not a full artifact archive; see local-evidence-index.json."
+  "verifier_sha256": "a2270d3094e602e840b3e8f64186492535051d3b7c3440152223d4faac5c2d0a"
 }

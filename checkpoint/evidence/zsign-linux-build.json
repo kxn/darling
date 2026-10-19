@@ -1,0 +1,23 @@
+{
+  "checked_at": "2026-10-19T04:18:59.851116+00:00",
+  "source": {
+    "repository": "https://github.com/zhlynn/zsign.git",
+    "revision": "614caa8d1ca949e260e5746144aa52d27a4b08d6",
+    "license": "MIT",
+    "purpose": "Evaluate a real signing backend while retaining original xcodebuild CI commands"
+  },
+  "command": [
+    "make",
+    "-C",
+    "/home/dl/linuxcode/vendor/zsign/build/linux",
+    "-j8",
+    "BINDIR=/home/dl/linuxcode/runtime/zsign-linux"
+  ],
+  "binary": "runtime/zsign-linux/zsign",
+  "binary_sha256": "feef67619579ef73d03ec1daa84640131b312f76eab6728dddf3cd746f958afd",
+  "log": "logs/zsign-linux-source-build.log",
+  "log_sha256": "37edbfe75a948dbf391b7e1de7d10f785e00ab00079e8f01c770b04df1a9c56b",
+  "version": "version: 1.1.2",
+  "installed": false,
+  "Darwin_frontend_integration_verified": false
+}

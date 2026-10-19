@@ -1,3 +1,16 @@
+diff --git a/.gitmodules b/.gitmodules
+index 968a16f..e24581c 100644
+--- a/.gitmodules
++++ b/.gitmodules
+@@ -1,6 +1,6 @@
+ [submodule "IOGraphics"]
+ 	path = darling/submodules/IOGraphics
+-	url = ../darling-IOGraphics.git
++	url = https://github.com/darlinghq/darling-IOGraphics.git
+ [submodule "IOHIDFamily"]
+ 	path = darling/submodules/IOHIDFamily
+-	url = ../darling-IOHIDFamily.git
++	url = https://github.com/darlinghq/darling-IOHIDFamily.git
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 76bf733..76997c9 100644
 --- a/CMakeLists.txt

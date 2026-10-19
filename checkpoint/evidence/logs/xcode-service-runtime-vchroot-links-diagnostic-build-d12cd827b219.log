@@ -1,0 +1,485 @@
+Warning: failed to increase FD rlimit: Operation not permitted
+notifyd: XPC matching publisher unavailable; direct Mach notification transport active
++ set -e
++ launchctl remove com.apple.FileCoordination
+launchctl remove error: No such file or directory
++ true
++ launchctl load /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-cfprefsd-daemon.plist
+Could not open job overrides database at: /private/var/db/launchd.db/com.apple.launchd/overrides.plist: 2: No such file or directory
++ launchctl load /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-filecoordination.plist
+Could not open job overrides database at: /private/var/db/launchd.db/com.apple.launchd/overrides.plist: 2: No such file or directory
++ launchctl load /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-configd.plist
+Could not open job overrides database at: /private/var/db/launchd.db/com.apple.launchd/overrides.plist: 2: No such file or directory
++ launchctl load /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-diskarbitrationd.plist
+Could not open job overrides database at: /private/var/db/launchd.db/com.apple.launchd/overrides.plist: 2: No such file or directory
++ launchctl load /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-coreservicesd.plist
+Could not open job overrides database at: /private/var/db/launchd.db/com.apple.launchd/overrides.plist: 2: No such file or directory
++ launchctl load /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-dirhelper.plist
+Could not open job overrides database at: /private/var/db/launchd.db/com.apple.launchd/overrides.plist: 2: No such file or directory
++ launchctl load /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-lsd.plist
+Could not open job overrides database at: /private/var/db/launchd.db/com.apple.launchd/overrides.plist: 2: No such file or directory
++ trap 'launchctl remove com.apple.lsd >/dev/null 2>&1; launchctl remove com.apple.bsd.dirhelper >/dev/null 2>&1; launchctl remove com.apple.coreservicesd >/dev/null 2>&1; launchctl remove com.apple.diskarbitrationd >/dev/null 2>&1; launchctl remove com.apple.configd >/dev/null 2>&1; launchctl remove com.apple.FileCoordination >/dev/null 2>&1; launchctl remove com.apple.cfprefsd.xpc.daemon >/dev/null 2>&1' EXIT
++ launchctl list com.apple.cfprefsd.xpc.daemon
+{
+	"Label" = "com.apple.cfprefsd.xpc.daemon";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = true;
+	"LastExitStatus" = 0;
+	"PID" = 60;
+	"TimeOut" = 30;
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-cfprefsd-daemon.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-cfprefsd-daemon.log";
+	"ProgramArguments" = (
+		"/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/cfprefsd";
+		"daemon";
+	);
+	"EnableTransactions" = true;
+	"MachServices" = {
+		"com.apple.cfprefsd.daemon" = mach-port-object;
+	};
+};
++ launchctl list com.apple.FileCoordination
+{
+	"Label" = "com.apple.FileCoordination";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = true;
+	"LastExitStatus" = 0;
+	"TimeOut" = 30;
+	"Program" = "/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/filecoordinationd";
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-filecoordination.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-filecoordination.log";
+	"MachServices" = {
+		"com.apple.ProgressReporting" = mach-port-object;
+		"com.apple.FileCoordination" = mach-port-object;
+		"com.apple.FileCoordination.kernel.ipc" = mach-port-object;
+	};
+};
++ launchctl list com.apple.configd
+{
+	"Label" = "com.apple.configd";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = false;
+	"LastExitStatus" = 0;
+	"PID" = 36;
+	"TimeOut" = 30;
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-configd.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-configd.log";
+	"ProgramArguments" = (
+		"/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/configd";
+	);
+	"EnableTransactions" = true;
+	"MachServices" = {
+		"com.apple.networking.captivenetworksupport" = mach-port-object;
+		"com.apple.SystemConfiguration.NetworkInformation" = mach-port-object;
+		"com.apple.SystemConfiguration.PPPController-priv" = mach-port-object;
+		"com.apple.SystemConfiguration.configd" = mach-port-object;
+		"com.apple.SystemConfiguration.configd.watchdog" = mach-port-object;
+		"com.apple.network.EAPOLController" = mach-port-object;
+		"com.apple.SystemConfiguration.DNSConfiguration" = mach-port-object;
+		"com.apple.SystemConfiguration.PPPController" = mach-port-object;
+		"com.apple.network.IPConfiguration" = mach-port-object;
+		"com.apple.SystemConfiguration.IPMonitorControl" = mach-port-object;
+		"com.apple.SystemConfiguration.NetworkCategoryManager" = mach-port-object;
+	};
+};
++ launchctl list com.apple.diskarbitrationd
+{
+	"Label" = "com.apple.diskarbitrationd";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = false;
+	"LastExitStatus" = 0;
+	"PID" = 38;
+	"TimeOut" = 30;
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-diskarbitrationd.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-diskarbitrationd.log";
+	"ProgramArguments" = (
+		"/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/diskarbitrationd";
+	);
+	"EnableTransactions" = true;
+	"MachServices" = {
+		"com.apple.DiskArbitration.diskarbitrationd" = mach-port-object;
+	};
+};
++ launchctl list com.apple.coreservicesd
+{
+	"Label" = "com.apple.coreservicesd";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = true;
+	"LastExitStatus" = 0;
+	"PID" = 41;
+	"TimeOut" = 30;
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-coreservicesd.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-coreservicesd.log";
+	"ProgramArguments" = (
+		"/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/coreservicesd";
+	);
+	"EnableTransactions" = true;
+	"MachServices" = {
+		"com.apple.CoreServices.coreservicesd" = mach-port-object;
+	};
+};
++ launchctl list com.apple.bsd.dirhelper
+{
+	"Label" = "com.apple.bsd.dirhelper";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = true;
+	"LastExitStatus" = 0;
+	"PID" = 47;
+	"TimeOut" = 30;
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-dirhelper.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-dirhelper.log";
+	"ProgramArguments" = (
+		"/Volumes/SystemRoot/workspace/runtime/native-dirhelper/dirhelper";
+	);
+	"MachServices" = {
+		"com.apple.bsd.dirhelper" = mach-port-object;
+	};
+};
++ launchctl list com.apple.lsd
+{
+	"Label" = "com.apple.lsd";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = true;
+	"LastExitStatus" = 0;
+	"PID" = 56;
+	"TimeOut" = 30;
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-lsd.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-lsd.log";
+	"ProgramArguments" = (
+		"/Volumes/SystemRoot/workspace/runtime/native-lsd/lsd";
+		"runAsRoot";
+	);
+	"EnableTransactions" = true;
+	"MachServices" = {
+		"com.apple.lsd.open" = mach-port-object;
+		"com.apple.lsd.advertisingidentifiers" = mach-port-object;
+		"com.apple.lsd.trustedsignatures" = mach-port-object;
+		"com.apple.lsd.encryption" = mach-port-object;
+		"com.apple.lsd.personaobserver" = mach-port-object;
+		"com.apple.lsd.mapdb" = mach-port-object;
+		"com.apple.lsd.modifydb" = mach-port-object;
+		"com.apple.lsd.openurl" = mach-port-object;
+		"com.apple.lsd.extensions" = mach-port-object;
+		"com.apple.lsd.plugin" = mach-port-object;
+		"com.apple.lsd.diagnostics" = mach-port-object;
+		"com.apple.lsd.dissemination" = mach-port-object;
+		"com.apple.security.translocation" = mach-port-object;
+	};
+};
++ /Volumes/SystemRoot/workspace/artifacts/uniform-type-identifiers-native
+NATIVE_UTI_SWIFT_MAIN_ENTERED
+NATIVE_UTI_CASE_BEGIN public.plain-text
+NATIVE_UTI_IDENTIFIER_OK public.plain-text
+NATIVE_UTI_PREFERRED_EXTENSION_OK public.plain-text txt
+NATIVE_UTI_URL_EXTENSION_OK public.plain-text /tmp/darling-uti-report.txt
+NATIVE_UTI_CASE_BEGIN public.png
+NATIVE_UTI_IDENTIFIER_OK public.png
+NATIVE_UTI_PREFERRED_EXTENSION_OK public.png png
+NATIVE_UTI_URL_EXTENSION_OK public.png /tmp/darling-uti-report.png
+NATIVE_UTI_CASE_BEGIN public.json
+NATIVE_UTI_IDENTIFIER_OK public.json
+NATIVE_UTI_PREFERRED_EXTENSION_OK public.json json
+NATIVE_UTI_URL_EXTENSION_OK public.json /tmp/darling-uti-report.json
+NATIVE_UTI_CASE_BEGIN com.adobe.pdf
+NATIVE_UTI_IDENTIFIER_OK com.adobe.pdf
+NATIVE_UTI_PREFERRED_EXTENSION_OK com.adobe.pdf pdf
+NATIVE_UTI_URL_EXTENSION_OK com.adobe.pdf /tmp/darling-uti-report.pdf
+NATIVE_UTI_IDENTIFIERS_PREFERRED_EXTENSIONS_AND_URL_EXTENSIONS_OK
+NATIVE_UTI_CONFORMANCE_OK public.plain-text
+NATIVE_UTI_CONFORMANCE_OK public.png
+NATIVE_UTI_CONFORMANCE_OK public.json
+NATIVE_UTI_CONFORMANCE_OK com.adobe.pdf
+NATIVE_UTI_TYPED_TAG_CONFORMANCE_AND_URL_EXTENSION_OK
++ printf 'SERVICE_RUNTIME_UTI_PREFLIGHT_OK\n'
+SERVICE_RUNTIME_UTI_PREFLIGHT_OK
++ set +e
++ printf 'SERVICE_RUNTIME_XCODE_INVOCATION_BEGIN\n'
+SERVICE_RUNTIME_XCODE_INVOCATION_BEGIN
++ /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project /Volumes/SystemRoot/workspace/fixtures/XcodeSmoke/XcodeSmoke.xcodeproj -scheme XcodeSmoke -sdk macosx -configuration Debug -derivedDataPath /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData CODE_SIGNING_ALLOWED=NO build
+2026-10-19 03:46:14.890 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in Combine.framework: Missing Info.plist
+2026-10-19 03:46:14.891 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in CryptoTokenKit.framework: Missing Info.plist
+2026-10-19 03:46:14.891 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in AtomicsInternal.framework: Missing Info.plist
+2026-10-19 03:46:14.891 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in CFNetwork.framework: Missing Info.plist
+2026-10-19 03:46:14.891 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in CarbonCore.framework: Missing Info.plist
+2026-10-19 03:46:14.892 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in CoreData.framework: Missing Info.plist
+2026-10-19 03:46:14.892 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in CoreFoundation.framework: Missing Info.plist
+2026-10-19 03:46:14.892 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in Foundation.framework: Missing Info.plist
+2026-10-19 03:46:14.892 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in InternalSwiftProtobuf.framework: Missing Info.plist
+2026-10-19 03:46:14.892 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in Network.framework: Missing Info.plist
+2026-10-19 03:46:14.893 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in ReflectionInternal.framework: Missing Info.plist
+2026-10-19 03:46:14.893 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in RuntimeInternal.framework: Missing Info.plist
+2026-10-19 03:46:14.893 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in SwiftData.framework: Missing Info.plist
+2026-10-19 03:46:14.893 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in UserManagement.framework: Missing Info.plist
+2026-10-19 03:46:14.893 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in FSEvents.framework: Missing Info.plist
+2026-10-19 03:46:14.894 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in CoreGraphics.framework: Missing Info.plist
+2026-10-19 03:46:14.894 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in ImageIO.framework: Missing Info.plist
+2026-10-19 03:46:14.894 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in LocalAuthentication.framework: Missing Info.plist
+2026-10-19 03:46:14.895 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in LoggingSupport.framework: Missing Info.plist
+2026-10-19 03:46:14.895 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in AppServerSupport.framework: Missing Info.plist
+2026-10-19 03:46:14.895 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in MobileAsset.framework: Missing Info.plist
+2026-10-19 03:46:14.896 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in AggregateDictionary.framework: Missing Info.plist
+2026-10-19 03:46:14.896 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in AppleKeyStore.framework: Missing Info.plist
+2026-10-19 03:46:14.896 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in BaseBoard.framework: Missing Info.plist
+2026-10-19 03:46:14.896 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in CollectionsInternal.framework: Missing Info.plist
+2026-10-19 03:46:14.897 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in CoreNLP.framework: Missing Info.plist
+2026-10-19 03:46:14.897 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in CoreServicesStore.framework: Missing Info.plist
+2026-10-19 03:46:14.897 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in IOAccelerator.framework: Missing Info.plist
+2026-10-19 03:46:14.898 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in IOSurface.framework: Missing Info.plist
+2026-10-19 03:46:14.898 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in LaunchServices.framework: Missing Info.plist
+2026-10-19 03:46:14.898 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in Metadata.framework: Missing Info.plist
+2026-10-19 03:46:14.899 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in MetadataUtilities.framework: Missing Info.plist
+2026-10-19 03:46:14.899 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in Metal.framework: Missing Info.plist
+2026-10-19 03:46:14.899 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in MobileKeyBag.framework: Missing Info.plist
+2026-10-19 03:46:14.900 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in RunningBoardServices.framework: Missing Info.plist
+2026-10-19 03:46:14.900 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in SwiftASN1Internal.framework: Missing Info.plist
+2026-10-19 03:46:14.901 xcodebuild[76:76] [MT] DVTPlugInManager: Skipping potentially-malformed plug-in Security.framework: Missing Info.plist
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project /Volumes/SystemRoot/workspace/fixtures/XcodeSmoke/XcodeSmoke.xcodeproj -scheme XcodeSmoke -sdk macosx -configuration Debug -derivedDataPath /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData CODE_SIGNING_ALLOWED=NO build
+
+Build settings from command line:
+    CODE_SIGNING_ALLOWED = NO
+    SDKROOT = macosx26.5
+
+2026-10-19 03:46:23.990 xcodebuild[76:78]  IDEDownloadableMetalToolchainCoordinator: Failed to remount the Metal Toolchain: No downloaded assets found: Failed querying assets for assetType (com.apple.MobileAsset.MetalToolchain), queryDict ({
+}), installedOnly (1)
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+2026-10-19 03:46:27.157 xcodebuild[76:76] [MT] IDERunDestination: Supported platforms for the buildables in the current scheme is empty.
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:macOS, arch:x86_64, id:ffffffffffffffffffffffffffffffffffffffff, name:My Mac }
+{ platform:macOS, name:Any Mac }
+Unsupported assertion type
+ComputePackagePrebuildTargetDependencyGraph
+2026-10-19 03:46:41.063 xcodebuild[76:80] Error Domain=NSPOSIXErrorDomain Code=61 "Connection refused" UserInfo={NSLocalizedDescription=Unable to lookup com.apple.CoreSimulator.CoreSimulatorService (1051.55) in the bootstrap.  This can happen if running with a sandbox profile.  When running with a sandbox profile, /Volumes/SystemRoot/workspace/runtime/xcode-system-resources/Library/Developer/PrivateFrameworks/CoreSimulator.framework/XPCServices/com.apple.CoreSimulator.CoreSimulatorService.xpc must be owned by root, not group writable, and not world writable.  See <rdar://problem/22142915>. isXBSChroot(): NO, XBS_IS_CHROOTED: (null)}
+2026-10-19 03:46:41.063 xcodebuild[76:80] Failed to load CoreSimulatorService.  Access to simulator services will not be available.  Error=Error Domain=NSPOSIXErrorDomain Code=61 "Connection refused" UserInfo={NSLocalizedDescription=Unable to lookup com.apple.CoreSimulator.CoreSimulatorService (1051.55) in the bootstrap.  This can happen if running with a sandbox profile.  When running with a sandbox profile, /Volumes/SystemRoot/workspace/runtime/xcode-system-resources/Library/Developer/PrivateFrameworks/CoreSimulator.framework/XPCServices/com.apple.CoreSimulator.CoreSimulatorService.xpc must be owned by root, not group writable, and not world writable.  See <rdar://problem/22142915>. isXBSChroot(): NO, XBS_IS_CHROOTED: (null)}
+2026-10-19 03:46:41.064 xcodebuild[76:80]  IDESimulatorAvailability: startObservingSimulatorUpdates() FAILED to register SimDeviceSet observer
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (1 target)
+    Target 'XcodeSmoke' in project 'XcodeSmoke' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/SDKStatCaches.noindex/macosx26.5-25F70-e082c4a02f00227109f4ed75e425c832.sdkstatcache
+    cd /Volumes/SystemRoot/workspace/fixtures/XcodeSmoke/XcodeSmoke.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk -o /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/SDKStatCaches.noindex/macosx26.5-25F70-e082c4a02f00227109f4ed75e425c832.sdkstatcache
+sys_proc_info(): Unsupported callnum: 9
+sys_proc_info(): Unsupported callnum: 9
+sys_proc_info(): Unsupported callnum: 9
+sys_proc_info(): Unsupported callnum: 9
+
+warning: Traditional headermap style is no longer supported; please migrate to using separate headermaps and set 'ALWAYS_SEARCH_USER_PATHS' to NO. (in target 'XcodeSmoke' from project 'XcodeSmoke')
+CompileC /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/Objects-normal/x86_64/main.o /Volumes/SystemRoot/workspace/fixtures/XcodeSmoke/main.c normal x86_64 c com.apple.compilers.llvm.clang.1_0.compiler (in target 'XcodeSmoke' from project 'XcodeSmoke')
+    cd /Volumes/SystemRoot/workspace/fixtures/XcodeSmoke
+    
+    Using response file: /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/Objects-normal/x86_64/7187679823f38a2a940e0043cdf9d637-common-args.resp
+    
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -x c -ivfsstatcache /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/SDKStatCaches.noindex/macosx26.5-25F70-e082c4a02f00227109f4ed75e425c832.sdkstatcache -target x86_64-apple-macos11.0 -fmessage-length\=0 -fdiagnostics-show-note-include-stack -fmacro-backtrace-limit\=0 -fno-color-diagnostics -Wno-trigraphs -Wno-missing-field-initializers -Wno-missing-prototypes -Wno-return-type -Wno-missing-braces -Wparentheses -Wswitch -Wno-unused-function -Wno-unused-label -Wno-unused-parameter -Wno-unused-variable -Wunused-value -Wno-empty-body -Wno-uninitialized -Wno-unknown-pragmas -Wno-shadow -Wno-four-char-constants -Wno-conversion -Wno-constant-conversion -Wno-int-conversion -Wno-bool-conversion -Wno-enum-conversion -Wno-float-conversion -Wno-non-literal-null-conversion -Wno-objc-literal-conversion -Wshorten-64-to-32 -Wpointer-sign -Wno-newline-eof -Wno-implicit-fallthrough -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk -fstrict-aliasing -Wdeprecated-declarations -Wno-sign-conversion -Wno-infinite-recursion -Wno-comma -Wno-block-capture-autoreleasing -Wno-strict-prototypes -Wno-semicolon-before-method-body @/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/Objects-normal/x86_64/7187679823f38a2a940e0043cdf9d637-common-args.resp -MMD -MT dependencies -MF /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/Objects-normal/x86_64/main.d --serialize-diagnostics /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/Objects-normal/x86_64/main.dia -c /Volumes/SystemRoot/workspace/fixtures/XcodeSmoke/main.c -o /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/Objects-normal/x86_64/main.o
+
+Ld /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Products/Debug/XcodeSmoke normal (in target 'XcodeSmoke' from project 'XcodeSmoke')
+    cd /Volumes/SystemRoot/workspace/fixtures/XcodeSmoke
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target x86_64-apple-macos11.0 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk -Os -L/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/EagerLinkingTBDs/Debug -L/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Products/Debug -F/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/EagerLinkingTBDs/Debug -F/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Products/Debug -filelist /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/Objects-normal/x86_64/XcodeSmoke.LinkFileList -Xlinker -object_path_lto -Xlinker /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/Objects-normal/x86_64/XcodeSmoke_lto.o -Xlinker -dependency_info -Xlinker /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Intermediates.noindex/XcodeSmoke.build/Debug/XcodeSmoke.build/Objects-normal/x86_64/XcodeSmoke_dependency_info.dat -o /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Products/Debug/XcodeSmoke
+
+RegisterExecutionPolicyException /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Products/Debug/XcodeSmoke (in target 'XcodeSmoke' from project 'XcodeSmoke')
+    cd /Volumes/SystemRoot/workspace/fixtures/XcodeSmoke
+    builtin-RegisterExecutionPolicyException /Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/DerivedData/Build/Products/Debug/XcodeSmoke
+
+_io_pm_assertion_retain_release() cannot find assertion 32753
+** BUILD SUCCEEDED **
+
++ status=0
++ printf 'SERVICE_RUNTIME_XCODE_STATUS %s\n' 0
+SERVICE_RUNTIME_XCODE_STATUS 0
++ launchctl list com.apple.cfprefsd.xpc.daemon
+{
+	"Label" = "com.apple.cfprefsd.xpc.daemon";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = true;
+	"LastExitStatus" = 0;
+	"PID" = 60;
+	"TimeOut" = 30;
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-cfprefsd-daemon.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-cfprefsd-daemon.log";
+	"ProgramArguments" = (
+		"/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/cfprefsd";
+		"daemon";
+	);
+	"EnableTransactions" = true;
+	"MachServices" = {
+		"com.apple.cfprefsd.daemon" = mach-port-object;
+	};
+};
++ launchctl list com.apple.FileCoordination
+{
+	"Label" = "com.apple.FileCoordination";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = true;
+	"LastExitStatus" = 0;
+	"PID" = 89;
+	"TimeOut" = 30;
+	"Program" = "/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/filecoordinationd";
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-filecoordination.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-filecoordination.log";
+	"MachServices" = {
+		"com.apple.ProgressReporting" = mach-port-object;
+		"com.apple.FileCoordination" = mach-port-object;
+		"com.apple.FileCoordination.kernel.ipc" = mach-port-object;
+	};
+};
++ launchctl list com.apple.configd
+{
+	"Label" = "com.apple.configd";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = false;
+	"LastExitStatus" = 0;
+	"PID" = 36;
+	"TimeOut" = 30;
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-configd.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-configd.log";
+	"ProgramArguments" = (
+		"/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/configd";
+	);
+	"EnableTransactions" = true;
+	"MachServices" = {
+		"com.apple.networking.captivenetworksupport" = mach-port-object;
+		"com.apple.SystemConfiguration.NetworkInformation" = mach-port-object;
+		"com.apple.SystemConfiguration.PPPController-priv" = mach-port-object;
+		"com.apple.SystemConfiguration.configd" = mach-port-object;
+		"com.apple.SystemConfiguration.configd.watchdog" = mach-port-object;
+		"com.apple.network.EAPOLController" = mach-port-object;
+		"com.apple.SystemConfiguration.DNSConfiguration" = mach-port-object;
+		"com.apple.SystemConfiguration.PPPController" = mach-port-object;
+		"com.apple.network.IPConfiguration" = mach-port-object;
+		"com.apple.SystemConfiguration.IPMonitorControl" = mach-port-object;
+		"com.apple.SystemConfiguration.NetworkCategoryManager" = mach-port-object;
+	};
+};
++ launchctl list com.apple.diskarbitrationd
+{
+	"Label" = "com.apple.diskarbitrationd";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = false;
+	"LastExitStatus" = 0;
+	"PID" = 38;
+	"TimeOut" = 30;
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-diskarbitrationd.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-diskarbitrationd.log";
+	"ProgramArguments" = (
+		"/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/diskarbitrationd";
+	);
+	"EnableTransactions" = true;
+	"MachServices" = {
+		"com.apple.DiskArbitration.diskarbitrationd" = mach-port-object;
+	};
+};
++ launchctl list com.apple.coreservicesd
+{
+	"Label" = "com.apple.coreservicesd";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = true;
+	"LastExitStatus" = 0;
+	"PID" = 41;
+	"TimeOut" = 30;
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-coreservicesd.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-coreservicesd.log";
+	"ProgramArguments" = (
+		"/Volumes/SystemRoot/workspace/runtime/xcode-service-runtime/coreservicesd";
+	);
+	"EnableTransactions" = true;
+	"MachServices" = {
+		"com.apple.CoreServices.coreservicesd" = mach-port-object;
+	};
+};
++ launchctl list com.apple.bsd.dirhelper
+{
+	"Label" = "com.apple.bsd.dirhelper";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = true;
+	"LastExitStatus" = 0;
+	"PID" = 47;
+	"TimeOut" = 30;
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-dirhelper.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-dirhelper.log";
+	"ProgramArguments" = (
+		"/Volumes/SystemRoot/workspace/runtime/native-dirhelper/dirhelper";
+	);
+	"MachServices" = {
+		"com.apple.bsd.dirhelper" = mach-port-object;
+	};
+};
++ launchctl list com.apple.lsd
+{
+	"Label" = "com.apple.lsd";
+	"LimitLoadToSessionType" = "System";
+	"OnDemand" = true;
+	"LastExitStatus" = 0;
+	"PID" = 56;
+	"TimeOut" = 30;
+	"StandardOutPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-lsd.log";
+	"StandardErrorPath" = "/Volumes/SystemRoot/workspace/logs/xcode-service-runtime-vchroot-links-diagnostic-build-d12cd827b219-lsd.log";
+	"ProgramArguments" = (
+		"/Volumes/SystemRoot/workspace/runtime/native-lsd/lsd";
+		"runAsRoot";
+	);
+	"EnableTransactions" = true;
+	"MachServices" = {
+		"com.apple.lsd.open" = mach-port-object;
+		"com.apple.lsd.advertisingidentifiers" = mach-port-object;
+		"com.apple.lsd.trustedsignatures" = mach-port-object;
+		"com.apple.lsd.encryption" = mach-port-object;
+		"com.apple.lsd.personaobserver" = mach-port-object;
+		"com.apple.lsd.mapdb" = mach-port-object;
+		"com.apple.lsd.modifydb" = mach-port-object;
+		"com.apple.lsd.openurl" = mach-port-object;
+		"com.apple.lsd.extensions" = mach-port-object;
+		"com.apple.lsd.plugin" = mach-port-object;
+		"com.apple.lsd.diagnostics" = mach-port-object;
+		"com.apple.lsd.dissemination" = mach-port-object;
+		"com.apple.security.translocation" = mach-port-object;
+	};
+};
++ exit 0
++ launchctl remove com.apple.lsd
+sys_proc_info(): Unsupported callnum: 7
++ launchctl remove com.apple.bsd.dirhelper
+sys_proc_info(): Unsupported callnum: 7
++ launchctl remove com.apple.coreservicesd
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+fsevents inventory lstat: /state/prefix/.darling-fsevents-id.pending: No such file or directory
+sys_proc_info(): Unsupported callnum: 7
++ launchctl remove com.apple.diskarbitrationd
+sys_proc_info(): Unsupported callnum: 7
++ launchctl remove com.apple.configd
+sys_proc_info(): Unsupported callnum: 7
++ launchctl remove com.apple.FileCoordination
+sys_proc_info(): Unsupported callnum: 7
++ launchctl remove com.apple.cfprefsd.xpc.daemon
+sys_proc_info(): Unsupported callnum: 7

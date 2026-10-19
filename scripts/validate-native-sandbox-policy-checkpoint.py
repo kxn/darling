@@ -34,7 +34,13 @@ assert not mobileasset_query['actual_project_compilation_started'] and not mobil
 assert primary['xpc_activation_materialize_progress']==xpc_materialize
 fsevents_history=read('artifacts/fsevents-history-progress.json')
 assert primary['fsevents_history_progress']==fsevents_history
-assert primary['current_candidate_runtime']==fsevents_history['source_runtime']
+global_fsevents=read('artifacts/global-fsevents-progress.json')
+assert primary['global_fsevents_progress']==global_fsevents
+assert primary['current_candidate_runtime']==global_fsevents['source_runtime']
+assert global_fsevents['shared_global_event_ids_implemented']
+assert global_fsevents['original_macos_test_project_build_succeeded']
+assert global_fsevents['produced_macos_program_execution_verified']
+assert not global_fsevents['full_xcode_build_ready'] and not global_fsevents['signing_ready']
 assert fsevents_history['main_queue_CFRunLoop_history_consumer_terminates']
 assert fsevents_history['corpse_map_native_checks']==1808
 assert not fsevents_history['global_event_ids_implemented']

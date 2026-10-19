@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/zhlynn/zsign.git",
+  "revision": "614caa8d1ca949e260e5746144aa52d27a4b08d6",
+  "license": "MIT",
+  "purpose": "Evaluate a real signing backend while retaining original xcodebuild CI commands"
+}

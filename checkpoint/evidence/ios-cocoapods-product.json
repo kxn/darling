@@ -1,0 +1,27 @@
+{
+  "checked_at": "2026-10-19T04:11:41.200615+00:00",
+  "verified": true,
+  "platform": "iPhoneOS",
+  "architecture": "arm64",
+  "bundle_identifier": "org.linuxcode.iOSCocoaPodsSmoke",
+  "minimum_OS": "15.0",
+  "build_version": [
+    2,
+    983040,
+    1705216
+  ],
+  "real_Pod_archive_member": "LocalMath.o",
+  "real_Pod_symbol_linked": "_local_add",
+  "UIKit_entry_import": "_UIApplicationMain",
+  "files": {
+    "runtime/ios-cocoapods-build/DerivedData/Build/Products/Debug-iphoneos/iOSCocoaPodsSmoke.app/iOSCocoaPodsSmoke": "eb2024d379ec3232e4bac36b3b2eeef50d3e5723bafc6ff271320ce5562ca768",
+    "runtime/ios-cocoapods-build/DerivedData/Build/Products/Debug-iphoneos/LocalMath/libLocalMath.a": "416fcba491408611d4df210f493b62a3e7d6f738930d2cec428596fa92ee4059",
+    "runtime/ios-cocoapods-build/DerivedData/Build/Products/Debug-iphoneos/iOSCocoaPodsSmoke.app/Info.plist": "5589c41e4525860b72f98279cc1dd767db90897ee89a9a18682c0c4910d898d8",
+    "runtime/ios-cocoapods-build/DerivedData/Build/Products/Debug-iphoneos/iOSCocoaPodsSmoke.app/PkgInfo": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0",
+    "fixtures/iOSCocoaPodsSmoke/main.m": "601bafb78cf8834705832e661ce7487e2e9de878b981f2e6d331d55d79670dcf",
+    "fixtures/iOSCocoaPodsSmoke/LocalMath/LocalMath.c": "6aa31024edb8294b31add77a5d8d39e2c6189e93ad70d59f72a6fbf4453fe7c2"
+  },
+  "device_execution_verified": false,
+  "signing_verified": false,
+  "engine_generated_project": false
+}

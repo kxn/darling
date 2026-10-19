@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-19T01:40:51.213453+00:00",
+  "checked_at": "2026-10-19T04:14:48.326310+00:00",
   "goal_status": "active",
   "complete": false,
   "full_xcode_build_ready": false,
@@ -15,9 +15,9 @@
   "authenticated_decryption_and_tamper_checks": true,
   "original_CommonCrypto_CoreUtils_cases": 852,
   "CoreUtils_assertions": 13385084,
-  "original_xcode_build_status_marker": 65,
-  "build_wrapper_exit_status": -9,
-  "actual_project_compilation_started": false,
+  "original_xcode_build_status_marker": 0,
+  "build_wrapper_exit_status": 0,
+  "actual_project_compilation_started": true,
   "original_filecoordinationd_selected": true,
   "original_filecoordinationd_functional": false,
   "stock_Darling_filecoordination_protocol_matches_original": false,
@@ -28,293 +28,46 @@
   "hardware_SecureEnclave_verified": false,
   "LocalAuthentication_implemented": false,
   "source_changes": "Real SHA3-224/256/384/512, Curve25519/Ed25519 backed by pinned no-C++-runtime BoringSSL in the source candidate; selected execution now uses matched complete original Apple CoreCrypto/CommonCrypto/CryptoKit/C bridge/CryptoTokenKit, unchanged cryptographic calls, with a leaf-only original typed-allocator fallback. Genuine native-valued Security/token/auth constants added in Darling source. Original Xcode binary unchanged.",
+  "latest_original_project": "artifacts/xcode-service-runtime-tool-dispatch-diagnostic-build-c53d8a856d7e.json",
   "previous_goal_turn_classification": "progress",
   "current_goal_turn_classification": "progress",
-  "source_runtime": {
-    "LINUXCODE_DARLING_SERVER": {
-      "path": "runtime/xpc-sent-message-source/darlingserver",
-      "sha256": "85a1f81617e5155ffeb967d75560d327564e5a0db69e759004f3e3c12f499cae"
-    },
-    "LINUXCODE_LIBXPC": {
-      "path": "runtime/xpc-sent-message-source/libxpc.dylib",
-      "sha256": "47206adcc6b5d48056d0f9561c4fa678a3f8b39755d372384d77bbe981ad1226"
-    },
-    "LINUXCODE_LAUNCHD": {
-      "path": "runtime/xpc-sent-message-source/launchd",
-      "sha256": "f8500434446bd490af768a1a0a051a0073a0330f65b9dae1170ea78838bf471f"
-    },
-    "LINUXCODE_LIBSYSTEM_KERNEL": {
-      "path": "runtime/xpc-sent-message-source/libsystem_kernel.dylib",
-      "sha256": "0d2d44bfe593b4c87b40c880b79628ca16e31daf4c63e54615b44520ca9f92d7"
-    },
-    "LINUXCODE_QUARANTINE": {
-      "path": "runtime/xpc-sent-message-source/libquarantine.dylib",
-      "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
-    },
-    "LINUXCODE_SANDBOX": {
-      "path": "runtime/xpc-sent-message-source/libsystem_sandbox.dylib",
-      "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
-    },
-    "LINUXCODE_LIBDYLD": {
-      "path": "runtime/xpc-sent-message-source/libdyld.dylib",
-      "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
-    }
-  },
-  "selected_original_libraries": {
-    "corecrypto-original-native-v2": {
-      "exports": 1088,
-      "reconstruction_sha256": "b847b4972b13ee376131475fa0f34d887a65640a6684a363f112ad67ba99874e",
-      "typed_allocator_redirect": true
-    },
-    "commoncrypto-original-native": {
-      "exports": 245,
-      "reconstruction_sha256": "454ae356ee437b49b53b90cfbd293f665e583e0381c153831c5bb4fbe88e8ca6",
-      "typed_allocator_redirect": true
-    },
-    "cryptokit-native-original": {
-      "exports": 1823,
-      "reconstruction_sha256": "00695865db50b9c58a10c4c4c1f257337f1bb6ca5264bd7792a8c96f5b5d0160",
-      "typed_allocator_redirect": false
-    },
-    "cryptokit-cbridging-native-original": {
-      "exports": 29,
-      "reconstruction_sha256": "62c5092ea49d6658c02d6ef7c011345329c80153c1ef18c8dd2168c765631e47",
-      "typed_allocator_redirect": false
-    },
-    "crypto-token-kit-native-original": {
-      "exports": 207,
-      "reconstruction_sha256": "5e58a2222bce3cb17bacb38a907062a94483fad85dbd62969f1cd6557b6731d4",
-      "typed_allocator_redirect": false
-    },
-    "apple-archive-crypto-native": {
-      "exports": 232,
-      "reconstruction_sha256": "9c9820c845f2826355cbff79c40065e71b7dcb29aec3dbdc99791a868fee347d",
-      "typed_allocator_redirect": false
-    },
-    "swift-apple-archive-crypto-native": {
-      "exports": 909,
-      "reconstruction_sha256": "f1cc655dafe302d1a68e4deb5b7ef5ae520b1023d7e476fce9c043bd81bc9d44",
-      "typed_allocator_redirect": false
-    },
-    "swift-compression-archive-native": {
-      "exports": 70,
-      "reconstruction_sha256": "fd41ab3afa661c519d8943377676e51aff5efe087cfb0ffae27edb7cb1a5bd78",
-      "typed_allocator_redirect": false
-    },
-    "argument-parser-internal-native": {
-      "exports": 707,
-      "reconstruction_sha256": "05e761221ad0ca6a9c8ddbaf1eba9d3b52d8f4919bdaca4b9d9bda588cf64116",
-      "typed_allocator_redirect": false
-    }
-  },
-  "source_crypto_comparison_cases": {
-    "hkdf": 210,
-    "ctr": 81,
-    "sha3": 236,
-    "25519": 113
-  },
-  "native_crypto_comparison_cases": {
-    "hkdf": 210,
-    "ctr": 81,
-    "sha3": 236,
-    "25519": 113
-  },
-  "original_xcode_probes": {
-    "version": {
-      "report": "artifacts/xcode-service-runtime-nativecrypto-parser-hkdf-archive-sent-diskmanagement-dispatch-workqueue-cryptex-device-vfs-crypto-extended-mobile-generation-policy-expected-sandbox-typed-cloud-prefs-daemon-version.json",
-      "report_sha256": "f2eeba65701f1bf352bffef252d34524ab16e8fe0badd2af6b8919451503716f",
-      "wrapper_exit_status": 0,
-      "original_xcode_returned": true
-    },
-    "showsdks": {
-      "report": "artifacts/xcode-service-runtime-nativecrypto-parser-hkdf-archive-sent-diskmanagement-dispatch-workqueue-cryptex-device-vfs-crypto-extended-mobile-generation-policy-expected-sandbox-typed-cloud-prefs-daemon-showsdks.json",
-      "report_sha256": "8c83455f0077c053ac5baf254cd27028f547abeb132dd91f22ca42ca0f640138",
-      "wrapper_exit_status": 0,
-      "original_xcode_returned": true
-    },
-    "build": {
-      "report": "artifacts/xcode-service-runtime-coordination-nativecrypto-parser-hkdf-archive-sent-diskmanagement-dispatch-workqueue-cryptex-device-vfs-crypto-extended-mobile-generation-policy-expected-sandbox-typed-cloud-prefs-daemon-build.json",
-      "report_sha256": "dd01cbeb4206d84b64f42160ea9c01a82e03c2061307dede4af35bb4dc91311d",
-      "wrapper_exit_status": -9,
-      "original_xcode_returned": true
-    }
-  },
-  "original_CF_mount_enumerator_error": {
-    "domain": "NSCocoaErrorDomain",
-    "code": 256
-  },
-  "private_ABI_analysis": {
-    "legacy_Darling_CTR_offsets": {
-      "size": 0,
-      "block_size": 8,
-      "ecb_block_size": 16,
-      "init": 24,
-      "ctr": 32,
-      "setctr": 40,
-      "custom": 48
-    },
-    "current_native_CTR_offsets": {
-      "size": 0,
-      "block_size": 8,
-      "ecb_block_size": 16,
-      "init": 24,
-      "setctr": 32,
-      "ctr": 40,
-      "custom": 48
-    },
-    "primary_declaration_reference": "https://raw.githubusercontent.com/apple/corecrypto/main/ccmode/corecrypto/ccmode_impl.h",
-    "native_layout_probe": "logs/corecrypto-native-mode-layout.log",
-    "native_CTR_vectors_report": "artifacts/corecrypto-ctr-native-test.json",
-    "production_solution": "Select the matched complete original CommonCrypto library, so its private CoreCrypto callbacks use the original ABI. Test-only native struct view never changes runtime descriptors.",
-    "legacy_CoreCrypto_exports_absent_from_current_native": [
-      "_cc_muxp",
-      "_ccdh_compute_key",
-      "_ccdh_init_gp",
-      "_ccn_addmul1",
-      "_ccn_div_euclid",
-      "_ccn_mul",
-      "_ccn_mul1",
-      "_ccn_n",
-      "_ccn_random_bits",
-      "_ccn_set",
-      "_ccn_shift_left",
-      "_ccn_shift_right",
-      "_ccn_sub1",
-      "_ccn_zero_multi",
-      "_ccnistkdf_fb_hmac",
-      "_ccnistkdf_fb_hmac_fixed",
-      "_ccrsa_make_fips186_key",
-      "_ccrsa_verify_pss",
-      "_ccz_gcd",
-      "_ccz_invmod",
-      "_ccz_lcm",
-      "_ccz_lprint",
-      "_ccz_print",
-      "_ccz_sqr",
-      "_ccz_sqrmod",
-      "_cczp_init",
-      "_cczp_init_with_recip",
-      "_cczp_power"
-    ],
-    "legacy_private_ABI_complete": false,
-    "original_CodeSigning_verified": false
-  },
+  "original_macos_test_project_build_succeeded": true,
+  "ios_CocoaPods_project_build_succeeded": true,
   "current_candidate_runtime": {
     "LINUXCODE_DARLING_SERVER": {
-      "path": "runtime/corpse-map-normal/darlingserver",
-      "sha256": "3311166caf61eba87decb184b18d948f57d582be6849b6eb0b92c6ac9930ce7d"
+      "path": "runtime/xcode-tool-dispatch-v2-normal/darlingserver",
+      "sha256": "dd33ca62155a3e070620fa740db2c031c12f37abcce6057b480bb6488bd84001"
     },
     "LINUXCODE_LIBXPC": {
-      "path": "runtime/corpse-map-normal/libxpc.dylib",
+      "path": "runtime/xcode-tool-dispatch-v2-normal/libxpc.dylib",
       "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
     },
     "LINUXCODE_LAUNCHD": {
-      "path": "runtime/corpse-map-normal/launchd",
+      "path": "runtime/xcode-tool-dispatch-v2-normal/launchd",
       "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
     },
     "LINUXCODE_LIBSYSTEM_KERNEL": {
-      "path": "runtime/corpse-map-normal/libsystem_kernel.dylib",
-      "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
+      "path": "runtime/xcode-tool-dispatch-v2-normal/libsystem_kernel.dylib",
+      "sha256": "2d1c6db63c98f1f30576f76c443b59ab30ceb3e58ea718b5b6217e719b25675d"
     },
     "LINUXCODE_QUARANTINE": {
-      "path": "runtime/corpse-map-normal/libquarantine.dylib",
+      "path": "runtime/xcode-tool-dispatch-v2-normal/libquarantine.dylib",
       "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
     },
     "LINUXCODE_SANDBOX": {
-      "path": "runtime/corpse-map-normal/libsystem_sandbox.dylib",
+      "path": "runtime/xcode-tool-dispatch-v2-normal/libsystem_sandbox.dylib",
       "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
     },
     "LINUXCODE_LIBDYLD": {
-      "path": "runtime/corpse-map-normal/libdyld.dylib",
+      "path": "runtime/xcode-tool-dispatch-v2-normal/libdyld.dylib",
       "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
     }
   },
-  "archives": {
-    "artifacts/archive-crypto-history/manifest.json": {
-      "sha256": "3b217d90115c9581e60d5ca690b58f688e8238ca10658f3460db155950686b0a",
-      "verified_files": 347
-    },
-    "artifacts/native-crypto-recorder-history/manifest.json": {
-      "sha256": "cd5294e12912ffc03ca4017c644c295d24a2bbf61030e19a73c34b170315857a",
-      "verified_files": 33
-    },
-    "artifacts/crypto-token-parameters-source-history/manifest.json": {
-      "sha256": "5eb0c69811da277b375256d7df92604fbb15c93e83b2c5c705040757c3ab3412",
-      "verified_files": 1
-    },
-    "artifacts/security-cryptokit-profile-history/manifest.json": {
-      "sha256": "a913a874850a6a1b33b55f6474e6353ae79de25cb6dbddcffb5b2ccfb6f0b11f",
-      "verified_files": 1
-    },
-    "artifacts/native-corecrypto-precondition-history/manifest.json": {
-      "sha256": "8f2a2a021f1648738ddc6973485b9bd6425108b43156e41c17e5bee0a4acf719",
-      "verified_files": 4
-    }
-  },
   "next_work": [
-    "Implement a genuine shared filesystem event source and global ID namespace. Connect current-ID queries and stream delivery to it; preserve explicit MustScanSubDirs/UserDropped when history or recursive coverage is unavailable. Current per-stream counters do not satisfy this API.",
-    "Retest the unchanged original clang-stat-cache on initial generation and cache reuse after real SDK mutations, then continue the original xcodebuild project through CompileC/SwiftCompile and linking. Audit the observed one-off shutdown failure if it recurs; a subsequent SDK-listing run exited cleanly.",
-    "Continue complete Unity/CocoaPods, iOS/macOS archives, signing and export; strict Sandbox enforcement and other original runtime/service gaps remain incomplete.",
-    "Retry unchanged XcodeSmoke through actual CompileC/link and verify the produced program. Preserve real build-service task execution and inspect child environment selection as needed. CoreSimulator service bootstrap and CreatedByBuildSystem xattr warnings remain unresolved.",
-    "Continue full Unity/CocoaPods, iOS/macOS archive, signing and export; complete restrictive Sandbox, startup volumes, actual RunningBoard monitoring and other recorded runtime gaps. Current original RSA verification is not a signing/keychain/provisioning completion claim.",
-    "Audit the 28 missing legacy CoreCrypto private exports when exercised; signing, hardware/authentication and complete Xcode compilation remain unverified."
+    "Restore the actual AppleMobileFileIntegrity dependency of original codesign and verify real signatures, then complete archive/export and actual Unity/UE exported projects with CocoaPods.",
+    "Integrate verified runtime and per-tool library scope behind existing CI commands; default entry is not promoted.",
+    "Resolve remaining strict CoreServices policy, runtime lifecycle, resource-tool and filesystem event limitations based on actual failures."
   ],
-  "latest_original_xcode_probes": {
-    "version": {
-      "report": "artifacts/xcode-service-runtime-corpse-map-version-ff8bc230d149.json",
-      "sha256": "1d92066d1ed563c5ec1d983bf17ecbabe6566e5dd23dc95c937d4206fb227c20",
-      "exit_status": 0,
-      "UTI_preflight_verified": true,
-      "timeout_seconds": 40
-    },
-    "showsdks": {
-      "report": "artifacts/xcode-service-runtime-corpse-map-showsdks-f1e51b91f727.json",
-      "sha256": "cfd051a4892b46a8f937d409d6fd41f3b3677084888163dee16ed9a417afa3fd",
-      "exit_status": 0,
-      "UTI_preflight_verified": true,
-      "timeout_seconds": 120
-    },
-    "build": {
-      "report": "artifacts/xcode-service-runtime-corpse-map-diagnostic-build-7197c941f8f5.json",
-      "sha256": "43aee02b9399dc02c6a88e3481584aa1184dea43da0caac05850bf4544224d4e",
-      "exit_status": 65,
-      "UTI_preflight_verified": true,
-      "timeout_seconds": 180
-    }
-  },
-  "latest_original_project": {
-    "report": "artifacts/xcode-service-runtime-corpse-map-diagnostic-build-7197c941f8f5.json",
-    "sha256": "43aee02b9399dc02c6a88e3481584aa1184dea43da0caac05850bf4544224d4e",
-    "exit_status": 65,
-    "UTI_preflight_verified": true,
-    "timeout_seconds": 180
-  },
-  "latest_source_recursive_history_fsevents": {
-    "checked_at": "2026-10-19T01:30:06.191139+00:00",
-    "library": "runtime/fsevents-history-source/frameworks/FSEvents.framework/Versions/A/FSEvents",
-    "library_sha256": "f96ec0682d67f4017aee2d0cd7a7ce60d5abf1c765f0c621aad7f0210b2ce562",
-    "original": "runtime/rootfs/usr/libexec/darling/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/FSEvents",
-    "original_sha256": "d52dd0314f0b76b3d72b41798c38318562ecfef53a52381c0b5cfc7e22a49c1e",
-    "full_FSEvents_source_component_build": true,
-    "complete_source_files": 2,
-    "original_exports_preserved": 29,
-    "source_exports": 59,
-    "sources": {
-      "vendor/darling/src/frameworks/CoreServices/src/FSEvents/FSEvents.m": "4a3a4af4ebd07b4668881ebb72ec11f3bbd06569f247cde6aca1ec1d0e18f037",
-      "vendor/darling/src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.m": "02b68997e8b280391065b3016d89dfeea740c895e031d16be6bfc4fbfc13614f"
-    },
-    "headers": {
-      "vendor/darling/src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.h": "f64d9336e2dcc713df29d27246e557b7a9324051edebd0a02ad741fced4021f3",
-      "vendor/darling/src/frameworks/CoreServices/include/FSEvents/FSEvents.h": "3ac0ed820d2bd71c45608bf0bc13d05ffb6619a22745e0468efcd91d1d55a971",
-      "vendor/darling/src/frameworks/CoreServices/src/FSEvents/CMakeLists.txt": "5d24d5742143defc70c8deb082b7d2986a293cd78de8695b6cc4c78e038b2702"
-    },
-    "installed": false,
-    "runtime_execution_verified": false,
-    "flush_async_implemented": true,
-    "flush_sync_implemented": true,
-    "immutable_callback_batches": true,
-    "weak_source_contexts": true,
-    "scope": "Complete two-file source FSEvents with real nonblocking inotify reads, per-stream state queue, latency timer, immutable delivery batches and actual async/sync flush. Recursive coverage, persistent/global IDs, relative-device streams and some flags remain unsupported or unverified."
-  },
-  "checkpoint_note": "Selected fields from the local report, not a full artifact archive; see local-evidence-index.json."
+  "local_evidence_hashes_verified": 8766,
+  "local_primary_report_sha256": "9315434babac12becb8c3a30747a0d749590b6986d2955178371eec3d38712b4"
 }

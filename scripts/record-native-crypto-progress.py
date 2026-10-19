@@ -111,6 +111,9 @@ xpc_materialize_phase=report('artifacts/xpc-activation-materialize-progress.json
 mobileasset_query_phase=report('artifacts/mobileasset-query-progress.json')
 icu_signal_phase=report('artifacts/icu-signal-progress.json')
 fsevents_history_phase=report('artifacts/fsevents-history-progress.json')
+global_fsevents_phase=report('artifacts/global-fsevents-progress.json')
+assert global_fsevents_phase['original_macos_test_project_build_succeeded']
+assert global_fsevents_phase['original_full_SDK_stat_cache_generation_reuse_and_Clang_consumer_verified']
 assert fsevents_history_phase['main_queue_CFRunLoop_history_consumer_terminates']
 assert not fsevents_history_phase['global_event_ids_implemented']
 assert icu_signal_phase['native_ICU_checks']==157 and icu_signal_phase['original_build_tasks_executed']
@@ -178,6 +181,13 @@ record.update(fsevents_history_progress=fsevents_history_phase,
               latest_source_recursive_history_fsevents=fsevents_history_phase['source_fsevents'],
               previous_goal_turn_classification='progress',current_goal_turn_classification='progress',
               original_xcode_build_status_marker=65)
+next_work=global_fsevents_phase['next_work']
+record.update(global_fsevents_progress=global_fsevents_phase,current_candidate_runtime=global_fsevents_phase['source_runtime'],
+              actual_project_compilation_started=True,original_macos_test_project_build_succeeded=True,
+              ios_CocoaPods_project_build_succeeded=global_fsevents_phase['ios_CocoaPods_project_build_succeeded'],
+              original_xcode_build_status_marker=global_fsevents_phase['ios_CocoaPods_native_exit_status'],build_wrapper_exit_status=global_fsevents_phase['ios_CocoaPods_wrapper_exit_status'],
+              latest_original_project=global_fsevents_phase['ios_CocoaPods_project'] or global_fsevents_phase['original_macos_test_project'],
+              next_work=next_work)
 (root/destination).write_text(json.dumps(record,indent=2)+'\n')
 state=read('artifacts/current-work-state.json');state.update(updated_at=record['checked_at'],primary_report=destination,goal_status='active',complete=False,working_changes_since_primary_report=False,latest_selected_runtime=runtime,latest_original_xcode_blocker='NSFileCoordinator blocked by mounted-volume/FileIDTree path: BSD reports 10 mounts; original FileIDTree reports 0; CF enumeration fails Cocoa 256; original daemon restarts',latest_xcode_loader_blocker=None,latest_xcode_failure_kind='FileIDTree_volume_enumeration_and_original_FileCoordination_service',latest_xcode_runtime_failure='Strict UTI, original version/SDK listing and original native crypto/archive tests pass. Original project remains blocked opening its coordinated project URL; build never reaches CompileC or SwiftCompile, wrapper ends -9 with status marker 132 during failed shutdown.',latest_sdk_listing_succeeded=True,latest_sdk_listing_attempted=True,latest_original_project_exit_status=132,latest_implementation_form=record['source_changes']+' Complete three-source Darling directory-helper repair; original Sandbox compiler/Match and 533 original profile resources restored privately. Original CoreServices named profile compiles, genuine enforcement still returns ENOTSUP.',latest_experimental_runtime=directory_phase['original_sandbox_resources']['source_runtime'],latest_experimental_coreservices=directory_phase['source_coreservices_directories'],latest_CoreServices_service_blocker='Original named SBPL compilation succeeds; actual Sandbox policy apply returns ENOTSUP; daemon exits 1 before bootstrap check-in',active_build=dict(task='original-cryptography-and-FileCoordination',running=False,report=destination),next_work=next_work)
 new=['Direct complete Darling directory component source repair passes 156 checks; old source fails to create cache directory. Original CoreServices daemon progresses beyond actual directory initialization','Original Sandbox compiler/Match execute 2 valid and 2 invalid SBPL cases; 533 unchanged original resources allow original CoreServices named profile compilation; actual Sandbox enforcement still returns ENOTSUP','Live native root device exists with unassigned legacy volume reference +0x4c=0 and is filtered; previous empty-device-table hypothesis corrected','Matched original Apple CoreCrypto/CommonCrypto/CryptoKit/C bridge/CryptoTokenKit loads; 640 independent valid-input crypto cases pass in the original CoreCrypto and 640 in the source fallback','Original SDK client independently verifies 11 native P256/X25519/Ed25519/AESGCM/ChaCha/SHA256/SHA3/HMAC/HKDF results; authenticated error handling passes. Data slice startIndex preserved; no false index-0 assumption','Original AppleArchive compressed/encrypted streams pass with the original CryptoKit and matching CommonCrypto/CoreCrypto; wrong key and ciphertext corruption rejected','Native algorithm/token/auth identifiers: 17 real CFString values/type/length/copy checks pass; no hardware or authentication success fabricated','Original Xcode now reaches NSFileCoordinator/project opening; actual BSD mounted-volume APIs return 10 while original CarbonCore FileIDTree returns 0. Selected owners are original libraries; source NSFileManager nil stub is inactive']
@@ -293,5 +303,13 @@ state.update(latest_fsevents_history_progress='artifacts/fsevents-history-progre
  latest_original_project_wrapper_exit_status=fsevents_history_phase['original_xcode_regressions']['build']['exit_status'],
  active_build=dict(task='source-recursive-fsevents-and-explicit-history-loss',running=False,report='artifacts/fsevents-history-progress.json'),
  active_verification=None,next_work=next_work)
+state.update(objective='将 xcodebuild 的命令行在 darling 环境下完整运行起来，可以用 xcodebuild 成功编译并签名带 cocoapods 的 unity/ue 游戏引擎生成的项目, ios target 为重点',
+ latest_global_fsevents_progress='artifacts/global-fsevents-progress.json',latest_selected_runtime=global_fsevents_phase['source_runtime'],latest_experimental_runtime=global_fsevents_phase['source_runtime'],
+ latest_fsevents_global_event_ids_implemented=True,latest_original_xcode_blocker=global_fsevents_phase['current_observed_failure'],
+ actual_project_compilation_started=True,original_macos_test_project_build_succeeded=True,
+ ios_CocoaPods_project_build_succeeded=global_fsevents_phase['ios_CocoaPods_project_build_succeeded'],
+ latest_original_project=record['latest_original_project'],latest_xcode_runtime_failure=global_fsevents_phase['current_observed_failure'],
+ latest_original_project_exit_status=global_fsevents_phase['ios_CocoaPods_native_exit_status'],latest_original_project_wrapper_exit_status=global_fsevents_phase['ios_CocoaPods_wrapper_exit_status'],
+ active_build=dict(task='original-xcode-ios-cocoapods-build-and-signing',running=False,report='artifacts/global-fsevents-progress.json'),next_work=next_work)
 (root/'artifacts/current-work-state.json').write_text(json.dumps(state,indent=2)+'\n')
-print('Recorded',len(evidence),'current hashes,',len(scripts),'scripts; original project and signing remain incomplete.')
+print('Recorded',len(evidence),'current hashes,',len(scripts),'scripts; macOS project builds; full iOS/engine/signing goal remains active.')

@@ -1,0 +1,9 @@
+Warning: failed to increase FD rlimit: Operation not permitted
+notifyd: XPC matching publisher unavailable; direct Mach notification transport active
+dyld: Library not loaded: /System/Library/PrivateFrameworks/AppleMobileFileIntegrity.framework/Versions/A/AppleMobileFileIntegrity
+  Referenced from: /Volumes/SystemRoot/workspace/runtime/recovery/macOS Base System/usr/bin/codesign
+  Reason: image not found
+abort_with_payload: reason: dyld: No shared cache present
+Library not loaded: /System/Library/PrivateFrameworks/AppleMobileFileIntegrity.framework/Versions/A/AppleMobileFileIntegrity
+  Referenced from: /Volumes/SystemRoot/workspace/runtime/recovery/macOS Base System/usr/bin/codesign
+  Reason: image not found; code: 1

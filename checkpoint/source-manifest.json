@@ -2,7 +2,6 @@
   "schema": 1,
   "owner": "kxn",
   "branch": "linuxcode/xcode-x86_64",
-  "workspace_branch": "linuxcode/workspace-2026-10-19",
   "checkpoint_date": "2026-10-19",
   "repositories": [
     {
@@ -11,9 +10,9 @@
       "base_commit": "534684e6748dffbd875c6cd1942477a52b66a077",
       "fork_url": "https://github.com/kxn/darling-iokituser.git",
       "branch": "linuxcode/xcode-x86_64",
-      "commit": "7618db68f9243c8a2bc7fdb5298e683e99a45a55",
+      "commit": "f9f511006d51695dfc451d02d02065f2839bae9d",
       "patch": "checkpoint/sources/darling-iokituser.patch",
-      "patch_sha256": "74939c4ed5b2cc3780ebc68f2b1dcc02efcc3b94373ab58b9826711588ff4387",
+      "patch_sha256": "c828687176f1110647e39ef82f0a1f040306c314a2aff7ee5a059e5339a16a40",
       "files": {
         "CMakeLists.txt": {
           "sha256": "9aa24bee20d6c099325769014d906c0c549bc4d27927e482607a71d41c0dce6e",
@@ -31,7 +30,8 @@
           "sha256": "fa4dd060acb17819ca1056480d9bfa157def71cf2a2985116b10dfb1014e5472",
           "executable": false
         }
-      }
+      },
+      "previous_saved_commit": "7618db68f9243c8a2bc7fdb5298e683e99a45a55"
     },
     {
       "path": "vendor/darling/src/external/cocotron",
@@ -95,9 +95,9 @@
       "base_commit": "875f1cd9e75b0029d872b88ce8a77da276c00c84",
       "fork_url": "https://github.com/kxn/darling-corecrypto.git",
       "branch": "linuxcode/xcode-x86_64",
-      "commit": "d81171be7ec7b9d5e0b5ad81b7f9fb2e43fffd7e",
+      "commit": "a38dc4eaf72b52828adba9f6ac9bd2b6ed456328",
       "patch": "checkpoint/sources/darling-corecrypto.patch",
-      "patch_sha256": "c9042d864a770cff6f215e654520a3851143a5686fcca02cd7527c8579c686a0",
+      "patch_sha256": "59ffd7a03e7bbc978f450eac16219d4b3731124c2fb43db152ff580f60082df7",
       "files": {
         "CMakeLists.txt": {
           "sha256": "18137cddebf06769337c53f56d6fea66b6ee89be16188764be570a310b336dfa",
@@ -139,7 +139,8 @@
           "sha256": "59ab9fe9767b96ae96ac03b57c6f04619ce6f4a34a4017ae939fd3694d217451",
           "executable": false
         }
-      }
+      },
+      "previous_saved_commit": "d81171be7ec7b9d5e0b5ad81b7f9fb2e43fffd7e"
     },
     {
       "path": "vendor/darling/src/external/dyld",
@@ -619,9 +620,9 @@
       "base_commit": "fa29287aa2f0115271e091f1031f53c9e024005d",
       "fork_url": "https://github.com/kxn/darling-xnu.git",
       "branch": "linuxcode/xcode-x86_64",
-      "commit": "d770e8d8b7e2e9c28c9eb47d67452aeb091d23a9",
+      "commit": "75eabd3bedadac9873f26002421787d685084d42",
       "patch": "checkpoint/sources/darling-xnu.patch",
-      "patch_sha256": "64aacdd21c25508e6f07b8b584e222a6a2ab22dba9c7abb5b33e16b0b0a23d07",
+      "patch_sha256": "c974c1d52ea2315e2e23408b3d048183d4591f67f423f53796d4b8cc37b2ec3c",
       "files": {
         "darling/src/libsystem_kernel/emulation/CMakeLists.txt": {
           "sha256": "fd3f379a1bfc5c83c2292f18067da3c0bf54790ef3955f522e8ffab4822282cb",
@@ -637,6 +638,10 @@
         },
         "darling/src/libsystem_kernel/emulation/include/conversion/stat/mount_flags.h": {
           "sha256": "2ec20466186e6531eb320b827cab1419038534f50cc53406b0ba6fc104c84928",
+          "executable": false
+        },
+        "darling/src/libsystem_kernel/emulation/include/linux_premigration/vchroot_expand.h": {
+          "sha256": "4f25cbd169c2957eb2f232e8e36c41210ce6cdd045eb46feba03c5d1d5e2c924",
           "executable": false
         },
         "darling/src/libsystem_kernel/emulation/include/xnu_syscall/bsd/helper/misc/fsevents.h": {
@@ -656,7 +661,7 @@
           "executable": false
         },
         "darling/src/libsystem_kernel/emulation/include/xnu_syscall/bsd/helper/xattr/getattrlist_generic.c": {
-          "sha256": "5c39c2c93e724fcf46643fffd00a84e08a0cf8d1abb97dca8ad7e0241582108b",
+          "sha256": "fb3fb906889823e546a400bd53ee77801118fffdd0e5c5926c121ed0ab3b7077",
           "executable": false
         },
         "darling/src/libsystem_kernel/emulation/include/xnu_syscall/bsd/helper/xattr/metadata_linux.h": {
@@ -692,7 +697,7 @@
           "executable": false
         },
         "darling/src/libsystem_kernel/emulation/src/linux_premigration/vchroot_userspace.c": {
-          "sha256": "8da90c485bec063bc2d572045e5284c9715ee0f64ccfea1dbc4b9cd75bc5fb5f",
+          "sha256": "74cd93a9df2fd77f1f3ee2576a45b6c38064aa9e42ba2655137b0a95e2265833",
           "executable": false
         },
         "darling/src/libsystem_kernel/emulation/src/xnu_syscall/bsd/bsd_syscall_table.c": {
@@ -716,7 +721,7 @@
           "executable": false
         },
         "darling/src/libsystem_kernel/emulation/src/xnu_syscall/bsd/impl/fcntl/openat.c": {
-          "sha256": "bae3a97117eaa957d34603273732bc524e48a6e3701c2d7895acbc0fdea8f896",
+          "sha256": "3ee5e63588294f4233f3c3df672b72e6d4ea008c426aab8a2287357013b2e8ee",
           "executable": false
         },
         "darling/src/libsystem_kernel/emulation/src/xnu_syscall/bsd/impl/ioctl/ioctl.c": {
@@ -747,12 +752,20 @@
           "sha256": "e724e5500d1411743140106b4f7c97154e8c36e97a3e93d8d6d4ad890eba19b2",
           "executable": false
         },
+        "darling/src/libsystem_kernel/emulation/src/xnu_syscall/bsd/impl/stat/fstatat.c": {
+          "sha256": "687b9d05132e340b62706d659503c1327d18ac9bcc090aed590bdac0d0b99d7d",
+          "executable": false
+        },
         "darling/src/libsystem_kernel/emulation/src/xnu_syscall/bsd/impl/stat/fstatfs.c": {
           "sha256": "306c15bf0741737cb2c02f72492064d80295357b57c68b2b26b9bfb4e59e7b44",
           "executable": false
         },
         "darling/src/libsystem_kernel/emulation/src/xnu_syscall/bsd/impl/stat/getfsstat.c": {
           "sha256": "4282ba353555aad2fdc61ae754954c72643485056043d05ae1497f4eac9b6b37",
+          "executable": false
+        },
+        "darling/src/libsystem_kernel/emulation/src/xnu_syscall/bsd/impl/stat/lstat.c": {
+          "sha256": "9f173e8f5149b2884dfc70c3b91cdfb0f3fb31d53a76102839c8f9426f49924f",
           "executable": false
         },
         "darling/src/libsystem_kernel/emulation/src/xnu_syscall/bsd/impl/stat/mkdirat.c": {
@@ -835,7 +848,121 @@
           "sha256": "55d42d29e5406e44fa8e7e22d64f17226514a02f6a79885cf5ccb310ead1ffd3",
           "executable": false
         }
-      }
+      },
+      "previous_saved_commit": "d770e8d8b7e2e9c28c9eb47d67452aeb091d23a9"
+    },
+    {
+      "path": "vendor/darlingserver",
+      "upstream_url": "https://github.com/darlinghq/darlingserver.git",
+      "base_commit": "89751e64bc6c2082f7725061824ee0e33395b0de",
+      "fork_url": "https://github.com/kxn/darlingserver.git",
+      "branch": "linuxcode/xcode-x86_64",
+      "commit": "f882ba62ce8efcd5769a7b874beeab4d59b11e19",
+      "patch": "checkpoint/sources/darlingserver.patch",
+      "patch_sha256": "ca89f7f0159cc9bae4c39e42889e9ec0cdf171756d02c3dbf4cd54ea9ee6324e",
+      "files": {
+        "CMakeLists.txt": {
+          "sha256": "1aa174157d33b798b863cb0d5474dc1d824737099ffb34eafbb6452fbb2da483",
+          "executable": false
+        },
+        "duct-tape/include/darlingserver/duct-tape.h": {
+          "sha256": "a40a715d44afa107d1d23f30795968ae6f4799bff478eb28a22fe98be9f71c23",
+          "executable": false
+        },
+        "duct-tape/include/darlingserver/duct-tape/hooks.h": {
+          "sha256": "2fb38d6159c5ceafe555d26d19f579aaf90fa897b79a192ff017d4a0e937e3d9",
+          "executable": false
+        },
+        "duct-tape/include/darlingserver/duct-tape/types.h": {
+          "sha256": "3664d7067e77ae68ccc451be143db6db1b19b52fcb7bc00260d00c754efcbc84",
+          "executable": false
+        },
+        "duct-tape/internal-include/darlingserver/duct-tape/memory.h": {
+          "sha256": "db631d6c96d0992cafcf9e9780ccd98686a5765ada4278b5441df323d75bbe1c",
+          "executable": false
+        },
+        "duct-tape/internal-include/darlingserver/duct-tape/processor.h": {
+          "sha256": "55988b0db89edf100e7dfaef34cfcbd093ed4502aedc30c44c8fb2bea82b277a",
+          "executable": false
+        },
+        "duct-tape/src/host.c": {
+          "sha256": "a222319db0a301bfa339216371d0672c35274b17074cbdb4c678f68b201cb48b",
+          "executable": false
+        },
+        "duct-tape/src/memory.c": {
+          "sha256": "2f244d60dca89274be879691022c98b5af884efe5629d9eacffd6239513b2577",
+          "executable": false
+        },
+        "duct-tape/src/processor.c": {
+          "sha256": "475b65d98caf7d48a5297863f03d1608519a8ef8e9c7e4705008a000aad37acb",
+          "executable": false
+        },
+        "duct-tape/src/task.c": {
+          "sha256": "7184f3258b458f58bd88e3c248585cb7fbce6328c64a33f5c29953e3162fb335",
+          "executable": false
+        },
+        "duct-tape/xnu/osfmk/ipc/ipc_kmsg.c": {
+          "sha256": "9f754b9cfe17b4ce268daba47251903d5c6fca656d23fd8d19036a98ebd8c116",
+          "executable": false
+        },
+        "internal-include/darlingserver/call.hpp": {
+          "sha256": "b1ded70aa88019e75b1dc2f8c66b1dcfb2e667d37f7768fb7f775d8eda585ed4",
+          "executable": false
+        },
+        "internal-include/darlingserver/fsevents-device.hpp": {
+          "sha256": "62b6ad4fad38088ea58054ee342dfeb49b879c59a3185657fae35d48827790aa",
+          "executable": false
+        },
+        "internal-include/darlingserver/fsevents-journal.hpp": {
+          "sha256": "54488a474c8fb9d00e9a8cbb111a5871de1c82a760aaa51f065e39797fc45a78",
+          "executable": false
+        },
+        "internal-include/darlingserver/process.hpp": {
+          "sha256": "cfe1872a0935d21b2a11c68de5d0d1ad26f9d79e2636454ec791b351981178a1",
+          "executable": false
+        },
+        "internal-include/darlingserver/sandbox-policy.hpp": {
+          "sha256": "408ea9ac38ce3d2af5cf344947faa103b28a4dba9da383c50a31c61122ee2055",
+          "executable": false
+        },
+        "scripts/generate-rpc-wrappers.py": {
+          "sha256": "8904656d79025fff82a1c1ed29c1e5cb267b7719cd177628dfbe4171d065fde0",
+          "executable": true
+        },
+        "src/call.cpp": {
+          "sha256": "97866f02a0a8bc856dcaf9301b139a85bfb45f4ca6a7191af607b303019f8dad",
+          "executable": false
+        },
+        "src/fsevents-device.cpp": {
+          "sha256": "62462c8c9e6de9f429232d1fcfd8c996dc74cdbd46983724f2f883c961d6b04a",
+          "executable": false
+        },
+        "src/fsevents-journal.cpp": {
+          "sha256": "6ef63c8d3ba2bfec58b11818bf9a5778c9577cede1789fc300b0990b16d573e9",
+          "executable": false
+        },
+        "src/process.cpp": {
+          "sha256": "af9cf20ed50b45bee34a8d90f4da9c5c52d8e332cbf285b55c888e1f153066fd",
+          "executable": false
+        },
+        "src/sandbox-operation-names.inc": {
+          "sha256": "79b8fd963c7f597369b9ea2393776df7f04cecf47f88096ce0a16eaf76c0238f",
+          "executable": false
+        },
+        "src/sandbox-policy.cpp": {
+          "sha256": "20c51d5ce74bf5b43181a0bc87d05d00d0fe17312fe2d9666a692188c4f6ba2e",
+          "executable": false
+        },
+        "src/server.cpp": {
+          "sha256": "86ba23d48dcf0c50fdd416170a117735feca495a7dbc0028b414e9c00c9ee311",
+          "executable": false
+        },
+        "src/thread.cpp": {
+          "sha256": "084e6ef56fbf7c969e6db908b15ea3b686ef546eca0c622f1543a0b4e020d05d",
+          "executable": false
+        }
+      },
+      "previous_saved_commit": "dce88c125be2aafb740621378a34d0489468a760"
     },
     {
       "path": "vendor/darling",
@@ -843,12 +970,12 @@
       "base_commit": "60ba801decee7a00782f74f6be4c8ffb013f79ff",
       "fork_url": "https://github.com/kxn/darling.git",
       "branch": "linuxcode/xcode-x86_64",
-      "commit": "6d94d32eb9d4a89882f3eff464fa9f759a7c32a7",
+      "commit": "6193e62314080949debb215e1b329906a8e8d2b4",
       "patch": "checkpoint/sources/darling.patch",
-      "patch_sha256": "443160bc5988ea6bbc3e6d7057e18070ab69f21577021e51e57b5400e6541b70",
+      "patch_sha256": "497d9af25645cd1729e5771a97bb82d5d2e65aacd57c84109803932b9d963605",
       "files": {
         "src/frameworks/CoreServices/include/FSEvents/FSEvents.h": {
-          "sha256": "3ac0ed820d2bd71c45608bf0bc13d05ffb6619a22745e0468efcd91d1d55a971",
+          "sha256": "d923f75b1ffb397722f59e5aacd5a484526da0cdb2391000e5c6bd981947d5b6",
           "executable": false
         },
         "src/frameworks/CoreServices/src/FSEvents/CMakeLists.txt": {
@@ -856,15 +983,15 @@
           "executable": false
         },
         "src/frameworks/CoreServices/src/FSEvents/FSEvents.m": {
-          "sha256": "4a3a4af4ebd07b4668881ebb72ec11f3bbd06569f247cde6aca1ec1d0e18f037",
+          "sha256": "05e234486cffcbad9b4137eee725049357528741e1dc65eafb3bb8c78dd6c990",
           "executable": false
         },
         "src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.h": {
-          "sha256": "f64d9336e2dcc713df29d27246e557b7a9324051edebd0a02ad741fced4021f3",
+          "sha256": "c5dd0d2b7f318c7df33986c7cdeeed5a3515259850cf974d3669387449c0980d",
           "executable": false
         },
         "src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.m": {
-          "sha256": "02b68997e8b280391065b3016d89dfeea740c895e031d16be6bfc4fbfc13614f",
+          "sha256": "c149bc09b355c227bb9c6fd55840359bf355e8bbadd8bacae8dd9eddae06ccce",
           "executable": false
         },
         "src/frameworks/CryptoTokenKit/CMakeLists.txt": {
@@ -1072,112 +1199,8 @@
           "executable": false
         }
       },
-      "previous_saved_commit": "b51a649106778f489e3723fb3136b7f5eb4bccf9"
-    },
-    {
-      "path": "vendor/darlingserver",
-      "upstream_url": "https://github.com/darlinghq/darlingserver.git",
-      "base_commit": "89751e64bc6c2082f7725061824ee0e33395b0de",
-      "fork_url": "https://github.com/kxn/darlingserver.git",
-      "branch": "linuxcode/xcode-x86_64",
-      "commit": "dce88c125be2aafb740621378a34d0489468a760",
-      "patch": "checkpoint/sources/darlingserver.patch",
-      "patch_sha256": "9cfd017e2d6b1b1b0aaa0028186bb9bc22dc5299a111b31ebc8efb1cc45654f7",
-      "files": {
-        "CMakeLists.txt": {
-          "sha256": "4470ef4a26d64e1919929ed7b66456ea7365ea8ee3090c052341574e7fdce3bb",
-          "executable": false
-        },
-        "duct-tape/include/darlingserver/duct-tape.h": {
-          "sha256": "a40a715d44afa107d1d23f30795968ae6f4799bff478eb28a22fe98be9f71c23",
-          "executable": false
-        },
-        "duct-tape/include/darlingserver/duct-tape/hooks.h": {
-          "sha256": "2fb38d6159c5ceafe555d26d19f579aaf90fa897b79a192ff017d4a0e937e3d9",
-          "executable": false
-        },
-        "duct-tape/include/darlingserver/duct-tape/types.h": {
-          "sha256": "3664d7067e77ae68ccc451be143db6db1b19b52fcb7bc00260d00c754efcbc84",
-          "executable": false
-        },
-        "duct-tape/internal-include/darlingserver/duct-tape/memory.h": {
-          "sha256": "db631d6c96d0992cafcf9e9780ccd98686a5765ada4278b5441df323d75bbe1c",
-          "executable": false
-        },
-        "duct-tape/internal-include/darlingserver/duct-tape/processor.h": {
-          "sha256": "55988b0db89edf100e7dfaef34cfcbd093ed4502aedc30c44c8fb2bea82b277a",
-          "executable": false
-        },
-        "duct-tape/src/host.c": {
-          "sha256": "a222319db0a301bfa339216371d0672c35274b17074cbdb4c678f68b201cb48b",
-          "executable": false
-        },
-        "duct-tape/src/memory.c": {
-          "sha256": "2f244d60dca89274be879691022c98b5af884efe5629d9eacffd6239513b2577",
-          "executable": false
-        },
-        "duct-tape/src/processor.c": {
-          "sha256": "475b65d98caf7d48a5297863f03d1608519a8ef8e9c7e4705008a000aad37acb",
-          "executable": false
-        },
-        "duct-tape/src/task.c": {
-          "sha256": "7184f3258b458f58bd88e3c248585cb7fbce6328c64a33f5c29953e3162fb335",
-          "executable": false
-        },
-        "duct-tape/xnu/osfmk/ipc/ipc_kmsg.c": {
-          "sha256": "9f754b9cfe17b4ce268daba47251903d5c6fca656d23fd8d19036a98ebd8c116",
-          "executable": false
-        },
-        "internal-include/darlingserver/call.hpp": {
-          "sha256": "b1ded70aa88019e75b1dc2f8c66b1dcfb2e667d37f7768fb7f775d8eda585ed4",
-          "executable": false
-        },
-        "internal-include/darlingserver/fsevents-device.hpp": {
-          "sha256": "dc74f13466cdb3922c276eb4e5bb0dfdcc46a26a613ad814da49058117164b25",
-          "executable": false
-        },
-        "internal-include/darlingserver/process.hpp": {
-          "sha256": "cfe1872a0935d21b2a11c68de5d0d1ad26f9d79e2636454ec791b351981178a1",
-          "executable": false
-        },
-        "internal-include/darlingserver/sandbox-policy.hpp": {
-          "sha256": "408ea9ac38ce3d2af5cf344947faa103b28a4dba9da383c50a31c61122ee2055",
-          "executable": false
-        },
-        "scripts/generate-rpc-wrappers.py": {
-          "sha256": "8904656d79025fff82a1c1ed29c1e5cb267b7719cd177628dfbe4171d065fde0",
-          "executable": true
-        },
-        "src/call.cpp": {
-          "sha256": "7a8df3ab4b2532e1d84649a7a34be5b46ddb50bbf626010a9f50a8e48906e6d0",
-          "executable": false
-        },
-        "src/fsevents-device.cpp": {
-          "sha256": "75878ef77a71f845a9e405a0bfab95379df3a8454f07a2a7e8639bf5c8f8c00a",
-          "executable": false
-        },
-        "src/process.cpp": {
-          "sha256": "af9cf20ed50b45bee34a8d90f4da9c5c52d8e332cbf285b55c888e1f153066fd",
-          "executable": false
-        },
-        "src/sandbox-operation-names.inc": {
-          "sha256": "79b8fd963c7f597369b9ea2393776df7f04cecf47f88096ce0a16eaf76c0238f",
-          "executable": false
-        },
-        "src/sandbox-policy.cpp": {
-          "sha256": "20c51d5ce74bf5b43181a0bc87d05d00d0fe17312fe2d9666a692188c4f6ba2e",
-          "executable": false
-        },
-        "src/server.cpp": {
-          "sha256": "86ba23d48dcf0c50fdd416170a117735feca495a7dbc0028b414e9c00c9ee311",
-          "executable": false
-        },
-        "src/thread.cpp": {
-          "sha256": "084e6ef56fbf7c969e6db908b15ea3b686ef546eca0c622f1543a0b4e020d05d",
-          "executable": false
-        }
-      },
-      "previous_saved_commit": "906d535679e3fbf3a3199278d2e18e053bca24df"
+      "previous_saved_commit": "6d94d32eb9d4a89882f3eff464fa9f759a7c32a7"
     }
-  ]
+  ],
+  "workspace_tag": "runtime-2026.10.19"
 }

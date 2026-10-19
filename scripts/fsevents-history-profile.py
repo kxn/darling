@@ -9,7 +9,8 @@ def profile(baseline=False,diagnostic=False):
     if baseline:return p
     stage=json.loads((root/'artifacts/fsevents-history-source-build.json').read_text())
     digest=lambda name:hashlib.sha256((root/name).read_bytes()).hexdigest()
-    for name,sha in {**stage['sources'],**stage['headers']}.items():assert digest(name)==sha,name
+    resolve=runpy.run_path(str(root/'scripts/resolve-evidence-history.py'))['resolve']
+    for name,sha in {**stage['sources'],**stage['headers']}.items():assert digest(resolve(name,sha))==sha,name
     assert digest(stage['library'])==stage['library_sha256']
     frameworks=str(Path(stage['library']).parents[3])
     command=list(p['command'])

@@ -1,0 +1,10 @@
+[
+  "/usr/bin/env",
+  "-u",
+  "DYLD_LIBRARY_PATH",
+  "-u",
+  "DYLD_FRAMEWORK_PATH",
+  "/bin/bash",
+  "-c",
+  "set -e\ncd /Volumes/SystemRoot/workspace/fixtures/iOSCocoaPodsSmoke\n/usr/bin/ruby -ropenssl -e 'OpenSSL::SSL::SSLContext.new; puts \"SCOPED_RUBY_OPENSSL_OK\"'\ncompiler=$(/usr/bin/xcrun --find clang)\ntest -x \"$compiler\"\nprintf 'SCOPED_XCRUN_ORIGINAL_CLANG_FOUND %s\\n' \"$compiler\"\npod install --no-repo-update"
+]

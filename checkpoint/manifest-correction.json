@@ -1,0 +1,22 @@
+{
+  "checked_at": "2026-10-19T04:40:36.355854+00:00",
+  "parent_commit": "b5225c486ee95ebd6e07c08974ba74e375a5cf7d",
+  "problem": "The previous workspace hash manifest included eleven locally generated CocoaPods files that were ignored by Git and therefore absent from the published tree.",
+  "original_manifest_entries": 1090,
+  "omitted_generated_files": {
+    "fixtures/CocoaPodsSmoke/CocoaPodsSmoke.xcworkspace/contents.xcworkspacedata": "677d5e2954808728b9d32088f4d45c73c881f332482ad81e96aee42d3abad71c",
+    "fixtures/CocoaPodsSmoke/Pods/Local Podspecs/LocalMath.podspec.json": "b8f9fc50b3b80c6e7adafd561033c63b15141d24987f2de9af162d0b41c2f3ef",
+    "fixtures/CocoaPodsSmoke/Pods/Manifest.lock": "6882b5f60903872ff498372318a52745545142dd73fc4b5353df47cd880cbb75",
+    "fixtures/CocoaPodsSmoke/Pods/Pods.xcodeproj/project.pbxproj": "82efbc3bbf6f95fa1a1f29e48d26f436d8240b554b5e02319b34b65ca75e0445",
+    "fixtures/CocoaPodsSmoke/Pods/Target Support Files/LocalMath/LocalMath.debug.xcconfig": "b4bc3caf9228faa9c87bab6cb37f6ad088e04d418f2fb84c4ba803acded43149",
+    "fixtures/CocoaPodsSmoke/Pods/Target Support Files/LocalMath/LocalMath.release.xcconfig": "b4bc3caf9228faa9c87bab6cb37f6ad088e04d418f2fb84c4ba803acded43149",
+    "fixtures/CocoaPodsSmoke/Pods/Target Support Files/Pods-XcodeSmoke/Pods-XcodeSmoke-acknowledgements.markdown": "5b2e9935b9ab7971d111d94b97e3b2f8891554145a51f609954053c36bf26254",
+    "fixtures/CocoaPodsSmoke/Pods/Target Support Files/Pods-XcodeSmoke/Pods-XcodeSmoke-acknowledgements.plist": "7b7f91a2c8ba1f7d912c316b1b84479bfdd78af834a55c14993d62483e454a07",
+    "fixtures/CocoaPodsSmoke/Pods/Target Support Files/Pods-XcodeSmoke/Pods-XcodeSmoke-dummy.m": "8fd5e120ac6d90b8534036b260e4d50df5849ebcb82ba056891ae29f4c36ef44",
+    "fixtures/CocoaPodsSmoke/Pods/Target Support Files/Pods-XcodeSmoke/Pods-XcodeSmoke.debug.xcconfig": "6a0be25478a5313152b40543bba3c575b089703908e8e3f636a1bab9600ec2cd",
+    "fixtures/CocoaPodsSmoke/Pods/Target Support Files/Pods-XcodeSmoke/Pods-XcodeSmoke.release.xcconfig": "6a0be25478a5313152b40543bba3c575b089703908e8e3f636a1bab9600ec2cd"
+  },
+  "resolution": "The corrected manifest hashes only actual published blobs, excluding its own file. No source or runtime changes; historical milestone tag remains unchanged.",
+  "runtime_compilation_results_changed": false,
+  "symlink_hashes": "Hashes follow the committed relative symlink targets, matching the existing verifier; Git tree pins the link bytes."
+}

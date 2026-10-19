@@ -1,0 +1,3 @@
+Warning: failed to increase FD rlimit: Operation not permitted
+notifyd: XPC matching publisher unavailable; direct Mach notification transport active
+Built from an unchanged Xcode project on Linux

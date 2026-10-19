@@ -1,11 +1,23 @@
 {
-  "checked_at": "2026-10-19T01:36:45.099644+00:00",
+  "checked_at": "2026-10-19T04:48:27.038331+00:00",
   "source_repositories": 17,
-  "source_files_verified_against_live_published_and_independently_applied_patch": 242,
+  "source_files_verified_against_live_published_and_independently_applied_patch": 247,
   "fork_submodule_pointers_verified": 15,
   "existing_source_heads_unchanged": true,
   "source_restore_clone_apply_verify_and_idempotence_passed": true,
   "source_restore_refuses_unexpected_base": true,
   "fresh_machine_full_runtime_reproduction_tested": false,
-  "full_xcodebuild_or_signing_complete": false
+  "full_xcodebuild_or_signing_complete": false,
+  "workspace_files": 1081,
+  "python_AST_checked": 542,
+  "shell_syntax_checked": 133,
+  "secret_or_binary_scan_matches": 0,
+  "ios_CocoaPods_build_succeeded": true,
+  "ios_signing_integrated": false,
+  "zsign_adhoc_independent_hash_test_passed": true,
+  "workspace_manifest_entries": 1081,
+  "published_git_blob_files": 1082,
+  "manifest_checked_against_git_objects": true,
+  "prior_manifest_omitted_generated_files": 11,
+  "source_authors_corrected": 8
 }

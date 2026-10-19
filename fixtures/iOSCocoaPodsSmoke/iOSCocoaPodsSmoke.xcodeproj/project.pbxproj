@@ -1,0 +1,229 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000001 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000002 /* main.m */; };
+		57B660FCF5E023FAC445E30C /* libPods-iOSCocoaPodsSmoke.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D75E3A2123AD8441CF1B802 /* libPods-iOSCocoaPodsSmoke.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		100000000000000000000002 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		100000000000000000000003 /* iOSCocoaPodsSmoke.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = iOSCocoaPodsSmoke.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		68F58374A8F8BA480840B233 /* Pods-iOSCocoaPodsSmoke.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iOSCocoaPodsSmoke.release.xcconfig"; path = "Target Support Files/Pods-iOSCocoaPodsSmoke/Pods-iOSCocoaPodsSmoke.release.xcconfig"; sourceTree = "<group>"; };
+		942F99FBAD6818A28B9D7525 /* Pods-iOSCocoaPodsSmoke.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-iOSCocoaPodsSmoke.debug.xcconfig"; path = "Target Support Files/Pods-iOSCocoaPodsSmoke/Pods-iOSCocoaPodsSmoke.debug.xcconfig"; sourceTree = "<group>"; };
+		9D75E3A2123AD8441CF1B802 /* libPods-iOSCocoaPodsSmoke.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-iOSCocoaPodsSmoke.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		100000000000000000000009 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				57B660FCF5E023FAC445E30C /* libPods-iOSCocoaPodsSmoke.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0400218DAE480D6C7C7CF3A0 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				942F99FBAD6818A28B9D7525 /* Pods-iOSCocoaPodsSmoke.debug.xcconfig */,
+				68F58374A8F8BA480840B233 /* Pods-iOSCocoaPodsSmoke.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		100000000000000000000004 = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000002 /* main.m */,
+				100000000000000000000005 /* Products */,
+				0400218DAE480D6C7C7CF3A0 /* Pods */,
+				BBF7A37B87576C85014BE5C6 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		100000000000000000000005 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000003 /* iOSCocoaPodsSmoke.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BBF7A37B87576C85014BE5C6 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				9D75E3A2123AD8441CF1B802 /* libPods-iOSCocoaPodsSmoke.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		100000000000000000000006 /* iOSCocoaPodsSmoke */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 10000000000000000000000B /* Build configuration list for PBXNativeTarget "iOSCocoaPodsSmoke" */;
+			buildPhases = (
+				7D04EADCAF874AF14F191366 /* [CP] Check Pods Manifest.lock */,
+				100000000000000000000008 /* Sources */,
+				100000000000000000000009 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = iOSCocoaPodsSmoke;
+			productName = iOSCocoaPodsSmoke;
+			productReference = 100000000000000000000003 /* iOSCocoaPodsSmoke.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		100000000000000000000007 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1600;
+			};
+			buildConfigurationList = 10000000000000000000000A /* Build configuration list for PBXProject "iOSCocoaPodsSmoke" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 100000000000000000000004;
+			productRefGroup = 100000000000000000000005 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				100000000000000000000006 /* iOSCocoaPodsSmoke */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		7D04EADCAF874AF14F191366 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-iOSCocoaPodsSmoke-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		100000000000000000000008 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000001 /* main.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		10000000000000000000000C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CLANG_ENABLE_MODULES = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				SDKROOT = iphoneos;
+			};
+			name = Debug;
+		};
+		10000000000000000000000D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CLANG_ENABLE_MODULES = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				SDKROOT = iphoneos;
+			};
+			name = Release;
+		};
+		10000000000000000000000E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 942F99FBAD6818A28B9D7525 /* Pods-iOSCocoaPodsSmoke.debug.xcconfig */;
+			buildSettings = {
+				INFOPLIST_FILE = Info.plist;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					UIKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.linuxcode.iOSCocoaPodsSmoke;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		10000000000000000000000F /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68F58374A8F8BA480840B233 /* Pods-iOSCocoaPodsSmoke.release.xcconfig */;
+			buildSettings = {
+				INFOPLIST_FILE = Info.plist;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					UIKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.linuxcode.iOSCocoaPodsSmoke;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		10000000000000000000000A /* Build configuration list for PBXProject "iOSCocoaPodsSmoke" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				10000000000000000000000C /* Debug */,
+				10000000000000000000000D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		10000000000000000000000B /* Build configuration list for PBXNativeTarget "iOSCocoaPodsSmoke" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				10000000000000000000000E /* Debug */,
+				10000000000000000000000F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 100000000000000000000007 /* Project object */;
+}
