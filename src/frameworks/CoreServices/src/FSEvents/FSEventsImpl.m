@@ -29,6 +29,8 @@
 #include <stdint.h>
 #include <time.h>
 #include <stdio.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <darling/emulation/linux_premigration/ext/sys/inotify.h>
 
 // These objects own copies, never the worker's mutable event buffers.
@@ -57,6 +59,9 @@
 -(void)_readEvents;
 -(void)_processSingleEvent:(struct inotify_event*)event;
 -(void)_appendPath:(NSString*)path flags:(FSEventStreamEventFlags)flags;
+-(BOOL)_watchTree:(NSString*)path map:(NSMutableDictionary*)map root:(BOOL)root;
+-(void)_refreshWatches;
+-(void)_coverageLost;
 -(void)_armTimer;
 -(void)_dispatchEvents;
 -(void)_wakeDelivery;
@@ -83,6 +88,7 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
 @implementation FSEventsImpl
 -(instancetype)initWithPaths:(NSArray*)pathsToWatch
                        flags:(FSEventStreamCreateFlags)flags
+                   sinceWhen:(FSEventStreamEventId)sinceWhen
                      latency:(CFTimeInterval)latency
                      context:(FSEventStreamContext*)context
                     callback:(FSEventStreamCallback)callback
@@ -95,6 +101,7 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
         [self release]; errno = EINVAL; return nil;
     }
     _flags = flags; _callback = callback; _latency = latency;
+    _historyPending = sinceWhen != kFSEventStreamEventIdSinceNow;
     _pathsToWatch = [pathsToWatch copy];
     _callbackLock = [[NSRecursiveLock alloc] init];
     _deliveryCondition = [[NSCondition alloc] init];
@@ -113,14 +120,11 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
         if (![path isKindOfClass:[NSString class]]) {
             [watches release]; [self release]; errno = EINVAL; return nil;
         }
-        int wd = inotify_add_watch(_fd, [path UTF8String],
-            IN_ATTRIB | IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY | IN_MOVE | IN_UNMOUNT);
-        if (wd < 0) {
+        if (![self _watchTree:path map:watches root:YES]) {
             int saved = errno; [watches release]; [self release]; errno = saved; return nil;
         }
-        [watches setObject:path forKey:[NSNumber numberWithInt:wd]];
     }
-    _wdMap = [watches copy]; [watches release];
+    _wdMap = watches;
     if (context) {
         _context = *context;
         if (_context.retain) _context.info = (void*)_context.retain(_context.info);
@@ -146,6 +150,86 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
     });
     dispatch_resume(_timer);
     return self;
+}
+
+// Watch each directory before listing it. Work iteratively: dispatch workers
+// can have small stacks, and SDK trees can be deeply nested. Child symlinks
+// are reported by their parent, not followed into cycles or unrelated trees.
+-(BOOL)_watchTree:(NSString*)path map:(NSMutableDictionary*)map root:(BOOL)root
+{
+    NSMutableArray* pending = [[NSMutableArray alloc] initWithObjects:path, nil];
+    BOOL ok = YES;
+    while ([pending count]) {
+        @autoreleasepool {
+            NSString* item = [[[pending lastObject] retain] autorelease];
+            [pending removeLastObject];
+            struct stat st;
+            if (lstat([item UTF8String], &st) < 0) {
+                if (!root && errno == ENOENT) continue;
+                ok = NO; break;
+            }
+            if (S_ISLNK(st.st_mode)) {
+                if (root && [item isEqualToString:path]) {
+                    char* resolved = realpath([item UTF8String], NULL);
+                    if (!resolved) { ok = NO; break; }
+                    NSString* target = [NSString stringWithUTF8String:resolved];
+                    free(resolved);
+                    if (!target) { errno = EILSEQ; ok = NO; break; }
+                    [pending addObject:target];
+                }
+                continue;
+            }
+            if (!S_ISDIR(st.st_mode) && ![item isEqualToString:path]) continue;
+            if ([map count] >= 65536) { errno = ENOSPC; ok = NO; break; }
+            int wd = inotify_add_watch(_fd, [item UTF8String],
+                IN_ATTRIB | IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY |
+                IN_MOVE | IN_UNMOUNT | IN_DONT_FOLLOW |
+                (S_ISDIR(st.st_mode) ? IN_ONLYDIR : 0));
+            if (wd < 0) { ok = NO; break; }
+            [map setObject:item forKey:[NSNumber numberWithInt:wd]];
+            if (!S_ISDIR(st.st_mode)) continue;
+            DIR* directory = opendir([item UTF8String]);
+            if (!directory) { ok = NO; break; }
+            int saved = 0;
+            for (;;) {
+                errno = 0;
+                struct dirent* entry = readdir(directory);
+                if (!entry) { saved = errno; break; }
+                if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
+                // A directory watch already covers ordinary files. Avoid one
+                // extra emulated lstat per SDK file just to discard it; retain
+                // the lstat fallback when the filesystem has no d_type data.
+                if (entry->d_type != DT_DIR && entry->d_type != DT_UNKNOWN) continue;
+                NSString* leaf = [NSString stringWithUTF8String:entry->d_name];
+                if (!leaf) { saved = EILSEQ; break; }
+                [pending addObject:[item stringByAppendingPathComponent:leaf]];
+            }
+            closedir(directory);
+            if (saved) { errno = saved; ok = NO; break; }
+        }
+    }
+    int saved = errno;
+    [pending release];
+    errno = saved;
+    return ok;
+}
+
+-(void)_coverageLost
+{
+    for (NSString* path in _pathsToWatch)
+        [self _appendPath:path flags:kFSEventStreamEventFlagMustScanSubDirs |
+                                   kFSEventStreamEventFlagUserDropped];
+}
+
+-(void)_refreshWatches
+{
+    NSMutableDictionary* fresh = [[NSMutableDictionary alloc] init];
+    for (NSString* path in _pathsToWatch)
+        if (![self _watchTree:path map:fresh root:YES]) [self _coverageLost];
+    for (NSNumber* wd in _wdMap)
+        if (![fresh objectForKey:wd]) inotify_rm_watch(_fd, [wd intValue]);
+    [_wdMap release]; _wdMap = fresh;
+    _watchRefreshPending = false;
 }
 
 -(void)_state:(void (^)(void))action
@@ -247,7 +331,18 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
         }
         [_deliveryCondition lock]; _deliveryInterrupted = false; [_deliveryCondition unlock];
         if (!_sourceResumed) { dispatch_resume(_source); _sourceResumed = true; }
+        if (_historyPending) {
+            // No durable journal is available in this backend. Never present
+            // an unobserved interval as an unchanged tree: consumers must scan.
+            [self _coverageLost];
+        }
         [self _readEvents];
+        if (_historyPending) {
+            _historyPending = false;
+            [self _appendPath:[_pathsToWatch objectAtIndex:0]
+                        flags:kFSEventStreamEventFlagHistoryDone];
+            [self _dispatchEvents];
+        }
         [self _wakeDelivery];
     }];
     return started;
@@ -346,9 +441,19 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
         return;
     }
     NSString* watchPath = [_wdMap objectForKey:[NSNumber numberWithInt:event->wd]];
-    if (!watchPath || (event->mask & IN_IGNORED)) return;
+    if (!watchPath) return;
+    if (event->mask & IN_IGNORED) {
+        [_wdMap removeObjectForKey:[NSNumber numberWithInt:event->wd]];
+        return;
+    }
     FSEventStreamEventFlags flags = 0;
     if (event->mask & IN_UNMOUNT) flags |= kFSEventStreamEventFlagUnmount | kFSEventStreamEventFlagMustScanSubDirs;
+    NSString* changedPath = watchPath;
+    if (event->len && event->name[0]) {
+        NSString* leaf = [NSString stringWithUTF8String:event->name];
+        if (!leaf) { [self _coverageLost]; return; }
+        changedPath = [watchPath stringByAppendingPathComponent:leaf];
+    }
     NSString* fullPath = watchPath;
     if (_flags & kFSEventStreamCreateFlagFileEvents) {
         flags |= (event->mask & IN_ISDIR) ? kFSEventStreamEventFlagItemIsDir : kFSEventStreamEventFlagItemIsFile;
@@ -357,9 +462,21 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
         if (event->mask & IN_MODIFY) flags |= kFSEventStreamEventFlagItemModified;
         if (event->mask & IN_CREATE) flags |= kFSEventStreamEventFlagItemCreated;
         if (event->mask & IN_ATTRIB) flags |= kFSEventStreamEventFlagItemChangeOwner | kFSEventStreamEventFlagItemXattrMod;
-        if (event->len && event->name[0]) fullPath = [watchPath stringByAppendingPathComponent:[NSString stringWithUTF8String:event->name]];
+        if (event->len && event->name[0]) fullPath = changedPath;
     }
     [self _appendPath:fullPath flags:flags];
+    if ((event->mask & IN_ISDIR) && (event->mask & (IN_CREATE | IN_MOVED_TO))) {
+        // Changes before the new subtree's watches were installed are unknown.
+        // Scan notification closes that race instead of fabricating events.
+        [self _coverageLost];
+        if (event->mask & IN_MOVED_TO) [self _refreshWatches];
+        else if (![self _watchTree:changedPath map:_wdMap root:NO]) [self _coverageLost];
+    }
+    if (((event->mask & IN_ISDIR) && (event->mask & (IN_MOVED_FROM | IN_DELETE))) ||
+        (event->mask & (IN_DELETE_SELF | IN_MOVE_SELF | IN_UNMOUNT))) {
+        _watchRefreshPending = true;
+        [self _coverageLost];
+    }
 }
 
 -(void)_readEvents
@@ -395,6 +512,7 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
         }
     }
     } @finally { free(buffer); }
+    if (_watchRefreshPending) [self _refreshWatches];
     if ([_pathArray count]) [self _armTimer];
 }
 

@@ -30,7 +30,7 @@
 @interface FSEventsImpl : NSObject
 {
 	NSArray<NSString*>* _pathsToWatch;
-	NSDictionary<NSNumber*, NSString*>* _wdMap;
+	NSMutableDictionary<NSNumber*, NSString*>* _wdMap;
 
 	FSEventStreamCreateFlags _flags;
 	FSEventStreamContext _context;
@@ -66,10 +66,13 @@
 	bool _deliveryInterrupted;
 	pthread_t _callbackThread;
 	unsigned _callbackDepth;
+	bool _historyPending;
+	bool _watchRefreshPending;
 }
 
 -(instancetype)initWithPaths:(NSArray*)pathsToWatch
 						flags:(FSEventStreamCreateFlags)flags
+                      sinceWhen:(FSEventStreamEventId)sinceWhen
                         latency:(CFTimeInterval)latency
 					context:(FSEventStreamContext*)context
 					callback:(FSEventStreamCallback)callback;

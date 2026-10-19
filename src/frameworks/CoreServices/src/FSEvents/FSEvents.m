@@ -33,6 +33,7 @@ FSEventStreamRef FSEventStreamCreate(
 {
 	return (FSEventStreamRef) [[FSEventsImpl alloc] initWithPaths: (NSArray*)pathsToWatch
 									flags: flags
+                                    sinceWhen: sinceWhen
                                     latency: latency
 									context: context
 									callback: callback];
