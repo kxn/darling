@@ -29,7 +29,8 @@
 #include <stdint.h>
 #include <time.h>
 #include <stdio.h>
-#include <dirent.h>
+#include <poll.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <darling/emulation/linux_premigration/ext/sys/inotify.h>
 
@@ -39,6 +40,7 @@
     NSArray* paths;
     NSData* flags;
     NSData* ids;
+    uint64_t serial;
 }
 @end
 @implementation FSEventsBatch
@@ -57,11 +59,9 @@
 -(void)_state:(void (^)(void))action;
 -(void)_invalidateState;
 -(void)_readEvents;
--(void)_processSingleEvent:(struct inotify_event*)event;
--(void)_appendPath:(NSString*)path flags:(FSEventStreamEventFlags)flags;
--(BOOL)_watchTree:(NSString*)path map:(NSMutableDictionary*)map root:(BOOL)root;
--(void)_refreshWatches;
--(void)_coverageLost;
+-(void)_appendPath:(NSString*)path flags:(FSEventStreamEventFlags)flags eventId:(uint64_t)eventId;
+-(void)_drainThroughBarrier;
+-(BOOL)_readPackets;
 -(void)_armTimer;
 -(void)_dispatchEvents;
 -(void)_wakeDelivery;
@@ -101,7 +101,7 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
         [self release]; errno = EINVAL; return nil;
     }
     _flags = flags; _callback = callback; _latency = latency;
-    _historyPending = sinceWhen != kFSEventStreamEventIdSinceNow;
+
     _pathsToWatch = [pathsToWatch copy];
     _callbackLock = [[NSRecursiveLock alloc] init];
     _deliveryCondition = [[NSCondition alloc] init];
@@ -110,21 +110,24 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
     _runloops = CFBagCreateMutable(NULL, 0, &kCFTypeBagCallBacks);
     _stateQueue = dispatch_queue_create("org.darling.FSEvents.state", DISPATCH_QUEUE_SERIAL);
     dispatch_queue_set_specific(_stateQueue, &stateQueueKey, self, NULL);
-    _fd = inotify_init1(IN_NONBLOCK);
-    if (_fd < 0) { int saved = errno; [self release]; errno = saved; return nil; }
-    if (fcntl(_fd, F_SETFD, FD_CLOEXEC) < 0) {
-        int saved = errno; [self release]; errno = saved; return nil;
-    }
-    NSMutableDictionary* watches = [[NSMutableDictionary alloc] init];
+    _fd = open("/dev/fsevents", O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+    if (_fd < 0) { int saved=errno; [self release]; errno=saved; return nil; }
     for (id path in _pathsToWatch) {
-        if (![path isKindOfClass:[NSString class]]) {
-            [watches release]; [self release]; errno = EINVAL; return nil;
+        if (![path isKindOfClass:[NSString class]] || ![path isAbsolutePath]) {
+            [self release]; errno=EINVAL; return nil;
         }
-        if (![self _watchTree:path map:watches root:YES]) {
-            int saved = errno; [watches release]; [self release]; errno = saved; return nil;
+        const char* text=[path UTF8String];
+        if (!text || strlen(text)!=[path lengthOfBytesUsingEncoding:NSUTF8StringEncoding]) {
+            [self release]; errno=EINVAL; return nil;
         }
+        int directory=open(text,O_RDONLY|O_DIRECTORY|O_CLOEXEC);
+        if(directory<0){int saved=errno;[self release];errno=saved;return nil;}
+        struct Root {uint64_t path;uint32_t length;int32_t descriptor;} args={(uintptr_t)text,(uint32_t)strlen(text)+1,directory};
+        int result=ioctl(_fd,0x80107370,&args);int saved=errno;close(directory);
+        if(result<0){[self release];errno=saved;return nil;}
     }
-    _wdMap = watches;
+    struct Start {uint64_t since;uint32_t flags,reserved;} begin={sinceWhen,flags,0};
+    if(ioctl(_fd,0x80107371,&begin)<0){int saved=errno;[self release];errno=saved;return nil;}
     if (context) {
         _context = *context;
         if (_context.retain) _context.info = (void*)_context.retain(_context.info);
@@ -150,86 +153,6 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
     });
     dispatch_resume(_timer);
     return self;
-}
-
-// Watch each directory before listing it. Work iteratively: dispatch workers
-// can have small stacks, and SDK trees can be deeply nested. Child symlinks
-// are reported by their parent, not followed into cycles or unrelated trees.
--(BOOL)_watchTree:(NSString*)path map:(NSMutableDictionary*)map root:(BOOL)root
-{
-    NSMutableArray* pending = [[NSMutableArray alloc] initWithObjects:path, nil];
-    BOOL ok = YES;
-    while ([pending count]) {
-        @autoreleasepool {
-            NSString* item = [[[pending lastObject] retain] autorelease];
-            [pending removeLastObject];
-            struct stat st;
-            if (lstat([item UTF8String], &st) < 0) {
-                if (!root && errno == ENOENT) continue;
-                ok = NO; break;
-            }
-            if (S_ISLNK(st.st_mode)) {
-                if (root && [item isEqualToString:path]) {
-                    char* resolved = realpath([item UTF8String], NULL);
-                    if (!resolved) { ok = NO; break; }
-                    NSString* target = [NSString stringWithUTF8String:resolved];
-                    free(resolved);
-                    if (!target) { errno = EILSEQ; ok = NO; break; }
-                    [pending addObject:target];
-                }
-                continue;
-            }
-            if (!S_ISDIR(st.st_mode) && ![item isEqualToString:path]) continue;
-            if ([map count] >= 65536) { errno = ENOSPC; ok = NO; break; }
-            int wd = inotify_add_watch(_fd, [item UTF8String],
-                IN_ATTRIB | IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MODIFY |
-                IN_MOVE | IN_UNMOUNT | IN_DONT_FOLLOW |
-                (S_ISDIR(st.st_mode) ? IN_ONLYDIR : 0));
-            if (wd < 0) { ok = NO; break; }
-            [map setObject:item forKey:[NSNumber numberWithInt:wd]];
-            if (!S_ISDIR(st.st_mode)) continue;
-            DIR* directory = opendir([item UTF8String]);
-            if (!directory) { ok = NO; break; }
-            int saved = 0;
-            for (;;) {
-                errno = 0;
-                struct dirent* entry = readdir(directory);
-                if (!entry) { saved = errno; break; }
-                if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
-                // A directory watch already covers ordinary files. Avoid one
-                // extra emulated lstat per SDK file just to discard it; retain
-                // the lstat fallback when the filesystem has no d_type data.
-                if (entry->d_type != DT_DIR && entry->d_type != DT_UNKNOWN) continue;
-                NSString* leaf = [NSString stringWithUTF8String:entry->d_name];
-                if (!leaf) { saved = EILSEQ; break; }
-                [pending addObject:[item stringByAppendingPathComponent:leaf]];
-            }
-            closedir(directory);
-            if (saved) { errno = saved; ok = NO; break; }
-        }
-    }
-    int saved = errno;
-    [pending release];
-    errno = saved;
-    return ok;
-}
-
--(void)_coverageLost
-{
-    for (NSString* path in _pathsToWatch)
-        [self _appendPath:path flags:kFSEventStreamEventFlagMustScanSubDirs |
-                                   kFSEventStreamEventFlagUserDropped];
-}
-
--(void)_refreshWatches
-{
-    NSMutableDictionary* fresh = [[NSMutableDictionary alloc] init];
-    for (NSString* path in _pathsToWatch)
-        if (![self _watchTree:path map:fresh root:YES]) [self _coverageLost];
-    for (NSNumber* wd in _wdMap)
-        if (![fresh objectForKey:wd]) inotify_rm_watch(_fd, [wd intValue]);
-    [_wdMap release]; _wdMap = fresh;
-    _watchRefreshPending = false;
 }
 
 -(void)_state:(void (^)(void))action
@@ -331,18 +254,7 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
         }
         [_deliveryCondition lock]; _deliveryInterrupted = false; [_deliveryCondition unlock];
         if (!_sourceResumed) { dispatch_resume(_source); _sourceResumed = true; }
-        if (_historyPending) {
-            // No durable journal is available in this backend. Never present
-            // an unobserved interval as an unchanged tree: consumers must scan.
-            [self _coverageLost];
-        }
         [self _readEvents];
-        if (_historyPending) {
-            _historyPending = false;
-            [self _appendPath:[_pathsToWatch objectAtIndex:0]
-                        flags:kFSEventStreamEventFlagHistoryDone];
-            [self _dispatchEvents];
-        }
         [self _wakeDelivery];
     }];
     return started;
@@ -372,7 +284,7 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
 {
     __block FSEventStreamEventId result;
     [self _state:^{
-        if (_running && !_invalidated) { [self _readEvents]; [self _dispatchEvents]; }
+        if (_running && !_invalidated) { [self _drainThroughBarrier]; [self _dispatchEvents]; }
         result = _lastEventID;
     }];
     return result;
@@ -386,8 +298,8 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
     __block BOOL valid = NO;
     [self _state:^{
         if (!_running || _invalidated) return;
-        [self _readEvents]; [self _dispatchEvents];
-        target = _lastEventID; valid = YES;
+        [self _drainThroughBarrier]; [self _dispatchEvents];
+        target = _lastQueuedSerial; valid = YES;
         @synchronized(self) {
             epoch = _deliveryEpoch;
             if (_queue) { queue = _queue; dispatch_retain(queue); }
@@ -410,16 +322,16 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
     @synchronized(self) {
         // An already active callback counts as invoked. A recursive sync flush
         // must not wait for its own outer callback frame to return.
-        if (_callbackDepth && pthread_equal(_callbackThread, pthread_self()) && _lastInvokedID >= target) return;
+        if (_callbackDepth && pthread_equal(_callbackThread, pthread_self()) && _lastInvokedSerial >= target) return;
     }
     [_deliveryCondition lock];
-    while (_lastCompletedID < target && !_deliveryInterrupted) {
+    while (_lastCompletedSerial < target && !_deliveryInterrupted) {
         [_deliveryCondition wait];
     }
     [_deliveryCondition unlock];
 }
 
--(void)_appendPath:(NSString*)path flags:(FSEventStreamEventFlags)flags
+-(void)_appendPath:(NSString*)path flags:(FSEventStreamEventFlags)flags eventId:(uint64_t)eventId
 {
     size_t count = [_pathArray count];
     if (count == _capacity) {
@@ -430,90 +342,65 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
         if (count) { memcpy(newFlags, _flagArray, count * sizeof(*newFlags)); memcpy(newIDs, _idArray, count * sizeof(*newIDs)); }
         free(_flagArray); free(_idArray); _flagArray = newFlags; _idArray = newIDs; _capacity = capacity;
     }
-    [_pathArray addObject:path]; _flagArray[count] = flags; _idArray[count] = ++_lastEventID;
+    [_pathArray addObject:path]; _flagArray[count] = flags; _idArray[count] = eventId;
+    _lastEventID=eventId;
 }
 
--(void)_processSingleEvent:(struct inotify_event*)event
+// Each read consumes one complete sequenced packet. IDs come from the same
+// server journal as FSEventsGetCurrentEventId; callbacks never allocate IDs.
+-(BOOL)_readPackets
 {
-    if (event->mask & IN_Q_OVERFLOW) {
-        for (NSString* path in _pathsToWatch)
-            [self _appendPath:path flags:kFSEventStreamEventFlagMustScanSubDirs | kFSEventStreamEventFlagKernelDropped];
-        return;
+    if (!_running || _invalidated || _fd<0) return NO;
+    const size_t capacity=65536;
+    char* bytes=malloc(capacity); if(!bytes)abort();
+    BOOL healthy=YES;
+    @try {
+        for(;;){
+            ssize_t count=read(_fd,bytes,capacity);
+            if(count<0){if(errno==EINTR)continue;if(errno==EAGAIN||errno==EWOULDBLOCK)break;healthy=NO;break;}
+            if(!count){healthy=NO;break;}
+            struct Header {uint32_t magic,length;uint64_t id;uint32_t flags,reserved;} header;
+            if(count<sizeof header){healthy=NO;break;}
+            memcpy(&header,bytes,sizeof header);
+            if(header.magic!=0x314a5346||header.reserved||header.length!=(size_t)count-sizeof header){healthy=NO;break;}
+            if(header.flags==0x80000000u){
+                if(header.length){healthy=NO;break;}
+                if(header.id>_lastBarrier)_lastBarrier=header.id;
+                continue;
+            }
+            if((!header.id&&!(header.flags&kFSEventStreamEventFlagRootChanged))||!header.length||bytes[count-1]||memchr(bytes+sizeof header,0,header.length-1)){healthy=NO;break;}
+            NSString* path=[NSString stringWithUTF8String:bytes+sizeof header];
+            if(path)[self _appendPath:path flags:header.flags eventId:header.id];
+            else for(NSString* root in _pathsToWatch)
+                [self _appendPath:root flags:kFSEventStreamEventFlagMustScanSubDirs|kFSEventStreamEventFlagUserDropped eventId:header.id];
+        }
+    } @finally {free(bytes);}
+    if(!healthy){
+        @synchronized(self){_running=false;}
+        if(_sourceResumed){dispatch_suspend(_source);_sourceResumed=false;}
+        [_deliveryCondition lock];_deliveryInterrupted=true;[_deliveryCondition broadcast];[_deliveryCondition unlock];
     }
-    NSString* watchPath = [_wdMap objectForKey:[NSNumber numberWithInt:event->wd]];
-    if (!watchPath) return;
-    if (event->mask & IN_IGNORED) {
-        [_wdMap removeObjectForKey:[NSNumber numberWithInt:event->wd]];
-        return;
-    }
-    FSEventStreamEventFlags flags = 0;
-    if (event->mask & IN_UNMOUNT) flags |= kFSEventStreamEventFlagUnmount | kFSEventStreamEventFlagMustScanSubDirs;
-    NSString* changedPath = watchPath;
-    if (event->len && event->name[0]) {
-        NSString* leaf = [NSString stringWithUTF8String:event->name];
-        if (!leaf) { [self _coverageLost]; return; }
-        changedPath = [watchPath stringByAppendingPathComponent:leaf];
-    }
-    NSString* fullPath = watchPath;
-    if (_flags & kFSEventStreamCreateFlagFileEvents) {
-        flags |= (event->mask & IN_ISDIR) ? kFSEventStreamEventFlagItemIsDir : kFSEventStreamEventFlagItemIsFile;
-        if (event->mask & (IN_DELETE | IN_DELETE_SELF)) flags |= kFSEventStreamEventFlagItemRemoved;
-        if (event->mask & (IN_MOVE_SELF | IN_MOVED_FROM | IN_MOVED_TO)) flags |= kFSEventStreamEventFlagItemRenamed;
-        if (event->mask & IN_MODIFY) flags |= kFSEventStreamEventFlagItemModified;
-        if (event->mask & IN_CREATE) flags |= kFSEventStreamEventFlagItemCreated;
-        if (event->mask & IN_ATTRIB) flags |= kFSEventStreamEventFlagItemChangeOwner | kFSEventStreamEventFlagItemXattrMod;
-        if (event->len && event->name[0]) fullPath = changedPath;
-    }
-    [self _appendPath:fullPath flags:flags];
-    if ((event->mask & IN_ISDIR) && (event->mask & (IN_CREATE | IN_MOVED_TO))) {
-        // Changes before the new subtree's watches were installed are unknown.
-        // Scan notification closes that race instead of fabricating events.
-        [self _coverageLost];
-        if (event->mask & IN_MOVED_TO) [self _refreshWatches];
-        else if (![self _watchTree:changedPath map:_wdMap root:NO]) [self _coverageLost];
-    }
-    if (((event->mask & IN_ISDIR) && (event->mask & (IN_MOVED_FROM | IN_DELETE))) ||
-        (event->mask & (IN_DELETE_SELF | IN_MOVE_SELF | IN_UNMOUNT))) {
-        _watchRefreshPending = true;
-        [self _coverageLost];
-    }
+    return healthy;
 }
-
 -(void)_readEvents
 {
-    if (!_running || _invalidated || _fd < 0) return;
-    // Dispatch workers may have small stacks with an internal guard page.
-    // A 64 KiB automatic buffer can skip that guard and fault on the next
-    // Objective-C call. malloc supplies sufficient inotify_event alignment.
-    const size_t capacity = 65536;
-    char* buffer = malloc(capacity);
-    if (!buffer) abort();
-    @try {
-    for (;;) {
-        ssize_t count = read(_fd, buffer, capacity);
-        if (count < 0) {
-            if (errno == EINTR) continue;
-            if (errno != EAGAIN && errno != EWOULDBLOCK) {
-                @synchronized(self) { _running = false; }
-                if (_sourceResumed) { dispatch_suspend(_source); _sourceResumed = false; }
-                [_deliveryCondition lock]; _deliveryInterrupted = true;
-                [_deliveryCondition broadcast]; [_deliveryCondition unlock];
-            }
-            break;
-        }
-        if (!count) break;
-        size_t offset = 0;
-        while (offset < (size_t)count) {
-            if ((size_t)count - offset < sizeof(struct inotify_event)) break;
-            struct inotify_event* event = (void*)(buffer + offset);
-            if (event->len > (size_t)count - offset - sizeof(*event)) break;
-            if (event->len && !memchr(event->name, 0, event->len)) break;
-            [self _processSingleEvent:event]; offset += sizeof(*event) + event->len;
-        }
+    [self _readPackets];
+    if([_pathArray count])[self _armTimer];
+}
+-(void)_drainThroughBarrier
+{
+    if(!_running||_invalidated||_fd<0)return;
+    uint64_t ticket=0;
+    if(ioctl(_fd,0x40087372,&ticket)<0)return;
+    uint64_t deadline=monotonicNS()+30*NSEC_PER_SEC;
+    while(_lastBarrier<ticket){
+        if(![self _readPackets])break;
+        if(_lastBarrier>=ticket)break;
+        struct pollfd descriptor={_fd,POLLIN,0};
+        int result=poll(&descriptor,1,1000);
+        if(result<0&&errno!=EINTR)break;
+        if(monotonicNS()>deadline)break;
     }
-    } @finally { free(buffer); }
-    if (_watchRefreshPending) [self _refreshWatches];
-    if ([_pathArray count]) [self _armTimer];
 }
 
 -(void)_armTimer
@@ -540,6 +427,7 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
     _timerArmed = false; _lastDispatchNS = monotonicNS();
     dispatch_source_set_timer(_timer, DISPATCH_TIME_FOREVER, DISPATCH_TIME_FOREVER, 0);
     FSEventsBatch* batch = [[FSEventsBatch alloc] init];
+    batch->serial = ++_lastQueuedSerial;
     batch->paths = [_pathArray copy];
     batch->flags = [[NSData alloc] initWithBytes:_flagArray length:[_pathArray count]*sizeof(*_flagArray)];
     batch->ids = [[NSData alloc] initWithBytes:_idArray length:[_pathArray count]*sizeof(*_idArray)];
@@ -601,7 +489,7 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
         for (;;) {
             FSEventsBatch* batch = nil;
             @synchronized(self) {
-                if (_invalidated || !_running || epoch != _deliveryEpoch || _lastInvokedID >= limit || ![_deliveryBatches count]) break;
+                if (_invalidated || !_running || epoch != _deliveryEpoch || _lastInvokedSerial >= limit || ![_deliveryBatches count]) break;
                 batch = [[_deliveryBatches objectAtIndex:0] retain];
                 [_deliveryBatches removeObjectAtIndex:0];
             }
@@ -617,14 +505,14 @@ static void wakeLoop(const void* value, void* ignored) { CFRunLoopWakeUp((CFRunL
                     for (NSString* path in batch->paths) [values addObject:@{(NSString*)kFSEventStreamEventExtendedDataPathKey:path}];
                     extended = values; payload = extended;
                 }
-                FSEventStreamEventId last = ((const FSEventStreamEventId*)[batch->ids bytes])[count-1];
-                @synchronized(self) { _callbackThread = pthread_self(); ++_callbackDepth; if (last > _lastInvokedID) _lastInvokedID = last; }
+                uint64_t last = batch->serial;
+                @synchronized(self) { _callbackThread = pthread_self(); ++_callbackDepth; if (last > _lastInvokedSerial) _lastInvokedSerial = last; }
                 @try {
                     _callback((ConstFSEventStreamRef)self, _context.info, count, payload, [batch->flags bytes], [batch->ids bytes]);
                 } @finally {
                     @synchronized(self) { --_callbackDepth; }
                     [_deliveryCondition lock];
-                    if (last > _lastCompletedID) _lastCompletedID = last;
+                    if (last > _lastCompletedSerial) _lastCompletedSerial = last;
                     [_deliveryCondition broadcast]; [_deliveryCondition unlock];
                     if (cpaths) { for (NSUInteger i=0; i<count; ++i) free(cpaths[i]); free(cpaths); }
                     [extended release];

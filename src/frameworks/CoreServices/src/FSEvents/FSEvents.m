@@ -20,7 +20,23 @@
 #include <FSEvents/FSEvents.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/ioctl.h>
 #import "FSEventsImpl.h"
+
+FSEventStreamEventId FSEventsGetCurrentEventId(void)
+{
+    int previous=errno;
+    int fd=open("/dev/fsevents",O_RDONLY|O_CLOEXEC);
+    if(fd<0)return 0;
+    uint64_t value=0;
+    int result=ioctl(fd,0x40087367,&value);
+    int saved=errno;close(fd);
+    errno=result<0?saved:previous;
+    return result<0?0:value;
+}
 
 FSEventStreamRef FSEventStreamCreate(
 		CFAllocatorRef allocator,

@@ -61,12 +61,13 @@
 	NSMutableArray* _deliveryBatches;
 	NSRecursiveLock* _callbackLock;
 	NSCondition* _deliveryCondition;
-	FSEventStreamEventId _lastCompletedID;
-	FSEventStreamEventId _lastInvokedID;
+	FSEventStreamEventId _lastCompletedSerial;
+	FSEventStreamEventId _lastInvokedSerial;
 	bool _deliveryInterrupted;
 	pthread_t _callbackThread;
 	unsigned _callbackDepth;
-	bool _historyPending;
+	uint64_t _lastQueuedSerial;
+    uint64_t _lastBarrier;
 	bool _watchRefreshPending;
 }
 
