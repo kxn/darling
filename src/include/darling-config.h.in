@@ -8,6 +8,9 @@
 #define SHARE_PATH "${CMAKE_INSTALL_PREFIX}/share/darling"
 #define DYLD_PATH "${CMAKE_INSTALL_PREFIX}/bin/dyld"
 
+// Linux procfs for Darwin compatibility internals; keep the guest /proc absent.
+#define DARLING_PROCFS_PATH "/private/var/db/darling/proc"
+
 #define ETC_DARLING_PATH "/etc/darling"
 // Path where the system root gets "mounted" inside the prefix
 #define SYSTEM_ROOT "/Volumes/SystemRoot"

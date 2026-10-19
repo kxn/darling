@@ -213,7 +213,7 @@ install(DIRECTORY DESTINATION libexec/darling/Volumes)
 install(DIRECTORY DESTINATION libexec/darling/Volumes/SystemRoot)
 InstallSymlink(/ ${CMAKE_INSTALL_PREFIX}/libexec/darling/Volumes/DarlingEmulatedDrive)
 
-install(DIRECTORY DESTINATION libexec/darling/proc)
+install(DIRECTORY DESTINATION libexec/darling/private/var/db/darling/proc)
 
 install(DIRECTORY DESTINATION libexec/darling/var/root)
 install(DIRECTORY DESTINATION libexec/darling/var/run)
@@ -226,7 +226,7 @@ install(DIRECTORY DESTINATION libexec/darling/usr/local/share)
 InstallSymlink(/Volumes/SystemRoot/dev ${CMAKE_INSTALL_PREFIX}/libexec/darling/dev)
 InstallSymlink(private/tmp ${CMAKE_INSTALL_PREFIX}/libexec/darling/tmp)
 
-InstallSymlink(/proc/self/mounts ${CMAKE_INSTALL_PREFIX}/libexec/darling/private/etc/mtab)
+InstallSymlink(/private/var/db/darling/proc/self/mounts ${CMAKE_INSTALL_PREFIX}/libexec/darling/private/etc/mtab)
 #InstallSymlink(/Volumes/SystemRoot/etc/passwd ${CMAKE_INSTALL_PREFIX}/libexec/darling/private/etc/passwd)
 #InstallSymlink(/Volumes/SystemRoot/etc/group ${CMAKE_INSTALL_PREFIX}/libexec/darling/private/etc/group)
 InstallSymlink(/Volumes/SystemRoot/etc/localtime ${CMAKE_INSTALL_PREFIX}/libexec/darling/private/etc/localtime)

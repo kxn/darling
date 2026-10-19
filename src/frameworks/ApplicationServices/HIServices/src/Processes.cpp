@@ -1,3 +1,4 @@
+#include <darling-config.h>
 /*
 This file is part of Darling.
 
@@ -48,7 +49,7 @@ OSStatus CopyProcessName(const ProcessSerialNumber* psn, CFStringRef* name)
 	char path[100];
 	int fd, len;
 
-	sprintf(path, "/proc/%u/comm", (unsigned int)psn->lowLongOfPSN);
+	sprintf(path, DARLING_PROCFS_PATH "/%u/comm", (unsigned int)psn->lowLongOfPSN);
 
 	fd = ::open(path, O_RDONLY);
 	if (fd == -1)
@@ -86,7 +87,7 @@ OSErr GetFrontProcess(ProcessSerialNumber* psn)
 
 OSErr GetNextProcess(ProcessSerialNumber* psn)
 {
-	DIR* dir = opendir("/proc");
+	DIR* dir = opendir(DARLING_PROCFS_PATH);
 	struct dirent* ent;
 	int nextAfter = psn->lowLongOfPSN;
 	bool found = false, next = false;
@@ -182,7 +183,7 @@ CFDictionaryRef ProcessInformationCopyDictionary(const ProcessSerialNumber *PSN,
 	if (status != noErr)
 		return nullptr;
 
-	sprintf(lpath, "/proc/%u/exe", (unsigned int)PSN->lowLongOfPSN);
+	sprintf(lpath, DARLING_PROCFS_PATH "/%u/exe", (unsigned int)PSN->lowLongOfPSN);
 	len = ::readlink(lpath, procpath, sizeof(procpath)-1);
 	if (len < 0)
 		return nullptr;
