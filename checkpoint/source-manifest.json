@@ -2,8 +2,8 @@
   "schema": 1,
   "owner": "kxn",
   "branch": "linuxcode/xcode-x86_64",
-  "workspace_branch": "linuxcode/workspace-2026-10-17",
-  "checkpoint_date": "2026-10-17",
+  "workspace_branch": "linuxcode/workspace-2026-10-19",
+  "checkpoint_date": "2026-10-19",
   "repositories": [
     {
       "path": "vendor/darling/src/external/IOKitUser",
@@ -843,9 +843,9 @@
       "base_commit": "60ba801decee7a00782f74f6be4c8ffb013f79ff",
       "fork_url": "https://github.com/kxn/darling.git",
       "branch": "linuxcode/xcode-x86_64",
-      "commit": "b51a649106778f489e3723fb3136b7f5eb4bccf9",
+      "commit": "6d94d32eb9d4a89882f3eff464fa9f759a7c32a7",
       "patch": "checkpoint/sources/darling.patch",
-      "patch_sha256": "4fbe31bd3e78de99d5d2fd7be3892dfdb39ac8ef80a46d40c663135c8abf54d6",
+      "patch_sha256": "443160bc5988ea6bbc3e6d7057e18070ab69f21577021e51e57b5400e6541b70",
       "files": {
         "src/frameworks/CoreServices/include/FSEvents/FSEvents.h": {
           "sha256": "3ac0ed820d2bd71c45608bf0bc13d05ffb6619a22745e0468efcd91d1d55a971",
@@ -856,15 +856,15 @@
           "executable": false
         },
         "src/frameworks/CoreServices/src/FSEvents/FSEvents.m": {
-          "sha256": "cf397cf10e32b9180f814ce78249ad974eb61cec293f78a4cc152fa169857f5f",
+          "sha256": "4a3a4af4ebd07b4668881ebb72ec11f3bbd06569f247cde6aca1ec1d0e18f037",
           "executable": false
         },
         "src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.h": {
-          "sha256": "06b5cc5a24724003ea2c72e795c0d2effcdfe2a0544462226263d30d96573858",
+          "sha256": "f64d9336e2dcc713df29d27246e557b7a9324051edebd0a02ad741fced4021f3",
           "executable": false
         },
         "src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.m": {
-          "sha256": "ed5bbea0315c933789c2a1aa1b1c360ac34df7588139de1684e1a1ca1fc9e972",
+          "sha256": "02b68997e8b280391065b3016d89dfeea740c895e031d16be6bfc4fbfc13614f",
           "executable": false
         },
         "src/frameworks/CryptoTokenKit/CMakeLists.txt": {
@@ -1071,7 +1071,8 @@
           "sha256": "470c29c35e7e1fa2e26c0c6f01f8e164ffd9a150df0248797ae92c2500e36b8f",
           "executable": false
         }
-      }
+      },
+      "previous_saved_commit": "b51a649106778f489e3723fb3136b7f5eb4bccf9"
     },
     {
       "path": "vendor/darlingserver",
@@ -1079,9 +1080,9 @@
       "base_commit": "89751e64bc6c2082f7725061824ee0e33395b0de",
       "fork_url": "https://github.com/kxn/darlingserver.git",
       "branch": "linuxcode/xcode-x86_64",
-      "commit": "906d535679e3fbf3a3199278d2e18e053bca24df",
+      "commit": "dce88c125be2aafb740621378a34d0489468a760",
       "patch": "checkpoint/sources/darlingserver.patch",
-      "patch_sha256": "c068fad3747fc663b1772749dd7c3a65b8201fbf19c8d259fbd44c7bf43c88fa",
+      "patch_sha256": "9cfd017e2d6b1b1b0aaa0028186bb9bc22dc5299a111b31ebc8efb1cc45654f7",
       "files": {
         "CMakeLists.txt": {
           "sha256": "4470ef4a26d64e1919929ed7b66456ea7365ea8ee3090c052341574e7fdce3bb",
@@ -1120,7 +1121,7 @@
           "executable": false
         },
         "duct-tape/src/task.c": {
-          "sha256": "26cd68bd6adc1cf2b8e7a3f2b9fed4edca0ed00d2fedc1ce7195835dffe02772",
+          "sha256": "7184f3258b458f58bd88e3c248585cb7fbce6328c64a33f5c29953e3162fb335",
           "executable": false
         },
         "duct-tape/xnu/osfmk/ipc/ipc_kmsg.c": {
@@ -1175,7 +1176,8 @@
           "sha256": "084e6ef56fbf7c969e6db908b15ea3b686ef546eca0c622f1543a0b4e020d05d",
           "executable": false
         }
-      }
+      },
+      "previous_saved_commit": "906d535679e3fbf3a3199278d2e18e053bca24df"
     }
   ]
 }

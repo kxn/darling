@@ -4,7 +4,34 @@
 
 **目前还不能作为完整 Xcode CI 环境使用。** 原版 `xcodebuild` 已能启动原版 SwiftBuild 服务、计算依赖图、创建构建描述，并实际执行目录、头文件映射和响应文件生成任务。当前工程返回真实退出码 65：`clang-stat-cache` 加载不到 `FSEventsGetCurrentEventId`，尚未完成源文件编译和链接。正常候选的 `-version`、`-showsdks` 和严格 UTI 预检通过。Unity/CocoaPods、iOS/macOS 归档、签名、导出及默认 CI 入口集成仍未完成。主检查点为 `artifacts/native-crypto-progress.json`。
 
-## ICU 数据、致命信号与原版 SwiftBuild 任务（当前补充）
+## FSEvents 递归监测与历史缺失通知（2026-10-19）
+
+继续核对原版 Intel `clang-stat-cache` 后，发现缺失全局事件 ID 之后还有第二个实际问题：原 Darling FSEvents 忽略 `sinceWhen`，不会发送 `HistoryDone`。对用户提供的原版工具反汇编确认，它创建无附加 flags 的流、绑定主 dispatch queue 并进入 `CFRunLoopRun`；回调检查 `0x10` 历史结束标志，其他事件使缓存失效，只有收到结束标志才停止 run loop。缺失通知会导致缓存复用等待，而非仅仅缺少一个导出符号。
+
+已直接修改 Darling 的两个 FSEvents 源文件及内部头：传递 `sinceWhen`，对无法回放的历史明确发送每个根的 `MustScanSubDirs | UserDropped`，随后发送一次独立的 `HistoryDone`，避免把未观察到的历史当成“没有变化”。实现目录递归监测、创建子树后的实际监测及覆盖缺口通知、目录改名后的路径更新和移出监测范围后的解除监测；不追踪子目录符号链接形成的循环。目录遍历使用迭代队列，限制 65,536 个 watch；初始覆盖失败返回失败，不静默报告完整覆盖。历史缺失要求重新扫描的语义见 [Apple FSEvents 指南](https://developer.apple.com/library/archive/documentation/Darwin/Conceptual/FSEvents_ProgGuide/UsingtheFSEventsFramework/UsingtheFSEventsFramework.html)。
+
+完整重编译两源文件组件，保留 29 个原有导出。原生验证覆盖有限历史、单次结束边界、重启、既有及新增深层目录、真实目录移动、外部链接排除，并按原版工具使用的 C 路径数组 ABI 验证主队列/CF run loop 能收到历史结束后返回。新检查 84 项、既有 flush 回归 88 项、小栈测试在 64 KiB 线程上收到两个真实事件。原版 `-version`、`-showsdks` 与严格 UTI 预检通过；首次 SDK 列表命令本身返回 0，但随后清理阶段出现 semaphore 错误和外层超时，已保留失败记录，独立串行重试完整退出 0。尚未证明该次清理故障的根因，也未把它记为成功退出。
+
+工程复测还暴露了服务端的二次故障：`task_map_corpse_info_64` 的未实现路径执行 `__builtin_unreachable()`，server 消失后多个客户端报告 RPC 断连；首轮工程的外层退出 -9，脚本记录 Xcode 132，不能算作原先的 65 结果。该失败及 server 日志已保留。随后在调试器下重跑时未重现首次异常，工程回到原先的缺失全局 ID 报错；不能据此认定此前故障的完整触发原因。直接修复 server 的 32/64 位 corpse-info 映射参数检查：普通活任务、无效任务、forked-corpse 目的任务和缺失 corpse 数据返回 `KERN_INVALID_ARGUMENT`；有效 corpse 的真实数据映射仍不支持，返回 `KERN_NOT_SUPPORTED`，不虚构成功。8 个并发线程的原生测试执行 512 次真实 Mach RPC 错误返回和 256 次实际内存分配/释放，共 1,808 项检查通过，服务持续存活。新 server 候选的 SDK 查询也曾在命令返回 0 后，于 40 秒外层上限下清理超时（124）；将外层上限扩展至 120 秒的后续复测完整退出 0。该差异如实保留，未把延长等待当成清理根因修复。最终原版版本查询、SDK 列表、严格 UTI 和工程复测均完成退出，工程仍返回缺失全局 ID 的 65。
+
+**没有实现 `FSEventsGetCurrentEventId`、系统共享事件 ID 或持久历史日志。** 当前事件编号仍是每流计数，不能当作全局 ID。以上是全局事件源接入之前必须补齐的监测和失效语义；未关闭缓存、改写原版工具或修改工程构建参数，默认入口未推广。原版工程当前仍在 `clang-stat-cache` 的全局 ID 依赖处失败，完整编译、链接和签名尚未完成。
+
+```bash
+python3 scripts/build-fsevents-source.py --output-dir runtime/fsevents-history-source --report artifacts/fsevents-history-source-build.json
+python3 scripts/test-fsevents-history.py --baseline
+python3 scripts/test-fsevents-history.py
+python3 scripts/analyze-stat-cache-fsevents.py
+python3 scripts/build-corpse-map-server.py
+python3 scripts/stage-corpse-map-runtime.py
+python3 scripts/test-corpse-map-errors.py
+python3 scripts/probe-xcode-service-runtime.py version --corpse-map --cfprefsd-daemon --timeout-seconds 40
+python3 scripts/probe-xcode-service-runtime.py showsdks --corpse-map --cfprefsd-daemon --timeout-seconds 120
+python3 scripts/probe-xcode-service-runtime.py build --corpse-map --core-volume-diagnostic --cfprefsd-daemon --filecoordination --timeout-seconds 180
+```
+
+新框架在 `runtime/fsevents-history-source/frameworks/`，新增 server 选入独立的 `runtime/corpse-map-normal/` 和 `runtime/corpse-map-diagnostic/`；工程尝试仍使用单独的宽松 CoreServices 策略。报告：`artifacts/fsevents-history-progress.json`；源码补丁：`artifacts/darling-fsevents-recursive-history-source.patch`、`artifacts/darlingserver-corpse-map-errors-source.patch`。先前源码、精确基线测试输入、工程及 SDK 清理失败记录均按 SHA 保存。下一步是共享事件源与真实全局 ID，并验证原版 stat-cache 的首次生成、无变化复用和真实变更失效。
+
+## ICU 数据、致命信号与原版 SwiftBuild 任务（前一补充）
 
 进一步跟踪纠正了“原版 Xcode 一直等待”的判断：Linux 现场显示主线程在地址 0x8 发生 SIGSEGV，Darling 随后执行 `kill(0, SIGSEGV)`，连同父脚本和同组进程一起结束，外层只留下返回码 1。正确换算 x86_64 fat slice 与 Mach-O segment 的故障栈落在 CoreFoundation 的类型检查，调用方是 Security 的数字参数转换及 SwiftPM 的 RSA 公钥／证书导入。
 

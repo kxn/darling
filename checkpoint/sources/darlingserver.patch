@@ -584,7 +584,7 @@ index 76fdd4f..7086650 100644
  			info->cpu_subtype = CPU_SUBTYPE_I386_ALL;
  #endif
 diff --git a/duct-tape/src/task.c b/duct-tape/src/task.c
-index a9eb4bc..17ca9e6 100644
+index a9eb4bc..0ee9419 100644
 --- a/duct-tape/src/task.c
 +++ b/duct-tape/src/task.c
 @@ -44,6 +44,13 @@ void dtape_task_init(void) {
@@ -601,7 +601,52 @@ index a9eb4bc..17ca9e6 100644
  dtape_task_t* dtape_task_create(dtape_task_t* parent_task, uint32_t nsid, void* context, dserver_rpc_architecture_t architecture) {
  	if (parent_task == NULL && nsid == 0 && kernel_task) {
  		dtape_task_t* task = dtape_task_for_xnu_task(kernel_task);
-@@ -748,6 +755,10 @@ struct proc_ident proc_ident(void* p) {
+@@ -536,11 +543,42 @@ bool task_is_driver(task_t task) {
+ };
+ 
+ kern_return_t task_map_corpse_info(task_t task, task_t corpse_task, vm_address_t* kcd_addr_begin, uint32_t* kcd_size) {
+-	dtape_stub_unsafe();
++	mach_vm_address_t address = 0;
++	mach_vm_size_t size = 0;
++	if (!kcd_addr_begin || !kcd_size) {
++		return KERN_INVALID_ARGUMENT;
++	}
++	*kcd_addr_begin = 0;
++	*kcd_size = 0;
++	kern_return_t result = task_map_corpse_info_64(task, corpse_task, &address, &size);
++	if (result != KERN_SUCCESS) {
++		return result;
++	}
++	if (size > UINT32_MAX) {
++		return KERN_NOT_SUPPORTED;
++	}
++	*kcd_addr_begin = address;
++	*kcd_size = (uint32_t)size;
++	return KERN_SUCCESS;
+ };
+ 
+ kern_return_t task_map_corpse_info_64(task_t task, task_t corpse_task, mach_vm_address_t* kcd_addr_begin, mach_vm_size_t* kcd_size) {
+-	dtape_stub_unsafe();
++	if (!kcd_addr_begin || !kcd_size) {
++		return KERN_INVALID_ARGUMENT;
++	}
++	*kcd_addr_begin = 0;
++	*kcd_size = 0;
++	// Match XNU's rejection of a null/forked-corpse destination and of a
++	// source which is not a corpse or has no crash data. Normal task ports
++	// must return an error, not take an unreachable path in the whole server.
++	if (task == TASK_NULL || task_is_a_corpse_fork(task) ||
++	    corpse_task == TASK_NULL || !task_is_a_corpse(corpse_task) ||
++	    corpse_task->corpse_info == NULL) {
++		return KERN_INVALID_ARGUMENT;
++	}
++	// Darling does not yet produce/map XNU corpse kcdata. Preserve an honest
++	// unsupported result for that path; do not fabricate a crash-data mapping.
++	return KERN_NOT_SUPPORTED;
+ };
+ 
+ void task_name_deallocate(task_name_t task_name) {
+@@ -748,6 +786,10 @@ struct proc_ident proc_ident(void* p) {
  	return ((dtape_task_t*)p)->p_ident;
  };
  

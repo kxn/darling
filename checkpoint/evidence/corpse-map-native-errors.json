@@ -1,0 +1,200 @@
+{
+  "checked_at": "2026-10-19T01:23:58.361585+00:00",
+  "source": "fixtures/hello/corpse-map-errors.c",
+  "source_sha256": "008ae2bf82872b744c3cbf773d0d383738eb9e3a4ee06bc6e510f2a3d76ddaaa",
+  "binary": "runtime/corpse-map-tests/errors",
+  "binary_sha256": "9c7fd84dc84a93bee8fea88d03704d578a6ff44baacee068ca03e6a1ab9d3b00",
+  "log": "logs/corpse-map-native-errors.log",
+  "log_sha256": "8ed791a8e2930b6cdd823697a105002af8f2682522f617bf10461b572858eaf8",
+  "exit_status": 0,
+  "verified": true,
+  "real_corpse_kcdata_mapping_implemented": false,
+  "source_runtime": {
+    "LINUXCODE_DARLING_SERVER": {
+      "path": "runtime/corpse-map-normal/darlingserver",
+      "sha256": "3311166caf61eba87decb184b18d948f57d582be6849b6eb0b92c6ac9930ce7d"
+    },
+    "LINUXCODE_LIBXPC": {
+      "path": "runtime/corpse-map-normal/libxpc.dylib",
+      "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+    },
+    "LINUXCODE_LAUNCHD": {
+      "path": "runtime/corpse-map-normal/launchd",
+      "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+    },
+    "LINUXCODE_LIBSYSTEM_KERNEL": {
+      "path": "runtime/corpse-map-normal/libsystem_kernel.dylib",
+      "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
+    },
+    "LINUXCODE_QUARANTINE": {
+      "path": "runtime/corpse-map-normal/libquarantine.dylib",
+      "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+    },
+    "LINUXCODE_SANDBOX": {
+      "path": "runtime/corpse-map-normal/libsystem_sandbox.dylib",
+      "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+    },
+    "LINUXCODE_LIBDYLD": {
+      "path": "runtime/corpse-map-normal/libdyld.dylib",
+      "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+    }
+  },
+  "source_corpse_map_errors": {
+    "server_build": "artifacts/corpse-map-server-build.json",
+    "server_build_sha256": "7a2a7a4e8baf7ea288ba30119d7f841e15d1d68de1600d35acfd8b98cf32b692",
+    "runtimes": {
+      "normal": {
+        "previous_source_runtime": {
+          "LINUXCODE_DARLING_SERVER": {
+            "path": "runtime/swb-swift-logging-normal/darlingserver",
+            "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+          },
+          "LINUXCODE_LIBXPC": {
+            "path": "runtime/swb-swift-logging-normal/libxpc.dylib",
+            "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+          },
+          "LINUXCODE_LAUNCHD": {
+            "path": "runtime/swb-swift-logging-normal/launchd",
+            "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+          },
+          "LINUXCODE_LIBSYSTEM_KERNEL": {
+            "path": "runtime/swb-swift-logging-normal/libsystem_kernel.dylib",
+            "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
+          },
+          "LINUXCODE_QUARANTINE": {
+            "path": "runtime/swb-swift-logging-normal/libquarantine.dylib",
+            "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+          },
+          "LINUXCODE_SANDBOX": {
+            "path": "runtime/swb-swift-logging-normal/libsystem_sandbox.dylib",
+            "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+          },
+          "LINUXCODE_LIBDYLD": {
+            "path": "runtime/swb-swift-logging-normal/libdyld.dylib",
+            "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+          }
+        },
+        "source_runtime": {
+          "LINUXCODE_DARLING_SERVER": {
+            "path": "runtime/corpse-map-normal/darlingserver",
+            "sha256": "3311166caf61eba87decb184b18d948f57d582be6849b6eb0b92c6ac9930ce7d"
+          },
+          "LINUXCODE_LIBXPC": {
+            "path": "runtime/corpse-map-normal/libxpc.dylib",
+            "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+          },
+          "LINUXCODE_LAUNCHD": {
+            "path": "runtime/corpse-map-normal/launchd",
+            "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+          },
+          "LINUXCODE_LIBSYSTEM_KERNEL": {
+            "path": "runtime/corpse-map-normal/libsystem_kernel.dylib",
+            "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
+          },
+          "LINUXCODE_QUARANTINE": {
+            "path": "runtime/corpse-map-normal/libquarantine.dylib",
+            "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+          },
+          "LINUXCODE_SANDBOX": {
+            "path": "runtime/corpse-map-normal/libsystem_sandbox.dylib",
+            "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+          },
+          "LINUXCODE_LIBDYLD": {
+            "path": "runtime/corpse-map-normal/libdyld.dylib",
+            "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+          }
+        },
+        "variant_root": "runtime/corpse-map-normal/darling-root",
+        "system_version_binding": "runtime/corpse-map-normal/darling-root/System/Library/CoreServices/SystemVersion.plist",
+        "system_version_binding_sha256": "6151cb883e5b48d43a33d4d41956405a1cd502e0c8622319388d943e2cb804a1",
+        "test_only_permissive_coreservices_policy": false
+      },
+      "diagnostic": {
+        "previous_source_runtime": {
+          "LINUXCODE_DARLING_SERVER": {
+            "path": "runtime/swb-swift-logging-diagnostic/darlingserver",
+            "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+          },
+          "LINUXCODE_LIBXPC": {
+            "path": "runtime/swb-swift-logging-diagnostic/libxpc.dylib",
+            "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+          },
+          "LINUXCODE_LAUNCHD": {
+            "path": "runtime/swb-swift-logging-diagnostic/launchd",
+            "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+          },
+          "LINUXCODE_LIBSYSTEM_KERNEL": {
+            "path": "runtime/swb-swift-logging-diagnostic/libsystem_kernel.dylib",
+            "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
+          },
+          "LINUXCODE_QUARANTINE": {
+            "path": "runtime/swb-swift-logging-diagnostic/libquarantine.dylib",
+            "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+          },
+          "LINUXCODE_SANDBOX": {
+            "path": "runtime/swb-swift-logging-diagnostic/libsystem_sandbox.dylib",
+            "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+          },
+          "LINUXCODE_LIBDYLD": {
+            "path": "runtime/swb-swift-logging-diagnostic/libdyld.dylib",
+            "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+          }
+        },
+        "source_runtime": {
+          "LINUXCODE_DARLING_SERVER": {
+            "path": "runtime/corpse-map-diagnostic/darlingserver",
+            "sha256": "3311166caf61eba87decb184b18d948f57d582be6849b6eb0b92c6ac9930ce7d"
+          },
+          "LINUXCODE_LIBXPC": {
+            "path": "runtime/corpse-map-diagnostic/libxpc.dylib",
+            "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
+          },
+          "LINUXCODE_LAUNCHD": {
+            "path": "runtime/corpse-map-diagnostic/launchd",
+            "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
+          },
+          "LINUXCODE_LIBSYSTEM_KERNEL": {
+            "path": "runtime/corpse-map-diagnostic/libsystem_kernel.dylib",
+            "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
+          },
+          "LINUXCODE_QUARANTINE": {
+            "path": "runtime/corpse-map-diagnostic/libquarantine.dylib",
+            "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
+          },
+          "LINUXCODE_SANDBOX": {
+            "path": "runtime/corpse-map-diagnostic/libsystem_sandbox.dylib",
+            "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
+          },
+          "LINUXCODE_LIBDYLD": {
+            "path": "runtime/corpse-map-diagnostic/libdyld.dylib",
+            "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
+          }
+        },
+        "variant_root": "runtime/corpse-map-diagnostic/darling-root",
+        "system_version_binding": "runtime/corpse-map-diagnostic/darling-root/System/Library/CoreServices/SystemVersion.plist",
+        "system_version_binding_sha256": "6151cb883e5b48d43a33d4d41956405a1cd502e0c8622319388d943e2cb804a1",
+        "test_only_permissive_coreservices_policy": true
+      }
+    },
+    "real_corpse_generation_implemented": false,
+    "real_corpse_kcdata_mapping_implemented": false,
+    "default_entry_promoted": false
+  },
+  "command": [
+    "timeout",
+    "-k",
+    "5",
+    "60",
+    "bin/darling-system-version",
+    "shell",
+    "/usr/bin/env",
+    "OBJC_DISABLE_TAGGED_POINTERS=NO",
+    "DYLD_FRAMEWORK_PATH=/Volumes/SystemRoot/workspace/runtime/fsevents-history-source/frameworks:/Volumes/SystemRoot/workspace/runtime/mobileasset-query-source/frameworks:/Volumes/SystemRoot/workspace/runtime/local-authentication-error-source/frameworks:/Volumes/SystemRoot/workspace/runtime/crypto-token-kit-native/frameworks:/Volumes/SystemRoot/workspace/runtime/security-cryptokit-constants/frameworks:/Volumes/SystemRoot/workspace/runtime/crypto-token-parameters-source/frameworks:/Volumes/SystemRoot/workspace/runtime/cryptokit-original-native/frameworks:/Volumes/SystemRoot/workspace/runtime/argument-parser-native/frameworks:/Volumes/SystemRoot/workspace/runtime/diskmanagement-nserror-source/frameworks:/Volumes/SystemRoot/workspace/runtime/mobileasset-download-attributes/frameworks:/Volumes/SystemRoot/workspace/runtime/cryptex-native/frameworks:/Volumes/SystemRoot/workspace/runtime/device-identity-native/frameworks:/Volumes/SystemRoot/workspace/runtime/iokit-main-port-source/frameworks:/Volumes/SystemRoot/workspace/runtime/security-device-constants/frameworks:/Volumes/SystemRoot/workspace/runtime/crypto-token-error-source/frameworks:/Volumes/SystemRoot/workspace/runtime/coreutils-crypto-source/frameworks:/Volumes/SystemRoot/workspace/runtime/xcode-mobile-device/System/Library/PrivateFrameworks:/Volumes/SystemRoot/workspace/runtime/security-cloud-rpc-stage/frameworks:/Volumes/SystemRoot/workspace/runtime/mdns-native/frameworks:/Volumes/SystemRoot/workspace/runtime/fsevents-heap-source/frameworks:/Volumes/SystemRoot/workspace/runtime/combine-native/frameworks:/Volumes/SystemRoot/workspace/runtime/imageio-legacy-key/frameworks:/Volumes/SystemRoot/workspace/runtime/imageio-cg-constants/frameworks:/Volumes/SystemRoot/workspace/runtime/imageio-native/frameworks:/Volumes/SystemRoot/workspace/runtime/mobilegestalt-native/frameworks:/Volumes/SystemRoot/workspace/runtime/native-layer-context/frameworks:/Volumes/SystemRoot/workspace/runtime/native-layer-support/frameworks:/Volumes/SystemRoot/workspace/runtime/uniform-type-identifiers-native/frameworks:/Volumes/SystemRoot/workspace/runtime/security-policy-source/frameworks:/Volumes/SystemRoot/workspace/runtime/apple-system-info-native/frameworks:/Volumes/SystemRoot/workspace/runtime/mobileasset-source/frameworks:/Volumes/SystemRoot/workspace/runtime/quartzcore-native/frameworks:/Volumes/SystemRoot/workspace/runtime/logging-support-native/frameworks:/Volumes/SystemRoot/workspace/runtime/foundation-native-framework-stage:/Volumes/SystemRoot/workspace/runtime/native-framework-stage",
+    "DYLD_LIBRARY_PATH=/Volumes/SystemRoot/workspace/runtime/log-compose-runtime/libraries:/Volumes/SystemRoot/workspace/runtime/rebuilt-sandbox-compiler-native:/Volumes/SystemRoot/workspace/runtime/rebuilt-match-sandbox-native:/Volumes/SystemRoot/workspace/runtime/rebuilt-commoncrypto-original-native:/Volumes/SystemRoot/workspace/runtime/security-cryptokit-constants/libraries:/Volumes/SystemRoot/workspace/runtime/crypto-token-parameters-source/libraries:/Volumes/SystemRoot/workspace/runtime/rebuilt-corecrypto-original-native-v2:/Volumes/SystemRoot/workspace/runtime/corecrypto-malloc-source/libraries:/Volumes/SystemRoot/workspace/runtime/corecrypto-hkdf-source/libraries:/Volumes/SystemRoot/workspace/runtime/applearchive-native/libraries:/Volumes/SystemRoot/workspace/runtime/cryptex-native/libraries:/Volumes/SystemRoot/workspace/runtime/device-identity-native/libraries:/Volumes/SystemRoot/workspace/runtime/security-device-constants/libraries:/Volumes/SystemRoot/workspace/runtime/crypto-token-error-source/libraries:/Volumes/SystemRoot/workspace/runtime/crypto-quarantine-runtime/libraries:/Volumes/SystemRoot/workspace/runtime/expected-access-source/libraries:/Volumes/SystemRoot/workspace/runtime/typed-new-delete-source/libraries:/Volumes/SystemRoot/workspace/runtime/security-cloud-rpc-stage/libraries:/Volumes/SystemRoot/workspace/runtime/mdns-native/libraries:/Volumes/SystemRoot/workspace/runtime/foundation-coherent/libraries:/Volumes/SystemRoot/workspace/runtime/objc-selector-source/libraries:/Volumes/SystemRoot/workspace/runtime/objc-selector-source:/Volumes/SystemRoot/workspace/runtime/imageio-legacy-key/libraries:/Volumes/SystemRoot/workspace/runtime/simd-matrix-source/libraries:/Volumes/SystemRoot/workspace/runtime/imageio-cg-constants/libraries:/Volumes/SystemRoot/workspace/runtime/imageio-native/libraries:/Volumes/SystemRoot/workspace/runtime/runnable-archs-source/libraries:/Volumes/SystemRoot/workspace/runtime/mobilegestalt-native/libraries:/Volumes/SystemRoot/workspace/runtime/container-persona/libraries:/Volumes/SystemRoot/workspace/runtime/log-hooks/libraries:/Volumes/SystemRoot/workspace/runtime/native-log-message/libraries:/Volumes/SystemRoot/workspace/runtime/log-enablement/libraries:/Volumes/SystemRoot/workspace/runtime/libtrace-pack-source/libraries:/Volumes/SystemRoot/workspace/runtime/native-layer-context/libraries:/Volumes/SystemRoot/workspace/runtime/native-layer-support/libraries:/Volumes/SystemRoot/workspace/runtime/container-manager-export/libraries:/Volumes/SystemRoot/workspace/runtime/sysdir-native-export/libraries:/Volumes/SystemRoot/workspace/runtime/sandbox-container-source/libraries:/Volumes/SystemRoot/workspace/runtime/rootless-nounlink-export/libraries:/Volumes/SystemRoot/workspace/runtime/typed-malloc-source/libraries:/Volumes/SystemRoot/workspace/runtime/os-log-simple-source/libraries:/Volumes/SystemRoot/workspace/runtime/rootless-datavault-export/libraries:/Volumes/SystemRoot/workspace/runtime/user-local-dir-export/libraries:/Volumes/SystemRoot/workspace/runtime/libtrace-source/libraries:/Volumes/SystemRoot/workspace/runtime/objc-source:/Volumes/SystemRoot/workspace/runtime/uti-runtime-support/libraries:/Volumes/SystemRoot/workspace/runtime/uniform-type-identifiers-native/libraries:/Volumes/SystemRoot/workspace/runtime/pthread-yield-export/libraries:/Volumes/SystemRoot/workspace/runtime/security-policy-source/libraries:/Volumes/SystemRoot/workspace/runtime/quartzcore-native/libraries:/Volumes/SystemRoot/workspace/runtime/foundation-native-library-stage:/Volumes/SystemRoot/workspace/runtime/native-library-stage:/Volumes/SystemRoot/workspace/runtime/rebuilt-der:/usr/lib/swift",
+    "/Volumes/SystemRoot/workspace/runtime/corpse-map-tests/errors"
+  ],
+  "checks": [
+    1808
+  ],
+  "checkpoint_note": "Selected fields from the local report, not a full artifact archive; see local-evidence-index.json."
+}

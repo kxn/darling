@@ -6,7 +6,8 @@ m=runpy.run_path(str(root/'scripts/combine-native-profile.py'));environment=m['e
 def profile():
  p=m['profile']();report=(root/os.environ.get('LINUXCODE_FSEVENTS_BUILD_REPORT','artifacts/fsevents-flush-source-build.json')).resolve();assert report.is_relative_to(root/'artifacts')
  stage=json.loads(report.read_text());digest=lambda n:hashlib.sha256((root/n).read_bytes()).hexdigest()
+ resolve=runpy.run_path(str(root/'scripts/resolve-evidence-history.py'))['resolve']
  for key in ['original','library']:assert digest(stage[key])==stage[key+'_sha256']
- for n,sha in {**stage['sources'],**stage['headers']}.items():assert digest(n)==sha
+ for n,sha in {**stage['sources'],**stage['headers']}.items():assert digest(resolve(n,sha))==sha
  frameworks=str(Path(stage['library']).parents[3]);c=list(p['command']);i=next(i for i,v in enumerate(c) if v.startswith('DYLD_FRAMEWORK_PATH='));c[i]='DYLD_FRAMEWORK_PATH=/Volumes/SystemRoot/workspace/'+frameworks+':'+c[i].split('=',1)[1]
  return {**p,'command':c,'source_fsevents':stage}

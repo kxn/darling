@@ -6,7 +6,8 @@ parent=runpy.run_path(str(root/'scripts/mount-flags-runtime-profile.py'))
 def profile(include_system_resources=True,diagnostic=False):
  p=parent['profile'](include_system_resources);d=json.loads((root/'artifacts/s2c-lifecycle-stage.json').read_text());digest=lambda n:hashlib.sha256((root/n).read_bytes()).hexdigest()
  assert d['previous_source_runtime']==p['source_runtime'] and digest(d['server_build'])==d['server_build_sha256']
- for n,sha in d['source_server']['source_files'].items():assert digest(n)==sha,n
+ resolve=runpy.run_path(str(root/'scripts/resolve-evidence-history.py'))['resolve']
+ for n,sha in d['source_server']['source_files'].items():assert digest(resolve(n,sha))==sha,n
  chosen=d['runtimes']['diagnostic' if diagnostic else 'normal'];assert chosen['test_only_permissive_coreservices_policy']==diagnostic
  for v in chosen['source_runtime'].values():assert digest(v['path'])==v['sha256']
  assert digest(chosen['policy'])==chosen['policy_sha256']

@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-17T10:00:57.155778+00:00",
+  "checked_at": "2026-10-19T01:40:51.213453+00:00",
   "goal_status": "active",
   "complete": false,
   "full_xcode_build_ready": false,
@@ -15,7 +15,7 @@
   "authenticated_decryption_and_tamper_checks": true,
   "original_CommonCrypto_CoreUtils_cases": 852,
   "CoreUtils_assertions": 13385084,
-  "original_xcode_build_status_marker": null,
+  "original_xcode_build_status_marker": 65,
   "build_wrapper_exit_status": -9,
   "actual_project_compilation_started": false,
   "original_filecoordinationd_selected": true,
@@ -28,6 +28,8 @@
   "hardware_SecureEnclave_verified": false,
   "LocalAuthentication_implemented": false,
   "source_changes": "Real SHA3-224/256/384/512, Curve25519/Ed25519 backed by pinned no-C++-runtime BoringSSL in the source candidate; selected execution now uses matched complete original Apple CoreCrypto/CommonCrypto/CryptoKit/C bridge/CryptoTokenKit, unchanged cryptographic calls, with a leaf-only original typed-allocator fallback. Genuine native-valued Security/token/auth constants added in Darling source. Original Xcode binary unchanged.",
+  "previous_goal_turn_classification": "progress",
+  "current_goal_turn_classification": "progress",
   "source_runtime": {
     "LINUXCODE_DARLING_SERVER": {
       "path": "runtime/xpc-sent-message-source/darlingserver",
@@ -199,31 +201,31 @@
   },
   "current_candidate_runtime": {
     "LINUXCODE_DARLING_SERVER": {
-      "path": "runtime/swb-swift-logging-normal/darlingserver",
-      "sha256": "397b2bcfd8a738df994b9be605a8105edfe5604f11c5198086736c07d12a3661"
+      "path": "runtime/corpse-map-normal/darlingserver",
+      "sha256": "3311166caf61eba87decb184b18d948f57d582be6849b6eb0b92c6ac9930ce7d"
     },
     "LINUXCODE_LIBXPC": {
-      "path": "runtime/swb-swift-logging-normal/libxpc.dylib",
+      "path": "runtime/corpse-map-normal/libxpc.dylib",
       "sha256": "a57beb9995ede5c6eab09090fc7ba05de88d97b9158c52d9c9f839852116e3c9"
     },
     "LINUXCODE_LAUNCHD": {
-      "path": "runtime/swb-swift-logging-normal/launchd",
+      "path": "runtime/corpse-map-normal/launchd",
       "sha256": "3e25bf85f1ff43cb89f59f24c0b144875d95d855c1bfe373bc30c77f76f17a05"
     },
     "LINUXCODE_LIBSYSTEM_KERNEL": {
-      "path": "runtime/swb-swift-logging-normal/libsystem_kernel.dylib",
+      "path": "runtime/corpse-map-normal/libsystem_kernel.dylib",
       "sha256": "52b2ba39e0665f2d17a7dd97396f9fc87cb9947d999d90a3844a20204acf622f"
     },
     "LINUXCODE_QUARANTINE": {
-      "path": "runtime/swb-swift-logging-normal/libquarantine.dylib",
+      "path": "runtime/corpse-map-normal/libquarantine.dylib",
       "sha256": "f5d4ce528e6497057c2b5716d20f10a4a8fd63db2dce3245023a4311b93efac5"
     },
     "LINUXCODE_SANDBOX": {
-      "path": "runtime/swb-swift-logging-normal/libsystem_sandbox.dylib",
+      "path": "runtime/corpse-map-normal/libsystem_sandbox.dylib",
       "sha256": "29d0e03f98463ac1d908c81e3dedf5cb7c092c6d85bb647cf409e55122030242"
     },
     "LINUXCODE_LIBDYLD": {
-      "path": "runtime/swb-swift-logging-normal/libdyld.dylib",
+      "path": "runtime/corpse-map-normal/libdyld.dylib",
       "sha256": "6759bcb8d9383a4d1a4f1d38dcb0e39eac818d4d7d2c775db89a2f6d317c1032"
     }
   },
@@ -250,29 +252,69 @@
     }
   },
   "next_work": [
-    "Restore the genuine FSEventsGetCurrentEventId API and CoreServices umbrella export path required by original clang-stat-cache. Audit its other FSEvents imports and cache invalidation/replay semantics against actual Linux events; do not disable the cache, return a fabricated event ID or change the original build arguments.",
+    "Implement a genuine shared filesystem event source and global ID namespace. Connect current-ID queries and stream delivery to it; preserve explicit MustScanSubDirs/UserDropped when history or recursive coverage is unavailable. Current per-stream counters do not satisfy this API.",
+    "Retest the unchanged original clang-stat-cache on initial generation and cache reuse after real SDK mutations, then continue the original xcodebuild project through CompileC/SwiftCompile and linking. Audit the observed one-off shutdown failure if it recurs; a subsequent SDK-listing run exited cleanly.",
+    "Continue complete Unity/CocoaPods, iOS/macOS archives, signing and export; strict Sandbox enforcement and other original runtime/service gaps remain incomplete.",
     "Retry unchanged XcodeSmoke through actual CompileC/link and verify the produced program. Preserve real build-service task execution and inspect child environment selection as needed. CoreSimulator service bootstrap and CreatedByBuildSystem xattr warnings remain unresolved.",
     "Continue full Unity/CocoaPods, iOS/macOS archive, signing and export; complete restrictive Sandbox, startup volumes, actual RunningBoard monitoring and other recorded runtime gaps. Current original RSA verification is not a signing/keychain/provisioning completion claim.",
     "Audit the 28 missing legacy CoreCrypto private exports when exercised; signing, hardware/authentication and complete Xcode compilation remain unverified."
   ],
   "latest_original_xcode_probes": {
     "version": {
-      "report": "artifacts/xcode-service-runtime-swb-swift-logging-version-76aff2a5fc4a.json",
-      "sha256": "aebd762ddb4b9436fa46530cc7dd01360f56288ea4dce8a43c614187838b3236",
-      "exit_status": 0
+      "report": "artifacts/xcode-service-runtime-corpse-map-version-ff8bc230d149.json",
+      "sha256": "1d92066d1ed563c5ec1d983bf17ecbabe6566e5dd23dc95c937d4206fb227c20",
+      "exit_status": 0,
+      "UTI_preflight_verified": true,
+      "timeout_seconds": 40
     },
     "showsdks": {
-      "report": "artifacts/xcode-service-runtime-swb-swift-logging-showsdks-e15ef6cbe791.json",
-      "sha256": "c405c498ed9635080013c4375cf2e683e264e21bf09b5ab0e6d5717f2f899a70",
-      "exit_status": 0
+      "report": "artifacts/xcode-service-runtime-corpse-map-showsdks-f1e51b91f727.json",
+      "sha256": "cfd051a4892b46a8f937d409d6fd41f3b3677084888163dee16ed9a417afa3fd",
+      "exit_status": 0,
+      "UTI_preflight_verified": true,
+      "timeout_seconds": 120
+    },
+    "build": {
+      "report": "artifacts/xcode-service-runtime-corpse-map-diagnostic-build-7197c941f8f5.json",
+      "sha256": "43aee02b9399dc02c6a88e3481584aa1184dea43da0caac05850bf4544224d4e",
+      "exit_status": 65,
+      "UTI_preflight_verified": true,
+      "timeout_seconds": 180
     }
   },
   "latest_original_project": {
-    "report": "artifacts/xcode-service-runtime-swb-swift-logging-diagnostic-build-7658d962f551.json",
-    "sha256": "ac8adf79f0f9ce38d79c2adb1e2dc04af05aaa8bda0e2d2ac487d2b6dbca45da",
+    "report": "artifacts/xcode-service-runtime-corpse-map-diagnostic-build-7197c941f8f5.json",
+    "sha256": "43aee02b9399dc02c6a88e3481584aa1184dea43da0caac05850bf4544224d4e",
     "exit_status": 65,
-    "xcode_process_returned": true,
-    "UTI_preflight_verified": true
+    "UTI_preflight_verified": true,
+    "timeout_seconds": 180
+  },
+  "latest_source_recursive_history_fsevents": {
+    "checked_at": "2026-10-19T01:30:06.191139+00:00",
+    "library": "runtime/fsevents-history-source/frameworks/FSEvents.framework/Versions/A/FSEvents",
+    "library_sha256": "f96ec0682d67f4017aee2d0cd7a7ce60d5abf1c765f0c621aad7f0210b2ce562",
+    "original": "runtime/rootfs/usr/libexec/darling/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/FSEvents",
+    "original_sha256": "d52dd0314f0b76b3d72b41798c38318562ecfef53a52381c0b5cfc7e22a49c1e",
+    "full_FSEvents_source_component_build": true,
+    "complete_source_files": 2,
+    "original_exports_preserved": 29,
+    "source_exports": 59,
+    "sources": {
+      "vendor/darling/src/frameworks/CoreServices/src/FSEvents/FSEvents.m": "4a3a4af4ebd07b4668881ebb72ec11f3bbd06569f247cde6aca1ec1d0e18f037",
+      "vendor/darling/src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.m": "02b68997e8b280391065b3016d89dfeea740c895e031d16be6bfc4fbfc13614f"
+    },
+    "headers": {
+      "vendor/darling/src/frameworks/CoreServices/src/FSEvents/FSEventsImpl.h": "f64d9336e2dcc713df29d27246e557b7a9324051edebd0a02ad741fced4021f3",
+      "vendor/darling/src/frameworks/CoreServices/include/FSEvents/FSEvents.h": "3ac0ed820d2bd71c45608bf0bc13d05ffb6619a22745e0468efcd91d1d55a971",
+      "vendor/darling/src/frameworks/CoreServices/src/FSEvents/CMakeLists.txt": "5d24d5742143defc70c8deb082b7d2986a293cd78de8695b6cc4c78e038b2702"
+    },
+    "installed": false,
+    "runtime_execution_verified": false,
+    "flush_async_implemented": true,
+    "flush_sync_implemented": true,
+    "immutable_callback_batches": true,
+    "weak_source_contexts": true,
+    "scope": "Complete two-file source FSEvents with real nonblocking inotify reads, per-stream state queue, latency timer, immutable delivery batches and actual async/sync flush. Recursive coverage, persistent/global IDs, relative-device streams and some flags remain unsupported or unverified."
   },
   "checkpoint_note": "Selected fields from the local report, not a full artifact archive; see local-evidence-index.json."
 }

@@ -1,0 +1,25 @@
+{
+  "checked_at": "2026-10-19T01:13:05.172866+00:00",
+  "original_consumer": "runtime/state/prefix/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache",
+  "original_consumer_sha256": "8dceb1fb3703f1e8518a2a993f2799c79f20bcf68f9cdd596e97a66a5c679b94",
+  "original_binary_unchanged": true,
+  "architecture": "x86_64",
+  "callback_history_done_flag_test": 16,
+  "callback_marks_other_events_as_changes": true,
+  "native_main_dispatch_queue_and_CFRunLoopRun_wait_verified": true,
+  "native_history_done_stops_current_CFRunLoop_verified": true,
+  "disassembly": "logs/stat-cache-fsevents-consumer-disassembly.log",
+  "disassembly_sha256": "e650e6e4367cd41c6ef48b7439ba7177b1b1f2958001db3f0157635b7b7dc20c",
+  "primary_reference": "https://lists.llvm.org/pipermail/cfe-commits/Week-of-Mon-20230116/456171.html",
+  "reference_scope": "Historical LLVM implementation explains the protocol; the exact current Intel consumer is independently checked above.",
+  "next_required_module": "A real shared event source and global IDs; recursive monitoring and explicit unavailable-history replay must not be mistaken for that module.",
+  "global_ids_implemented": false,
+  "original_stat_cache_execution_succeeded": false,
+  "native_FSEvents_imports": [
+    "_FSEventStreamCreate",
+    "_FSEventStreamSetDispatchQueue",
+    "_FSEventStreamStart",
+    "_FSEventsGetCurrentEventId"
+  ],
+  "checkpoint_note": "Selected fields from the local report, not a full artifact archive; see local-evidence-index.json."
+}

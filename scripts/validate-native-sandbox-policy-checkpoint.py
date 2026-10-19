@@ -32,7 +32,13 @@ assert mobileasset_query['actual_query_test_peer_requests']==48
 assert mobileasset_query['source_query_async_uses_sync_wire_on_dispatch_worker']
 assert not mobileasset_query['actual_project_compilation_started'] and not mobileasset_query['asset_download_implemented']
 assert primary['xpc_activation_materialize_progress']==xpc_materialize
-assert primary['current_candidate_runtime']==icu_signal['source_runtime']
+fsevents_history=read('artifacts/fsevents-history-progress.json')
+assert primary['fsevents_history_progress']==fsevents_history
+assert primary['current_candidate_runtime']==fsevents_history['source_runtime']
+assert fsevents_history['main_queue_CFRunLoop_history_consumer_terminates']
+assert fsevents_history['corpse_map_native_checks']==1808
+assert not fsevents_history['global_event_ids_implemented']
+assert not fsevents_history['original_project_build_succeeded']
 assert xpc_materialize['real_unknown_service_invalid_event_and_sync_async_errors_verified']
 assert xpc_materialize['native_thread_materialization_checks']==1066
 assert xpc_materialize['original_filecoordinationd_granted_actual_Xcode_claims']>=2
@@ -76,9 +82,9 @@ resolve=runpy.run_path(str(root/'scripts/resolve-evidence-history.py'))['resolve
 def verify_old(name,sha):
     selected=resolve(name,sha)
     assert digest(selected)==sha,name
-for report in [primary,icu_signal]:
+for report in [primary]:
     for name,sha in report['evidence'].items():assert digest(name)==sha,name
-for report in [old_primary,old_directory,previous_policy_primary,previous_launchd_primary,phase,launchd,fs,current,disk,power,matching,mounts,s2c,xpc_materialize,mobileasset_query]:
+for report in [icu_signal,old_primary,old_directory,previous_policy_primary,previous_launchd_primary,phase,launchd,fs,current,disk,power,matching,mounts,s2c,xpc_materialize,mobileasset_query]:
     for name,sha in report['evidence'].items():verify_old(name,sha)
 scripts = {name for name in primary['evidence'] if name.endswith('.py')}
 scripts.add('scripts/validate-native-sandbox-policy-checkpoint.py')

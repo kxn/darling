@@ -1,8 +1,8 @@
 {
   "native-crypto-progress.json": {
     "local_path": "artifacts/native-crypto-progress.json",
-    "sha256": "5fb9f68d2fee9c0e244c34f0b8288fdf91dceee87841e5e29302678a99394eb1",
-    "bytes": 19949336,
+    "sha256": "03060881cad0bddaa0af197085c31f05ee4cb0b2c48d44d3cf629a96c7a1c5f6",
+    "bytes": 20876741,
     "full_report_included": false
   },
   "icu-signal-progress.json": {
@@ -23,9 +23,27 @@
     "bytes": 4133159,
     "full_report_included": false
   },
+  "fsevents-history-progress.json": {
+    "local_path": "artifacts/fsevents-history-progress.json",
+    "sha256": "edde041d07f60cb35445f57b68e37ce030b7a31dec743849a471ccefbb2323f2",
+    "bytes": 877846,
+    "full_report_included": false
+  },
+  "corpse-map-native-errors.json": {
+    "local_path": "artifacts/corpse-map-native-errors.json",
+    "sha256": "85ae0038734db55f518576594c841a1642dc9a83f684efad24706271bcf60049",
+    "bytes": 15479,
+    "full_report_included": false
+  },
+  "stat-cache-fsevents-consumer-audit.json": {
+    "local_path": "artifacts/stat-cache-fsevents-consumer-audit.json",
+    "sha256": "e3829f33941f2cb8ac0df02995fd9aa6c6f912f743b613604538a2a1a60119e7",
+    "bytes": 1421,
+    "full_report_included": false
+  },
   "native-sandbox-policy-checkpoint-validation.json": {
     "local_path": "artifacts/native-sandbox-policy-checkpoint-validation.json",
-    "sha256": "6ec8eb5e89912cdf16cbfa96c713230a8c552297488a30ad192aa88b2d8bd1e1",
+    "sha256": "7791fe05f8d5d68eace81de3a648e51ba64115877e65fd876d24998f17b249be",
     "bytes": 2145,
     "full_report_included": false
   }
