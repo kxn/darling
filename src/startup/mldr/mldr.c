@@ -806,6 +806,7 @@ void __mldr_close_process_lifetime_pipe(int fd) {
 }
 
 static void setup_space(struct load_results* lr, bool is_64_bit) {
+	commpage_set_initial_stack(mldr_load_results.argv - 1);
 	commpage_setup(is_64_bit);
 
 	// Using the default stack top would cause the stack to be placed just above the commpage
@@ -906,12 +907,17 @@ static void setup_space(struct load_results* lr, bool is_64_bit) {
 static void start_thread(struct load_results* lr) {
 #ifdef __x86_64__
 	__asm__ volatile(
-		"mov %1, %%rsp\n"
-		"jmpq *%0"
+		"mov %0, %%r12\n"
+		"mov %1, %%r13\n"
+		"mov %%r13, %%rsp\n"
+		"and $-16, %%rsp\n"
+		"call commpage_finalize\n"
+		"mov %%r13, %%rsp\n"
+		"jmpq *%%r12"
 		::
-		"m"(lr->entry_point),
+		"r"(lr->entry_point),
 		"r"(lr->stack_top)
-		:
+		: "r12", "r13", "memory"
 	);
 #elif defined(__i386__)
 	__asm__ volatile(

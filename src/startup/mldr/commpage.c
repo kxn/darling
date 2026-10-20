@@ -17,6 +17,52 @@ static const char* SIGNATURE32 = "commpage 32-bit";
 static const char* SIGNATURE64 = "commpage 64-bit";
 
 static uint64_t get_cpu_caps(void);
+static void* pending_commpage;
+static void* pending_address;
+static size_t pending_length;
+static const void* initial_stack;
+
+void commpage_set_initial_stack(const void* address)
+{
+	initial_stack = address;
+}
+
+/* Linux may place its initial stack over Darwin's fixed commpage address.
+ * Only its unused portion below argc can be retired after switching stacks.
+ * Never replace an unrelated mapping or the argument/environment/auxv area. */
+static bool is_retired_initial_stack(void* address, size_t length,
+                                    const void* initial_stack)
+{
+	FILE* maps = fopen("/proc/self/maps", "r");
+	if (!maps) return false;
+	char line[4096];
+	bool result = false;
+	uintptr_t first = (uintptr_t)address, last = first + length;
+	while (fgets(line, sizeof(line), maps)) {
+		unsigned long low, high;
+		if (sscanf(line, "%lx-%lx", &low, &high) == 2 &&
+		    strstr(line, "[stack]") && first >= low && last <= high &&
+		    last <= (uintptr_t)initial_stack) {
+			result = true;
+			break;
+		}
+	}
+	fclose(maps);
+	return result;
+}
+
+void commpage_finalize(void)
+{
+	if (!pending_commpage) return;
+	/* The caller now uses the Darwin stack; no live Linux frame is replaced. */
+	void* result = mremap(pending_commpage, pending_length, pending_length,
+	                     MREMAP_MAYMOVE | MREMAP_FIXED, pending_address);
+	if (result == MAP_FAILED) {
+		fprintf(stderr, "Cannot install fixed commpage: %s\n", strerror(errno));
+		exit(1);
+	}
+	pending_commpage = NULL;
+}
 
 #define CGET(p) (commpage + ((p)-_COMM_PAGE_START_ADDRESS))
 
@@ -39,6 +85,18 @@ void commpage_setup(bool _64bit)
 	{
 		fprintf(stderr, "Cannot mmap commpage: %s\n", strerror(errno));
 		exit(1);
+	}
+
+	void* address = (void*)(_64bit ? _COMM_PAGE64_BASE_ADDRESS : _COMM_PAGE32_BASE_ADDRESS);
+	size_t length = _64bit ? _COMM_PAGE64_AREA_LENGTH : _COMM_PAGE32_AREA_LENGTH;
+	if (commpage != address) {
+		if (!is_retired_initial_stack(address, length, initial_stack)) {
+			fprintf(stderr, "Fixed commpage address is occupied by a live mapping\n");
+			exit(1);
+		}
+		pending_commpage = commpage;
+		pending_address = address;
+		pending_length = length;
 	}
 
 	signature = (char*)CGET(_COMM_PAGE_SIGNATURE);

@@ -8,6 +8,8 @@ extern "C" {
 #endif
 
 void commpage_setup(bool _64bit);
+void commpage_set_initial_stack(const void* address);
+void commpage_finalize(void);
 unsigned long commpage_address(bool _64bit);
 
 union cpu_flags1 {
