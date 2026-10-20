@@ -9,6 +9,7 @@ add_darling_library(system_networkextension
     SHARED
         ne_session.c
         NEHelperClient.c
+        ne_agent_constants.c
 )
 target_link_libraries(system_networkextension
     PRIVATE
