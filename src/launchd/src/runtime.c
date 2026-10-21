@@ -1038,6 +1038,8 @@ launchd_runtime2(mach_msg_size_t msg_size)
 			xpc_object_t reply = NULL;
 			if (launchd_service_stats_demux(request, &reply)) {
 				handled = true;
+			} else if (xpc_launch_job_demux(recvp, request, &reply)) {
+				handled = true;
 			} else if (xpc_service_demux(recvp, request, &reply)) {
 				handled = true;
 			} else if (xpc_event_demux(recvp, request, &reply)) {

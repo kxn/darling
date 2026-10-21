@@ -564,6 +564,8 @@ struct job_s {
 	uint32_t start_interval;
 	uint32_t peruser_suspend_count;
 	uuid_t instance_id;
+	/* Modern launch-job handles are per-job identities, not process IDs. */
+	uuid_t launch_job_handle;
 	mode_t mask;
 	mach_port_t asport;
 	au_asid_t asid;
@@ -11435,6 +11437,136 @@ xpc_process_demux(mach_port_t p, xpc_object_t request, xpc_object_t *reply)
 		*reply = reply2;
 	}
 
+	return true;
+}
+
+/* Convert property-list values only. Ports, file descriptors and arbitrary
+ * XPC objects are not launchd.plist values. Bound recursion and total nodes
+ * before handing the result to the existing legacy importer. */
+static launch_data_t
+launch_job_plist(xpc_object_t value, unsigned depth, size_t *remaining)
+{
+	if (!value || depth > 32 || !*remaining) { errno = EINVAL; return NULL; }
+	--*remaining;
+	xpc_type_t type = xpc_get_type(value);
+	if (type == XPC_TYPE_STRING) return launch_data_new_string(xpc_string_get_string_ptr(value));
+	if (type == XPC_TYPE_BOOL) return launch_data_new_bool(xpc_bool_get_value(value));
+	if (type == XPC_TYPE_INT64) return launch_data_new_integer(xpc_int64_get_value(value));
+	if (type == XPC_TYPE_UINT64) {
+		uint64_t number = xpc_uint64_get_value(value);
+		if (number > INT64_MAX) { errno = EINVAL; return NULL; }
+		return launch_data_new_integer(number);
+	}
+	if (type == XPC_TYPE_DOUBLE) return launch_data_new_real(xpc_double_get_value(value));
+	if (type == XPC_TYPE_DATA) return launch_data_new_opaque(xpc_data_get_bytes_ptr(value), xpc_data_get_length(value));
+	launch_data_t result = NULL;
+	if (type == XPC_TYPE_ARRAY) {
+		result = launch_data_alloc(LAUNCH_DATA_ARRAY);
+		if (!result) return NULL;
+		for (size_t i = 0; i < xpc_array_get_count(value); ++i) {
+			launch_data_t child = launch_job_plist(xpc_array_get_value(value, i), depth + 1, remaining);
+			if (!child || !launch_data_array_set_index(result, child, i)) {
+				if (child) launch_data_free(child);
+				launch_data_free(result);
+				return NULL;
+			}
+		}
+		return result;
+	}
+	if (type == XPC_TYPE_DICTIONARY) {
+		result = launch_data_alloc(LAUNCH_DATA_DICTIONARY);
+		if (!result) return NULL;
+		__block bool valid = true;
+		xpc_dictionary_apply(value, ^bool(const char *key, xpc_object_t item) {
+			launch_data_t child = launch_job_plist(item, depth + 1, remaining);
+			if (!child || !launch_data_dict_insert(result, child, key)) {
+				if (child) launch_data_free(child);
+				valid = false;
+			}
+			return valid;
+		});
+		if (!valid) { launch_data_free(result); return NULL; }
+		return result;
+	}
+	errno = EINVAL;
+	return NULL;
+}
+
+static job_t
+launch_job_find_handle(const unsigned char *handle)
+{
+	if (!handle || uuid_is_null(handle)) return NULL;
+	job_t j;
+	LIST_FOREACH(j, &root_jobmgr->jobs, sle) {
+		if (!j->removal_pending && !uuid_compare(j->launch_job_handle, handle)) return j;
+	}
+	return NULL;
+}
+
+bool
+xpc_launch_job_demux(mach_port_t port, xpc_object_t request, xpc_object_t *reply)
+{
+	(void)port;
+	if (xpc_dictionary_get_uint64(request, "subsystem") != 10) return false;
+	*reply = xpc_dictionary_create_reply(request);
+	if (!*reply) return true;
+	audit_token_t token;
+	xpc_dictionary_get_audit_token(request, &token);
+	runtime_record_caller_creds(&token);
+	struct ldcred *credentials = runtime_get_caller_creds();
+	uint64_t routine = xpc_dictionary_get_uint64(request, "routine");
+	int error = 0;
+	job_t target = NULL;
+	/* This first implementation serves the System domain of this launchd
+ * instance. Other domains and monitored submissions need separate support. */
+	if (!token.val[5] || token.val[5] == UINT32_MAX || credentials->euid != 0) error = EPERM;
+	else if (routine != 1005 && routine != 1011 && routine != 1006 && routine != 1003) error = ENOTSUP;
+	else if (routine == 1005 || routine == 1011) {
+		if (xpc_get_type(xpc_dictionary_get_value(request, "type")) != XPC_TYPE_UINT64 ||
+		    xpc_get_type(xpc_dictionary_get_value(request, "handle")) != XPC_TYPE_UINT64) error = EINVAL;
+		else if (xpc_dictionary_get_uint64(request, "type") != 1 ||
+		         xpc_dictionary_get_uint64(request, "handle") != 0) error = ENOTSUP;
+		else if (routine == 1005) {
+			const char *label = xpc_dictionary_get_string(request, "label");
+			if (!label || !*label || strlen(label) >= sizeof(name_t)) error = EINVAL;
+			else if (!(target = job_find(root_jobmgr, label)) || target->mgr != root_jobmgr) error = ESRCH;
+		} else {
+			xpc_object_t plist = xpc_dictionary_get_value(request, "plist");
+			xpc_object_t monitor = xpc_dictionary_get_value(request, "monitor");
+			if (xpc_get_type(plist) != XPC_TYPE_DICTIONARY || (monitor && xpc_get_type(monitor) != XPC_TYPE_BOOL)) error = EINVAL;
+			else if (monitor && xpc_bool_get_value(monitor)) error = ENOTSUP;
+#if HAVE_SANDBOX
+			else if (sandbox_check_by_audit_token(token, "job-creation", SANDBOX_FILTER_NONE) != 0) error = EPERM;
+#endif
+			else {
+				size_t remaining = 4096;
+				errno = 0;
+				launch_data_t data = launch_job_plist(plist, 0, &remaining);
+				if (!data) error = errno ?: ENOMEM;
+				else {
+					target = job_import(data);
+					if (!target) error = errno ?: EINVAL;
+					launch_data_free(data);
+				}
+			}
+		}
+	} else {
+		const unsigned char *handle = xpc_dictionary_get_uuid(request, "job-handle");
+		if (!handle) error = EINVAL;
+		else if (!(target = launch_job_find_handle(handle))) error = ESRCH;
+	}
+	if (!error && (target->anonymous || target->alias)) error = ENOTSUP;
+	if (!error) {
+		if (uuid_is_null(target->launch_job_handle)) uuid_generate(target->launch_job_handle);
+		xpc_dictionary_set_uuid(*reply, "job-handle", target->launch_job_handle);
+		if (routine == 1006) {
+			target->unthrottle = true;
+			job_t started = job_dispatch(target, true);
+			if (!started || !started->p) error = EAGAIN;
+			else xpc_dictionary_set_int64(*reply, "pid", started->p);
+		} else if (routine == 1003) job_remove(target);
+	}
+	xpc_dictionary_set_int64(*reply, "error", error);
 	return true;
 }
 
