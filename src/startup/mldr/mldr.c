@@ -79,6 +79,7 @@ static void start_thread(struct load_results* lr);
 static bool is_kernel_at_least(int major, int minor);
 static void* compatible_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
 #include "main-stack.h"
+#include "initial-stack.h"
 #ifdef __x86_64__
 static void setup_stack64(const char* filepath, struct load_results* lr);
 #endif
@@ -101,6 +102,7 @@ static const char* const skip_env_vars[] = {
 	"__mldr_bprefs=",
 	"__mldr_sockpath=",
 	"__mldr_lifetime_pipe",
+	"__mldr_stack_attempt=",
 };
 
 void* __mldr_main_stack_top = NULL;
@@ -110,6 +112,12 @@ static int kernel_minor = -1;
 
 int main(int argc, char** argv, char** envp)
 {
+	if (argc > 0 && mldr_prepare_initial_stack(argv,
+			commpage_address(sizeof(void*) == 8),
+			commpage_area_length(sizeof(void*) == 8)) < 0) {
+		fprintf(stderr, "Cannot obtain a Linux initial stack clear of the fixed commpage: %s\n", strerror(errno));
+		return 1;
+	}
 	void** sp;
 	int pushCount = 0;
 	char *filename, *p = NULL;
@@ -224,6 +232,7 @@ int main(int argc, char** argv, char** envp)
 		if (
 			ENV_VAR_MATCHES("__mldr_bprefs=")   ||
 			ENV_VAR_MATCHES("__mldr_sockpath=")
+			|| ENV_VAR_MATCHES("__mldr_stack_attempt=")
 		) {
 			size_t len_after = 0;
 			const char* orig_envp_i_plus_one = mldr_load_results.envp[i + 1];
