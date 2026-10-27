@@ -8,6 +8,7 @@ set(DYLIB_INSTALL_NAME "/usr/lib/system/libsystem_networkextension.dylib")
 add_darling_library(system_networkextension
     SHARED
         ne_session.c
+        ne_session_config.c
         NEHelperClient.c
         ne_agent_constants.c
 )
@@ -15,6 +16,8 @@ target_link_libraries(system_networkextension
     PRIVATE
         system_c
         system_dyld
+        system_notify
+        system_pthread
 )
 make_fat(system_networkextension)
 
