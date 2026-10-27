@@ -78,6 +78,7 @@ static void process_special_env(struct load_results* lr);
 static void start_thread(struct load_results* lr);
 static bool is_kernel_at_least(int major, int minor);
 static void* compatible_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+#include "main-stack.h"
 #ifdef __x86_64__
 static void setup_stack64(const char* filepath, struct load_results* lr);
 #endif
@@ -828,7 +829,10 @@ static void setup_space(struct load_results* lr, bool is_64_bit) {
 		size = limit.rlim_cur;
 	}
 
-	if (compatible_mmap((void*)(lr->stack_top - size), size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE | MAP_GROWSDOWN, -1, 0) == MAP_FAILED) {
+	/* Keep a useful lazy reservation if the preferred address is occupied.
+	 * Unlimited stacks start with 64 MiB and retain MAP_GROWSDOWN semantics. */
+	size_t capacity = limit.rlim_cur == RLIM_INFINITY ? 64UL * 1024 * 1024 : limit.rlim_cur;
+	if (mldr_allocate_main_stack(&lr->stack_top, size, capacity, compatible_mmap) == MAP_FAILED) {
 		fprintf(stderr, "Failed to allocate stack of %lu bytes: %d (%s)\n", size, errno, strerror(errno));
 		exit(1);
 	}
