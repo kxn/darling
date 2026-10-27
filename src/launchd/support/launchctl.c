@@ -29,6 +29,7 @@
 #include "launch_internal.h"
 
 #include <CoreFoundation/CoreFoundation.h>
+#include "launchctl-cfstring.h"
 #include <CoreFoundation/CFPriv.h>
 #include <CoreFoundation/CFLogUtilities.h>
 #include <TargetConditionals.h>
@@ -2006,10 +2007,11 @@ CF2launch_data(CFTypeRef cfr)
 	CFTypeID cft = CFGetTypeID(cfr);
 
 	if (cft == CFStringGetTypeID()) {
-		char buf[4096];
-		CFStringGetCString(cfr, buf, sizeof(buf), kCFStringEncodingUTF8);
+		char *buf = launchctl_copy_cfstring(cfr);
+		if (!buf) return NULL;
 		r = launch_data_alloc(LAUNCH_DATA_STRING);
 		launch_data_set_string(r, buf);
+		free(buf);
 	} else if (cft == CFBooleanGetTypeID()) {
 		r = launch_data_alloc(LAUNCH_DATA_BOOL);
 		launch_data_set_bool(r, CFBooleanGetValue(cfr));
