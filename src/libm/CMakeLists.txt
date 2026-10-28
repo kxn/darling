@@ -55,7 +55,6 @@ if (TARGET_i386 OR TARGET_x86_64)
 		Source/Intel/xmm_erfgamma.c
 		Source/Intel/xmm_exp.c
 		Source/Intel/xmm_fma.c
-		Source/Intel/xmm_log.c
 		Source/Intel/xmm_misc.c
 		Source/Intel/xmm_nextafter.c
 		Source/Intel/xmm_power.c
@@ -108,7 +107,7 @@ if (TARGET_i386 OR TARGET_x86_64)
 		Source/Intel/log2f.S
 		Source/Intel/log2.S
 		Source/Intel/logf.S
-		#Source/Intel/log.S
+		Source/Intel/log.S
 		Source/Intel/lrintl.S
 		Source/Intel/lroundf.S
 		Source/Intel/lroundl.S
