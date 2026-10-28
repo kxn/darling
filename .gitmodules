@@ -293,7 +293,7 @@
 	url = https://github.com/darlinghq/lzfse.git
 [submodule "src/external/OpenDirectory"]
 	path = src/external/OpenDirectory
-	url = https://github.com/darlinghq/darling-opendirectory.git
+	url = https://github.com/kxn/darling-opendirectory.git
 [submodule "src/external/iokitd"]
 	path = src/external/iokitd
 	url = https://github.com/kxn/darling-iokitd.git
